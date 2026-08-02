@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <InsightCanvas_ReducedMotion>Reduce animation</InsightCanvas_ReducedMotion>
+  <InsightCanvas_ReducedMotionTip>Disable motion once a transition settles and prefer immediate state changes.</InsightCanvas_ReducedMotionTip>
+  <InsightCanvas_HighContrast>High contrast</InsightCanvas_HighContrast>
+  <InsightCanvas_ColorBlind>Color-blind friendly palette</InsightCanvas_ColorBlind>
+  <InsightCanvas_Diagnostics>Show performance diagnostics</InsightCanvas_Diagnostics>
+  <InsightCanvas_PreserveMapWindow>Keep the window open after map actions</InsightCanvas_PreserveMapWindow>
+  <InsightCanvas_NodeBudget>Graph node budget: {0}</InsightCanvas_NodeBudget>
+  <InsightCanvas_EdgeBudget>Graph edge budget: {0}</InsightCanvas_EdgeBudget>
+  <InsightCanvas_OpenLaboratory>Open Insight Canvas Laboratory</InsightCanvas_OpenLaboratory>
+  <InsightCanvas_NoComponents>No visualization components have been added.</InsightCanvas_NoComponents>
+  <InsightCanvas_CardOverview>Entity overview</InsightCanvas_CardOverview>
+  <InsightCanvas_Compact>Compact</InsightCanvas_Compact>
+  <InsightCanvas_Expand>Expanded</InsightCanvas_Expand>
+  <InsightCanvas_UnknownEntity>Unknown entity</InsightCanvas_UnknownEntity>
+  <InsightCanvas_Unidentified>Identity is not disclosed</InsightCanvas_Unidentified>
+  <InsightCanvas_NoMatches>No matching entities.</InsightCanvas_NoMatches>
+  <InsightCanvas_NoMetrics>No visible metrics</InsightCanvas_NoMetrics>
+  <InsightCanvas_Constellation>Living constellation</InsightCanvas_Constellation>
+  <InsightCanvas_Fit>Fit all</InsightCanvas_Fit>
+  <InsightCanvas_Focus>Focus</InsightCanvas_Focus>
+  <InsightCanvas_Layouting>Refining layout...</InsightCanvas_Layouting>
+  <InsightCanvas_NoRelationships>No relationships are visible at this disclosure level.</InsightCanvas_NoRelationships>
+  <InsightCanvas_Cluster>cluster</InsightCanvas_Cluster>
+  <InsightCanvas_GraphHint>Middle-drag to pan, wheel to zoom, click a node to share selection</InsightCanvas_GraphHint>
+  <InsightCanvas_Explanation>Why this value?</InsightCanvas_Explanation>
+  <InsightCanvas_SelectEntity>Select an entity to inspect its derivation.</InsightCanvas_SelectEntity>
+  <InsightCanvas_NoExplanation>No structured explanation is available for this entity.</InsightCanvas_NoExplanation>
+  <InsightCanvas_Approximate>approximate</InsightCanvas_Approximate>
+  <InsightCanvas_ExactValuesHidden>Exact values are hidden at this disclosure level.</InsightCanvas_ExactValuesHidden>
+  <InsightCanvas_DerivationMismatch>The declared result differs from the calculated steps.</InsightCanvas_DerivationMismatch>
+  <InsightCanvas_CausalFactorsHidden>Causal factors are not yet disclosed.</InsightCanvas_CausalFactorsHidden>
+  <InsightCanvas_EventRiver>Event river</InsightCanvas_EventRiver>
+  <InsightCanvas_AllTime>All time</InsightCanvas_AllTime>
+  <InsightCanvas_ZoomIn>Zoom in</InsightCanvas_ZoomIn>
+  <InsightCanvas_ZoomOut>Zoom out</InsightCanvas_ZoomOut>
+  <InsightCanvas_NoEvents>No events fall inside this time range.</InsightCanvas_NoEvents>
+  <InsightCanvas_Events>events</InsightCanvas_Events>
+  <InsightCanvas_UnknownEvent>unknown event</InsightCanvas_UnknownEvent>
+  <InsightCanvas_NoSelection>No entity selected</InsightCanvas_NoSelection>
+  <InsightCanvas_Selected>Selected: {0}</InsightCanvas_Selected>
+  <InsightCanvas_Reset>Reset</InsightCanvas_Reset>
+  <InsightCanvas_Tools>Tools</InsightCanvas_Tools>
+  <InsightCanvas_LaboratoryTools>Laboratory tools</InsightCanvas_LaboratoryTools>
+  <InsightCanvas_ToolsSubtitle>Theme, layout, interaction, and stress previews</InsightCanvas_ToolsSubtitle>
+  <InsightCanvas_ThemePreview>Theme preview and XML editor</InsightCanvas_ThemePreview>
+  <InsightCanvas_ApplyTheme>Apply theme</InsightCanvas_ApplyTheme>
+  <InsightCanvas_ResetTheme>Reset theme</InsightCanvas_ResetTheme>
+  <InsightCanvas_AccessibilityPreview>Motion and disclosure preview</InsightCanvas_AccessibilityPreview>
+  <InsightCanvas_DisclosurePreview>Disclosure</InsightCanvas_DisclosurePreview>
+  <InsightCanvas_ResolutionPreview>Resolution and UI-scale simulation</InsightCanvas_ResolutionPreview>
+  <InsightCanvas_InteractionInspector>Interaction and event inspector</InsightCanvas_InteractionInspector>
+  <InsightCanvas_StressDatasets>Stress datasets</InsightCanvas_StressDatasets>
+  <InsightCanvas_OpenGraphStress>Open graph stress view</InsightCanvas_OpenGraphStress>
+  <InsightCanvas_OpenTimelineStress>Open timeline stress view</InsightCanvas_OpenTimelineStress>
+  <InsightCanvas_FocusTip>Focus the associated map or world target.</InsightCanvas_FocusTip>
+  <InsightCanvas_Select>Select object</InsightCanvas_Select>
+  <InsightCanvas_PreviewMap>Preview map link</InsightCanvas_PreviewMap>
+  <InsightCanvas_ShowArea>Show associated area</InsightCanvas_ShowArea>
+  <InsightCanvas_ShowRadius>Show radius</InsightCanvas_ShowRadius>
+  <InsightCanvas_ShowPath>Show path</InsightCanvas_ShowPath>
+  <InsightCanvas_Compare>Compare</InsightCanvas_Compare>
+  <InsightCanvas_Map>map</InsightCanvas_Map>
+</LanguageData>

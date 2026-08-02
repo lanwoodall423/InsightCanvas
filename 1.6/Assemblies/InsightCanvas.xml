@@ -1,0 +1,361 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>InsightCanvas</name>
+    </assembly>
+    <members>
+        <member name="T:InsightCanvas.InsightCanvasHost">
+            <summary>
+            Embeds the retained Insight Canvas view inside a host window such as a RimWorld main tab.
+            The host owns the immutable snapshot boundary and shared interaction state; it does not query game state.
+            </summary>
+        </member>
+        <member name="M:InsightCanvas.InsightCanvasHost.Draw(UnityEngine.Rect,System.Single)">
+            <summary>Draws the retained view using a stable model snapshot for this frame.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightCanvasHost.PostClose">
+            <summary>Clears temporary map previews owned by the embedded view.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightCanvasSettings">
+            <summary>Optional user-facing accessibility and performance preferences.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightCanvasMod">
+            <summary>Mod entry point. Insight Canvas deliberately has no Harmony dependency.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightCanvasMod.OpenLaboratory">
+            <summary>Opens the independent workbench using its deterministic mock dataset.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightCardGrid">
+            <summary>Responsive, virtualized entity card overview.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightConstellation">
+            <summary>Interactive relationship graph with incremental deterministic layout.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightDisclosure">
+            <summary>
+            Describes which fields a viewer is allowed to see. The framework does not prescribe rank names or count.
+            </summary>
+        </member>
+        <member name="T:InsightCanvas.IDisclosureProvider">
+            <summary>Supplies disclosure information for entity ids. Implement this in knowledge-driven mods.</summary>
+        </member>
+        <member name="T:InsightCanvas.DelegateDisclosureProvider">
+            <summary>A provider backed by a callback, useful for transient knowledge or preview modes.</summary>
+        </member>
+        <member name="T:InsightCanvas.TieredDisclosureProvider">
+            <summary>
+            A generic ordered preview provider. Its labels and disclosure flags are supplied by the caller, not fixed by
+            Insight Canvas, so a dependent mod can map its own epistemic system onto the renderer.
+            </summary>
+        </member>
+        <member name="T:InsightCanvas.InsightContext">
+            <summary>Shared interaction state for all components in a view.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightContext.Compare(System.String)">
+            <summary>Sets a second entity for comparison without changing the primary selection.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightContext.ClearComparison">
+            <summary>Clears the secondary comparison target.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightContext.NotifyDisclosureChanged">
+            <summary>Invalidates cached disclosure after a provider changes its internal level.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightEventRiver">
+            <summary>Zoomable event timeline with deterministic low-zoom clustering and metric tracks.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightExplanationSegmentKind">
+            <summary>Semantic step in a value derivation.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightExplanationSegment">
+            <summary>A calculated waterfall segment. Before/After are suitable for either bars or text.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightExplanationResult">
+            <summary>Calculated explanation data and a generated plain-language summary.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightExplanation">
+            <summary>Structured derivation built through Explain.Value.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Base(System.Single)">
+            <summary>Sets the starting value.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Factor(System.String,System.Single,System.Single,System.Boolean)">
+            <summary>Multiplies the running value by a named factor.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Add(System.String,System.Single,System.Single,System.Boolean)">
+            <summary>Adds a named additive adjustment.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Clamp(System.String,System.Single,System.Single)">
+            <summary>Clamps the running value and records the reason as a cap or floor.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Requirement(System.String,System.Boolean,System.String)">
+            <summary>Records a requirement without hiding the rest of the derivation.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Uncertain(System.Single,System.Single,System.Single,System.String)">
+            <summary>Records an uncertain result range and confidence.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightExplanation.Calculate">
+            <summary>Calculates the waterfall and summary without touching game state.</summary>
+        </member>
+        <member name="T:InsightCanvas.Explain">
+            <summary>Entry point for readable value derivations.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightExplanationPanel">
+            <summary>Interactive waterfall and plain-language explanation for the shared selection.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightGraphLayoutResult">
+            <summary>Deterministic graph positions and layout metadata.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightGraphLayoutSession">
+            <summary>Incremental, snapshot-only layout session suitable for a frame budget.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightGraphLayoutSession.Step(System.Int32)">
+            <summary>Runs at most the requested number of relaxation passes.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightGraphLayout">
+            <summary>Graph layout entry point with deterministic cached-friendly results.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLaboratory">
+            <summary>Deterministic mock application used as the installed mod's first-release workbench.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightLaboratory.CreateDemoModel">
+            <summary>Builds a stable ecology and lineage dataset without querying a map during repaint.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightLaboratory.CreateStressModel(System.Int32,System.Int32)">
+            <summary>Creates a bounded deterministic dataset for graph and timeline stress checks.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLaboratoryToolsWindow">
+            <summary>Secondary laboratory inspector for theme, layout, accessibility, and stress previews.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightRect">
+            <summary>Unity-free rectangle used by the retained layout layer.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLengthKind">
+            <summary>How a dimension participates in responsive allocation.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightAlignment">
+            <summary>Alignment used when a child does not consume its full allocated slot.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightOverflow">
+            <summary>Overflow policy selected by a retained container.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightOverflowLayout">
+            <summary>Viewport/content pair for scroll and clip containers.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLength">
+            <summary>One responsive dimension.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLayoutSpec">
+            <summary>Minimum, preferred, and flexible sizing hints for one retained component.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLayoutBox">
+            <summary>Identifies the resulting rectangle in a layout pass.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLayout">
+            <summary>Responsive row, column, grid, overlay, and padding math.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightLayoutCache">
+            <summary>Explicitly invalidated cache for measured component geometry.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightMapReference">
+            <summary>Temporary map target information attached to an entity or event.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightMapBridge">
+            <summary>
+            Creates safe standard actions for map and world references. Overlay requests are temporary and owned by the
+            source window, so a closed view cannot leave permanent map drawing behind.
+            </summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.RegisterLink(System.String,InsightCanvas.InsightMapReference)">
+            <summary>Registers a transient id that can be used by an InsightEvent.MapLinkId.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.ResolveLink(System.String)">
+            <summary>Resolves a previously registered event map link.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.UnregisterLink(System.String)">
+            <summary>Removes a transient event map link.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Focus(System.String,InsightCanvas.InsightMapReference,System.Boolean)">
+            <summary>Creates a focus-and-select action for a reference.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Select(System.String,InsightCanvas.InsightMapReference)">
+            <summary>Creates a selection-only action for a live Thing or world object.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Flash(System.String,InsightCanvas.InsightMapReference,System.Single)">
+            <summary>Creates a temporary cell flash/radius/outline action.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Heatmap(System.String,InsightCanvas.InsightMapReference,System.Single)">
+            <summary>Registers a temporary heatmap-like field overlay.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Outline(System.String,InsightCanvas.InsightMapReference,System.Single)">
+            <summary>Registers a temporary field outline.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Radius(System.String,InsightCanvas.InsightMapReference,System.Single)">
+            <summary>Registers a temporary radius ring at a reference cell.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMapBridge.Path(System.String,InsightCanvas.InsightMapReference,System.Single)">
+            <summary>Registers a temporary line through the reference cell sequence.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightMapOverlayComponent">
+            <summary>Map-draw extension point used only for temporary Insight Canvas previews.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightPoint">
+            <summary>A small, Unity-free point used by layout providers.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightRange">
+            <summary>A numeric range. The bounds are normalized on construction.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightTimeRange">
+            <summary>A time range in game ticks. An empty range means no explicit filter.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightTrend">
+            <summary>Trend direction attached to a metric or history sample.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightSample">
+            <summary>A value sample used by metric tracks and the event river.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightMetric">
+            <summary>Semantic metric data. Unknown values should use Known=false instead of a sentinel number.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightEntity">
+            <summary>An entity in a semantic visualization model.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightAction">
+            <summary>A user-invokable action associated with an entity or event.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightAction.Invoke">
+            <summary>Executes the callback if it is available. UI callers can safely invoke this method.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightRelation">
+            <summary>A directed or undirected semantic relation between entities.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightEvent">
+            <summary>A timeline event optionally associated with one or more entities.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightModelValidation">
+            <summary>Result of model validation. Consumer mods can display or log every issue.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightModel">
+            <summary>
+            Mutable model builder used by integrations. The window takes an immutable snapshot, so callers may
+            continue collecting data without mutating a currently-rendered frame.
+            </summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Create(System.String)">
+            <summary>Starts a fluent semantic model.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Clear">
+            <summary>Removes the previous publication before a producer rebuilds its next snapshot.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Entity(InsightCanvas.InsightEntity)">
+            <summary>Adds an entity with a stable caller-owned id.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Entity(System.String,System.String,System.String,System.String)">
+            <summary>Convenience overload for simple entities.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Relation(System.String,System.String,System.String,System.Single,System.Boolean,System.Single,System.Boolean)">
+            <summary>Adds a relation. Missing endpoints are reported by Validate rather than throwing during collection.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Metric(System.String,System.String,InsightCanvas.InsightMetric)">
+            <summary>Adds a metric to an entity.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Metric(System.String,System.String,System.Single)">
+            <summary>Convenience overload for a known scalar metric.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Action(System.String,System.String,System.String,System.Action,System.Boolean,System.String)">
+            <summary>Adds an action to an entity.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Action(System.String,System.String,System.Action)">
+            <summary>Convenience overload that derives a stable action id from the entity and label.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Action(System.String,InsightCanvas.InsightAction)">
+            <summary>Adds an already constructed action.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Explanation(System.String,InsightCanvas.InsightExplanation)">
+            <summary>Associates an explanation with an entity.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Event(InsightCanvas.InsightEvent)">
+            <summary>Adds a timeline event.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Validate">
+            <summary>Validates endpoints, references, ids, and finite numeric data.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Snapshot">
+            <summary>Creates a stable, read-only data snapshot for rendering.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.Build">
+            <summary>Alias for Snapshot, useful at the boundary between collection and rendering.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightModelSnapshot">
+            <summary>Immutable view of an InsightModel used by components during a frame.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightIds">
+            <summary>Stable FNV-1a ids for integrations that do not already own a persistent id.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightMotion">
+            <summary>Delta-time based, interruptible motion helpers for custom components.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightModelSerialization">
+            <summary>
+            Optional interchange serialization for immutable snapshots. Insight Canvas does not automatically persist
+            temporary view state or source objects into RimWorld saves.
+            </summary>
+        </member>
+        <member name="T:InsightCanvas.InsightColor">
+            <summary>Engine-independent RGBA token used by themes and test fixtures.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightColorBlindMode">
+            <summary>Optional chart transforms for users who cannot distinguish the default palette.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightTheme">
+            <summary>Semantic tokens for all stock Insight Canvas components.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightTheme.Default">
+            <summary>Creates a polished baseline palette without requiring external art.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightTheme.WithAccessibility(System.Boolean,InsightCanvas.InsightColorBlindMode)">
+            <summary>Returns an accessibility-adjusted copy. Status is never conveyed by this color alone in stock views.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightTheme.FromXml(System.String,InsightCanvas.InsightTheme)">
+            <summary>Parses a compact optional theme XML file. Unknown tokens are ignored for forward compatibility.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightMetricTrack">
+            <summary>A metric line that can be rendered beside event markers.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightTimelineCluster">
+            <summary>One visible event or a deterministic low-zoom aggregate.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightTimelineMath">
+            <summary>Timeline math and zoom-level aggregation without Unity or game-state access.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightComponentRole">
+            <summary>Hints used by the stock view to coordinate a responsive component arrangement.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightDiagnostics">
+            <summary>Per-frame counters exposed by the laboratory and available to integrations.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightRenderContext">
+            <summary>Services passed to components without exposing their Unity renderer implementation.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightComponent">
+            <summary>Public component contract for custom retained views.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightComponentBase">
+            <summary>Convenient base for custom components with stable ids and invalidation.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightView">
+            <summary>Retained component collection and responsive coordinator.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightView.Add(InsightCanvas.IInsightComponent)">
+            <summary>Adds a component with a stable id. Duplicate ids are ignored to keep cache keys deterministic.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightGuiStateScope">
+            <summary>Restores the global IMGUI state changed by a component.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightDraw">
+            <summary>Small code-drawn renderer; all colors come from semantic theme tokens.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightWindow">
+            <summary>Coordinates a model snapshot, shared interaction state, and retained components in a RimWorld Window.</summary>
+        </member>
+    </members>
+</doc>

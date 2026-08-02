@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\Source\InsightModel.cs" Link="InsightModel.cs" />
+    <Compile Include="..\Source\InsightDisclosure.cs" Link="InsightDisclosure.cs" />
+    <Compile Include="..\Source\InsightLayout.cs" Link="InsightLayout.cs" />
+    <Compile Include="..\Source\InsightTheme.cs" Link="InsightTheme.cs" />
+    <Compile Include="..\Source\InsightExplanation.cs" Link="InsightExplanation.cs" />
+    <Compile Include="..\Source\InsightGraph.cs" Link="InsightGraph.cs" />
+    <Compile Include="..\Source\InsightTimeline.cs" Link="InsightTimeline.cs" />
+    <Compile Include="..\Source\InsightSerialization.cs" Link="InsightSerialization.cs" />
+    <Compile Include="..\Source\InsightMotion.cs" Link="InsightMotion.cs" />
+  </ItemGroup>
+</Project>

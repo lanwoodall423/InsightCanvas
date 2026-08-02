@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Insight Canvas</name>
+  <author>Lan</author>
+  <packageId>lan.insightcanvas</packageId>
+  <supportedVersions><li>1.6</li></supportedVersions>
+  <description>A reusable semantic visualization framework for interactive cards, explanations, constellations, event rivers, and temporary map links.</description>
+</ModMetaData>
