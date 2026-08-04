@@ -138,9 +138,10 @@ namespace InsightCanvas
 
         private static void CollectRuntimeWarnings(InsightModelSnapshot snapshot, List<string> warnings)
         {
-            for (int i = 0; i < snapshot.Entities.Count; i++)
+            List<InsightEntity> entities = SortedEntities(snapshot.Entities);
+            for (int i = 0; i < entities.Count; i++)
             {
-                InsightEntity entity = snapshot.Entities[i];
+                InsightEntity entity = entities[i];
                 if (entity.Source != null)
                     warnings.Add("entities id '" + entity.Id + "': runtime Source omitted; SourceId is preserved");
                 if (entity.Icon != null)
@@ -158,9 +159,10 @@ namespace InsightCanvas
         private static void WriteEntities(XmlWriter writer, InsightModelSnapshot snapshot)
         {
             writer.WriteStartElement("entities");
-            for (int i = 0; i < snapshot.Entities.Count; i++)
+            List<InsightEntity> entities = SortedEntities(snapshot.Entities);
+            for (int i = 0; i < entities.Count; i++)
             {
-                InsightEntity entity = snapshot.Entities[i];
+                InsightEntity entity = entities[i];
                 writer.WriteStartElement("entity");
                 WriteAttribute(writer, "id", entity.Id);
                 WriteAttribute(writer, "label", entity.Label);
@@ -186,9 +188,10 @@ namespace InsightCanvas
         private static void WriteManualPositions(XmlWriter writer, InsightModelSnapshot snapshot)
         {
             writer.WriteStartElement("manualPositions");
-            for (int i = 0; i < snapshot.Entities.Count; i++)
+            List<InsightEntity> entities = SortedEntities(snapshot.Entities);
+            for (int i = 0; i < entities.Count; i++)
             {
-                InsightEntity entity = snapshot.Entities[i];
+                InsightEntity entity = entities[i];
                 if (!entity.ManualPosition.HasValue) continue;
                 InsightPoint point = entity.ManualPosition.Value;
                 writer.WriteStartElement("position");
@@ -203,9 +206,10 @@ namespace InsightCanvas
         private static void WriteRelations(XmlWriter writer, InsightModelSnapshot snapshot)
         {
             writer.WriteStartElement("relations");
-            for (int i = 0; i < snapshot.Relations.Count; i++)
+            List<InsightRelation> relations = SortedRelations(snapshot.Relations);
+            for (int i = 0; i < relations.Count; i++)
             {
-                InsightRelation relation = snapshot.Relations[i];
+                InsightRelation relation = relations[i];
                 writer.WriteStartElement("relation");
                 WriteAttribute(writer, "from", relation.FromId);
                 WriteAttribute(writer, "to", relation.ToId);
@@ -304,7 +308,8 @@ namespace InsightCanvas
                     WriteAttribute(writer, "id", action.Id);
                     WriteAttribute(writer, "label", action.Label);
                     WriteAttribute(writer, "tooltip", action.Tooltip);
-                    WriteAttribute(writer, "enabled", Bool(action.Enabled));
+                    WriteAttribute(writer, "enabled", Bool(action.ConfiguredEnabled));
+                    WriteAttribute(writer, "configuredEnabled", Bool(action.ConfiguredEnabled));
                     WriteAttribute(writer, "closeWindowAfterInvoke", Bool(action.CloseWindowAfterInvoke));
                     WriteAttribute(writer, "callback", action.Callback == null ? "none" : "omitted");
                     writer.WriteEndElement();
@@ -327,10 +332,11 @@ namespace InsightCanvas
                 WriteAttribute(writer, "severity", Float(insightEvent.Severity));
                 WriteAttribute(writer, "known", Bool(insightEvent.Known));
                 WriteAttribute(writer, "mapLink", insightEvent.MapLinkId);
-                for (int j = 0; j < insightEvent.EntityIds.Count; j++)
+                List<string> entityIds = SortedEntityIds(insightEvent.EntityIds);
+                for (int j = 0; j < entityIds.Count; j++)
                 {
                     writer.WriteStartElement("entity");
-                    WriteAttribute(writer, "id", insightEvent.EntityIds[j]);
+                    WriteAttribute(writer, "id", entityIds[j]);
                     writer.WriteEndElement();
                 }
                 writer.WriteEndElement();
@@ -520,9 +526,12 @@ namespace InsightCanvas
                 XmlNode node = actions[i];
                 string id = Attribute(node, "id");
                 string runtime = Attribute(node, "callback");
-                if (runtime != "none" || Bool(node, "enabled", false))
-                    warnings.Add("actions id '" + id + "': runtime callback is not restored; action disabled");
-                model.Action(Attribute(node, "entity"), new InsightAction(id, Attribute(node, "label"), null, false,
+                bool configuredEnabled = node.Attributes?["configuredEnabled"] != null
+                    ? Bool(node, "configuredEnabled", false)
+                    : Bool(node, "enabled", false);
+                if (runtime != "none" || configuredEnabled)
+                    warnings.Add("actions id '" + id + "': runtime callback was not restored; rebind the callback before invocation; action disabled");
+                model.Action(Attribute(node, "entity"), new InsightAction(id, Attribute(node, "label"), null, configuredEnabled,
                     Attribute(node, "tooltip"), Bool(node, "closeWindowAfterInvoke", false)));
             }
         }
@@ -542,6 +551,45 @@ namespace InsightCanvas
                 model.Event(new InsightEvent(Attribute(node, "id"), Long(node, "tick", 0L), Attribute(node, "label"),
                     Attribute(node, "category"), ids, Float(node, "severity", 0f), Bool(node, "known", true), Attribute(node, "mapLink")));
             }
+        }
+
+        private static List<InsightEntity> SortedEntities(IReadOnlyList<InsightEntity> values)
+        {
+            List<InsightEntity> result = new List<InsightEntity>(values.Count);
+            for (int i = 0; i < values.Count; i++) result.Add(values[i]);
+            result.Sort((left, right) => StringComparer.Ordinal.Compare(left.Id, right.Id));
+            return result;
+        }
+
+        private static List<InsightRelation> SortedRelations(IReadOnlyList<InsightRelation> values)
+        {
+            List<InsightRelation> result = new List<InsightRelation>(values.Count);
+            for (int i = 0; i < values.Count; i++) result.Add(values[i]);
+            result.Sort((left, right) =>
+            {
+                int comparison = StringComparer.Ordinal.Compare(left.FromId, right.FromId);
+                if (comparison != 0) return comparison;
+                comparison = StringComparer.Ordinal.Compare(left.ToId, right.ToId);
+                if (comparison != 0) return comparison;
+                comparison = StringComparer.Ordinal.Compare(left.Type, right.Type);
+                if (comparison != 0) return comparison;
+                comparison = left.Weight.CompareTo(right.Weight);
+                if (comparison != 0) return comparison;
+                comparison = left.Directed.CompareTo(right.Directed);
+                if (comparison != 0) return comparison;
+                comparison = left.Confidence.CompareTo(right.Confidence);
+                if (comparison != 0) return comparison;
+                return left.Known.CompareTo(right.Known);
+            });
+            return result;
+        }
+
+        private static List<string> SortedEntityIds(IReadOnlyList<string> values)
+        {
+            List<string> result = new List<string>(values.Count);
+            for (int i = 0; i < values.Count; i++) result.Add(values[i]);
+            result.Sort(StringComparer.Ordinal);
+            return result;
         }
 
         private static List<string> SortedKeys<T>(IReadOnlyDictionary<string, T> values)

@@ -57,16 +57,27 @@ Quote the property argument when the installation path contains spaces, for exam
 ## Pre-release checklist
 
 - Run the portable command above from a clean checkout.
+- Require a visible green GitHub Actions run for the exact commit under release review.
 - Set `RimWorldDir` and build the Release mod assembly locally.
 - Confirm `1.6/Assemblies/InsightCanvas.dll` and `.xml` are present and no proprietary DLLs were added to the package.
-- Install the package in RimWorld 1.6 and exercise the laboratory, map overlays, timeline, graph, and serialization integrations.
+- Install the package in RimWorld 1.6 and complete an in-game smoke test covering the laboratory, map overlays, timeline, graph, and serialization integrations.
 - Run `git diff --check` and review the package metadata before distribution.
 
 ## Serialization boundary
 
-`InsightModelSerialization` writes deterministic XML schema version 2. Entities, relations, metrics and history, events, badges, manual graph positions, explanations, action metadata, and explicit source/icon identifiers are pure model data and round-trip. Runtime delegates, live source objects, textures, map references, and callbacks are not serialized. Loaded actions are deliberately disabled and non-invokable; use the diagnostics report to rebind runtime behavior in the consuming mod.
+`InsightModelSerialization` writes deterministic XML schema version 2. Entities and manual positions are sorted by ordinal entity ID; owner-keyed dictionaries and unordered relations are canonically ordered; event, badge, metric, action, history, and explanation-operation list order is preserved because those sequences can affect display or interpretation. Runtime delegates, live source objects, textures, map references, and callbacks are not serialized. Loaded actions are deliberately disabled and non-invokable; use the diagnostics report to rebind runtime behavior in the consuming mod.
 
 The reader also accepts the prior unversioned XML format. `InsightModel.Validate()` accumulates errors and warnings with collection, ID, and reason context instead of stopping at the first invalid reference.
+
+Configured action intent is separate from runtime executability. `ConfiguredEnabled` is the integration’s saved enabled/disabled choice. `Enabled` is true only when that choice is true and a callback is currently bound. Deserialization preserves `ConfiguredEnabled` but leaves `Callback` null and `Enabled` false. Rebind safely through the public API rather than reflection:
+
+```csharp
+InsightModelSerializationReport loaded = InsightModelSerialization.DeserializeWithDiagnostics(xml);
+InsightModel restored = loaded.Model;
+restored.RebindAction("species:trout", "inspect", () => Log.Message("Inspect trout"));
+```
+
+`RebindAction` replaces the matching action while preserving its configured intent. `InsightAction.Rebind(callback)` is also available when rebuilding an action for a new model; do not add it beside the existing same-ID action. Invocation remains a safe no-op until a callback is present and the configured intent permits it.
 
 ## License
 

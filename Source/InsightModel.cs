@@ -196,10 +196,15 @@ namespace InsightCanvas
     /// <summary>A user-invokable action associated with an entity or event.</summary>
     public sealed class InsightAction
     {
+        private readonly bool configuredEnabled;
+
         public string Id { get; private set; }
         public string Label { get; private set; }
         public string Tooltip { get; private set; }
-        public bool Enabled { get; private set; }
+        /// <summary>Configured intent supplied by the integration, independent of runtime callback availability.</summary>
+        public bool ConfiguredEnabled => configuredEnabled;
+        /// <summary>True only when configured and backed by a live callback.</summary>
+        public bool Enabled => configuredEnabled && Callback != null;
         public bool CloseWindowAfterInvoke { get; private set; }
         public Action Callback { get; private set; }
 
@@ -209,7 +214,7 @@ namespace InsightCanvas
             Id = id ?? string.Empty;
             Label = label ?? id ?? string.Empty;
             Callback = callback;
-            Enabled = enabled;
+            configuredEnabled = enabled;
             Tooltip = tooltip ?? string.Empty;
             CloseWindowAfterInvoke = closeWindowAfterInvoke;
         }
@@ -220,6 +225,12 @@ namespace InsightCanvas
             if (!Enabled || Callback == null) return false;
             Callback();
             return true;
+        }
+
+        /// <summary>Creates a safe replacement with the same metadata and configured intent but a new callback.</summary>
+        public InsightAction Rebind(Action callback)
+        {
+            return new InsightAction(Id, Label, callback, ConfiguredEnabled, Tooltip, CloseWindowAfterInvoke);
         }
     }
 
@@ -413,6 +424,21 @@ namespace InsightCanvas
             return this;
         }
 
+        /// <summary>Replaces an action by id with a callback-bound copy while preserving its configured intent.</summary>
+        public InsightModel RebindAction(string entityId, string actionId, Action callback)
+        {
+            List<InsightAction> list;
+            if (!actions.TryGetValue(entityId ?? string.Empty, out list)) return this;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (!string.Equals(list[i].Id, actionId, StringComparison.Ordinal)) continue;
+                list[i] = list[i].Rebind(callback);
+                Revision++;
+                return this;
+            }
+            return this;
+        }
+
         /// <summary>Associates an explanation with an entity.</summary>
         public InsightModel Explanation(string entityId, InsightExplanation explanation)
         {
@@ -494,7 +520,8 @@ namespace InsightCanvas
                     if (string.IsNullOrWhiteSpace(actionId)) AddError(errors, "actions", actionId, "id must not be empty");
                     else if (!actionIds.Add(actionId)) AddError(errors, "actions", actionId, "duplicate id");
                     if (string.IsNullOrWhiteSpace(action.Label)) AddWarning(warnings, "actions", actionId, "label is empty");
-                    if (action.Enabled && action.Callback == null) AddWarning(warnings, "actions", actionId, "enabled action has no callback");
+                    if (action.ConfiguredEnabled && action.Callback == null)
+                        AddWarning(warnings, "actions", actionId, "configured enabled action has no callback; runtime disabled");
                 }
             }
             foreach (KeyValuePair<string, InsightExplanation> pair in explanations)

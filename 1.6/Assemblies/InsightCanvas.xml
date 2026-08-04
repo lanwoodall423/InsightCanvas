@@ -234,8 +234,17 @@
         <member name="T:InsightCanvas.InsightAction">
             <summary>A user-invokable action associated with an entity or event.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightAction.ConfiguredEnabled">
+            <summary>Configured intent supplied by the integration, independent of runtime callback availability.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightAction.Enabled">
+            <summary>True only when configured and backed by a live callback.</summary>
+        </member>
         <member name="M:InsightCanvas.InsightAction.Invoke">
             <summary>Executes the callback if it is available. UI callers can safely invoke this method.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightAction.Rebind(System.Action)">
+            <summary>Creates a safe replacement with the same metadata and configured intent but a new callback.</summary>
         </member>
         <member name="T:InsightCanvas.InsightRelation">
             <summary>A directed or undirected semantic relation between entities.</summary>
@@ -281,6 +290,9 @@
         </member>
         <member name="M:InsightCanvas.InsightModel.Action(System.String,InsightCanvas.InsightAction)">
             <summary>Adds an already constructed action.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModel.RebindAction(System.String,System.String,System.Action)">
+            <summary>Replaces an action by id with a callback-bound copy while preserving its configured intent.</summary>
         </member>
         <member name="M:InsightCanvas.InsightModel.Explanation(System.String,InsightCanvas.InsightExplanation)">
             <summary>Associates an explanation with an entity.</summary>

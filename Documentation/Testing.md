@@ -8,7 +8,7 @@ From the repository root, run this single command:
 dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release
 ```
 
-`dotnet run` restores, builds, and runs the executable harness. It returns a nonzero exit code on restore, build, or test failure. The standalone harness covers model endpoint and ID validation, stable ids, responsive layout math, shared selection and hover state, explanation calculations, theme XML parsing, deterministic graph layout, timeline clustering/zoom, full snapshot serialization, legacy XML loading, runtime omission diagnostics, and deterministic output.
+`dotnet run` restores, builds, and runs the executable harness. It returns a nonzero exit code on restore, build, or test failure. The standalone harness covers model endpoint and ID validation, stable ids, responsive layout math, shared selection and hover state, explanation calculations, theme XML parsing, deterministic graph layout, timeline clustering/zoom, full snapshot serialization, legacy XML loading, runtime omission diagnostics, configured action intent, safe callback rebinding, equivalent insertion-order serialization, and deterministic output.
 
 ## Optional local mod verification
 
@@ -20,6 +20,8 @@ dotnet format Source/InsightCanvas.csproj --verify-no-changes --no-restore
 ```
 
 The build targets RimWorld 1.6 and writes `1.6/Assemblies/InsightCanvas.dll` and `.xml`. The portable project remains usable without a RimWorld installation. For the complete local review, also run `dotnet format Tests/InsightCanvas.CoreTests.csproj --verify-no-changes --no-restore` and `git diff --check`.
+
+Before release, require both a visible green GitHub Actions run for the exact commit and an in-game RimWorld 1.6 smoke test of the installed package. CI cannot cover game DLL compatibility, RimWorld window lifecycle, map overlays, or actual Unity rendering.
 
 ## Laboratory checklist
 

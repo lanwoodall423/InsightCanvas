@@ -20,6 +20,7 @@ internal static class Program
             TimelineMath();
             OverlayOwnership();
             Serialization();
+            SerializationOrdering();
             MotionSettings();
             Console.WriteLine("Insight Canvas core tests passed.");
             return 0;
@@ -258,8 +259,11 @@ internal static class Program
         InsightModelSerializationReport writeReport = InsightModelSerialization.SerializeWithDiagnostics(original);
         Assert(writeReport.Succeeded && writeReport.Xml.Contains("schemaVersion=\"2\"") &&
             Contains(writeReport.Warnings, "Source omitted") && Contains(writeReport.Warnings, "Icon/texture omitted") &&
-            Contains(writeReport.Warnings, "callback omitted"), "runtime serialization diagnostics are incomplete");
+            Contains(writeReport.Warnings, "callback omitted"),
+            "runtime serialization diagnostics are incomplete");
         Assert(writeReport.Xml == InsightModelSerialization.Serialize(original), "serialized output is not deterministic");
+        InsightAction originalAction = original.ActionsFor("a")[0];
+        Assert(originalAction.ConfiguredEnabled && originalAction.Enabled, "live action did not retain configured intent");
 
         InsightModelSerializationReport readReport = InsightModelSerialization.DeserializeWithDiagnostics(writeReport.Xml);
         Assert(readReport.Succeeded && readReport.Model != null && readReport.Warnings.Count >= 3,
@@ -282,14 +286,69 @@ internal static class Program
             "explanation data did not round-trip");
         InsightAction copiedAction = copy.ActionsFor("a")[0];
         Assert(copiedAction.Id == "inspect" && copiedAction.Label == "Inspect" && copiedAction.Tooltip == "Show details" &&
-            copiedAction.CloseWindowAfterInvoke && !copiedAction.Enabled && copiedAction.Callback == null && !copiedAction.Invoke(),
+            copiedAction.ConfiguredEnabled && copiedAction.CloseWindowAfterInvoke && !copiedAction.Enabled &&
+            copiedAction.Callback == null && !copiedAction.Invoke(),
             "runtime action was restored as invokable");
+
+        bool reboundInvoked = false;
+        readReport.Model.RebindAction("a", "inspect", () => reboundInvoked = true);
+        InsightAction rebound = readReport.Model.Snapshot().ActionsFor("a")[0];
+        Assert(rebound.ConfiguredEnabled && rebound.Enabled && rebound.Invoke() && reboundInvoked,
+            "callback rebinding did not restore runtime executability");
 
         InsightModelSerializationReport legacy = InsightModelSerialization.DeserializeWithDiagnostics(
             "<insightModel id='legacy'><entities><entity id='a' label='A'/></entities><relations/>" +
             "<metrics/><events><event id='e' tick='9' label='Old'><entity id='a'/></event></events></insightModel>");
         Assert(legacy.Succeeded && legacy.Model.Snapshot().Entity("a") != null && legacy.Model.Snapshot().Events.Count == 1 &&
             Contains(legacy.Warnings, "unversioned"), "existing unversioned model format no longer loads");
+
+        InsightModelSerializationReport schemaV2 = InsightModelSerialization.DeserializeWithDiagnostics(
+            "<insightModel schemaVersion='2' id='v2'><entities><entity id='a' label='A'/></entities>" +
+            "<actions><action entity='a' id='old-action' label='Old' enabled='true' callback='omitted'/></actions></insightModel>");
+        InsightAction oldAction = schemaV2.Model.Snapshot().ActionsFor("a")[0];
+        Assert(schemaV2.Succeeded && oldAction.ConfiguredEnabled && !oldAction.Enabled && oldAction.Callback == null &&
+            Contains(schemaV2.Warnings, "rebind"), "schema-v2 action intent was not loaded safely");
+    }
+
+    private static void SerializationOrdering()
+    {
+        InsightModel first = OrderedModel(false);
+        InsightModel second = OrderedModel(true);
+        string firstXml = InsightModelSerialization.Serialize(first.Snapshot());
+        string secondXml = InsightModelSerialization.Serialize(second.Snapshot());
+        Assert(firstXml == secondXml, "equivalent models with different insertion orders serialized differently");
+    }
+
+    private static InsightModel OrderedModel(bool reverse)
+    {
+        InsightModel model = InsightModel.Create("ordering");
+        InsightEntity[] entities =
+        {
+            new InsightEntity("z", "Z", manualPosition: new InsightPoint(3f, 4f)),
+            new InsightEntity("a", "A", manualPosition: new InsightPoint(1f, 2f)),
+            new InsightEntity("m", "M", manualPosition: new InsightPoint(2f, 3f))
+        };
+        if (reverse)
+        {
+            model.Entity(entities[2]).Entity(entities[0]).Entity(entities[1]);
+            model.Relation("a", "m", "link").Relation("z", "a", "link");
+            model.Metric("m", "score", 2f).Metric("a", "score", 1f);
+            model.Action("m", new InsightAction("m-action", "M action", null, false));
+            model.Action("a", new InsightAction("a-action", "A action", null, false));
+            model.Explanation("m", Explain.Value("M", 2f)).Explanation("a", Explain.Value("A", 1f));
+            model.Event(new InsightEvent("event", 1, "Event", entityIds: new[] { "a", "z" }));
+        }
+        else
+        {
+            model.Entity(entities[0]).Entity(entities[1]).Entity(entities[2]);
+            model.Relation("z", "a", "link").Relation("a", "m", "link");
+            model.Metric("a", "score", 1f).Metric("m", "score", 2f);
+            model.Action("a", new InsightAction("a-action", "A action", null, false));
+            model.Action("m", new InsightAction("m-action", "M action", null, false));
+            model.Explanation("a", Explain.Value("A", 1f)).Explanation("m", Explain.Value("M", 2f));
+            model.Event(new InsightEvent("event", 1, "Event", entityIds: new[] { "z", "a" }));
+        }
+        return model;
     }
 
     private static void MotionSettings()
