@@ -80,22 +80,24 @@ namespace InsightCanvas
         public InsightTheme Theme { get; private set; }
         public InsightDiagnostics Diagnostics { get; private set; }
         public InsightWindow Window { get; private set; }
+        internal object OverlayOwnerToken { get; private set; }
         public float DeltaTime { get; private set; }
 
         internal InsightRenderContext(InsightModelSnapshot snapshot, InsightContext interaction, InsightTheme theme,
-            InsightDiagnostics diagnostics, InsightWindow window, float deltaTime)
+            InsightDiagnostics diagnostics, InsightWindow window, object overlayOwnerToken, float deltaTime)
         {
-            Update(snapshot, interaction, theme, diagnostics, window, deltaTime);
+            Update(snapshot, interaction, theme, diagnostics, window, overlayOwnerToken, deltaTime);
         }
 
         internal void Update(InsightModelSnapshot snapshot, InsightContext interaction, InsightTheme theme,
-            InsightDiagnostics diagnostics, InsightWindow window, float deltaTime)
+            InsightDiagnostics diagnostics, InsightWindow window, object overlayOwnerToken, float deltaTime)
         {
             Snapshot = snapshot;
             Interaction = interaction;
             Theme = theme;
             Diagnostics = diagnostics;
             Window = window;
+            OverlayOwnerToken = overlayOwnerToken;
             DeltaTime = deltaTime;
         }
     }

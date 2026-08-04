@@ -54,7 +54,7 @@ namespace InsightCanvas
     {
         public static InsightTimeRange Bounds(IReadOnlyList<InsightEvent> events)
         {
-            if (events == null || events.Count == 0) return new InsightTimeRange(1, 0);
+            if (events == null || events.Count == 0) return InsightTimeRange.Empty;
             long start = events[0].Tick;
             long end = start;
             for (int i = 1; i < events.Count; i++)
@@ -65,10 +65,28 @@ namespace InsightCanvas
             return new InsightTimeRange(start, end);
         }
 
+        /// <summary>Resolves an empty selection as the complete event range rather than as a tick sentinel.</summary>
+        public static InsightTimeRange EffectiveRange(InsightTimeRange selectedRange, InsightTimeRange allRange)
+        {
+            return selectedRange.IsEmpty ? allRange : selectedRange;
+        }
+
         public static float Position(long tick, InsightTimeRange range, float width)
         {
             if (range.IsEmpty || range.End == range.Start) return width * 0.5f;
-            return (tick - range.Start) / (float)(range.End - range.Start) * width;
+            double offset = (double)tick - range.Start;
+            double span = (double)range.End - range.Start;
+            return (float)(offset / span * width);
+        }
+
+        public static long TickAt(InsightTimeRange range, double fraction)
+        {
+            if (range.IsEmpty) return 0L;
+            fraction = Math.Max(0d, Math.Min(1d, fraction));
+            double value = range.Start + ((double)range.End - range.Start) * fraction;
+            if (value <= long.MinValue) return long.MinValue;
+            if (value >= long.MaxValue) return long.MaxValue;
+            return (long)value;
         }
 
         public static IReadOnlyList<InsightTimelineCluster> Cluster(IReadOnlyList<InsightEvent> source,
@@ -76,6 +94,7 @@ namespace InsightCanvas
         {
             List<InsightTimelineCluster> result = new List<InsightTimelineCluster>();
             if (source == null || source.Count == 0 || maximumClusters <= 0) return result;
+            if (range.IsEmpty) range = Bounds(source);
             List<InsightEvent> sorted = new List<InsightEvent>();
             for (int i = 0; i < source.Count; i++)
                 if (range.Contains(source[i].Tick)) sorted.Add(source[i]);
@@ -111,11 +130,33 @@ namespace InsightCanvas
         {
             if (range.IsEmpty) return range;
             factor = factor <= 0f ? 1f : factor;
-            long span = Math.Max(1L, range.End - range.Start);
-            long newSpan = Math.Max(1L, (long)(span / factor));
-            double t = (cursor - range.Start) / (double)span;
-            long start = cursor - (long)(newSpan * t);
-            return new InsightTimeRange(start, start + newSpan);
+            double span = Math.Max(1d, (double)range.End - range.Start);
+            double newSpan = Math.Max(1d, span / factor);
+            if (newSpan < (double)long.MaxValue) newSpan = Math.Truncate(newSpan);
+            double t = ((double)cursor - range.Start) / span;
+            double offset = newSpan < (double)long.MaxValue ? Math.Truncate(newSpan * t) : newSpan * t;
+            double startValue = cursor - offset;
+            double endValue = startValue + newSpan;
+            if (startValue < long.MinValue)
+            {
+                endValue += long.MinValue - startValue;
+                startValue = long.MinValue;
+            }
+            if (endValue > long.MaxValue)
+            {
+                startValue -= endValue - long.MaxValue;
+                endValue = long.MaxValue;
+            }
+            startValue = Math.Max(long.MinValue, Math.Min(long.MaxValue, startValue));
+            endValue = Math.Max(long.MinValue, Math.Min(long.MaxValue, endValue));
+            return new InsightTimeRange(ToTick(startValue), ToTick(endValue));
+        }
+
+        private static long ToTick(double value)
+        {
+            if (value <= long.MinValue) return long.MinValue;
+            if (value >= long.MaxValue) return long.MaxValue;
+            return (long)value;
         }
     }
 }

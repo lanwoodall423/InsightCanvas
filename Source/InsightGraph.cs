@@ -8,29 +8,68 @@ namespace InsightCanvas
     public sealed class InsightGraphLayoutResult
     {
         private readonly IReadOnlyDictionary<string, InsightPoint> positions;
+        private readonly IReadOnlyList<string> activeNodeIds;
+        private readonly IReadOnlyList<InsightRelation> edges;
 
-        internal InsightGraphLayoutResult(IReadOnlyDictionary<string, InsightPoint> positions, bool complete, int iterations)
+        internal InsightGraphLayoutResult(IReadOnlyDictionary<string, InsightPoint> positions,
+            IReadOnlyList<string> activeNodeIds, IReadOnlyList<InsightRelation> edges, bool complete, int iterations)
         {
             this.positions = positions;
+            this.activeNodeIds = activeNodeIds;
+            this.edges = edges;
             Complete = complete;
             Iterations = iterations;
         }
 
         public IReadOnlyDictionary<string, InsightPoint> Positions => positions;
+        public IReadOnlyList<string> ActiveNodeIds => activeNodeIds;
+        public IReadOnlyList<InsightRelation> Edges => edges;
+        public int ActiveNodeCount => activeNodeIds.Count;
+        public int ActiveEdgeCount => edges.Count;
         public bool Complete { get; private set; }
         public int Iterations { get; private set; }
+
         public InsightPoint Position(string entityId)
         {
             InsightPoint value;
             return entityId != null && positions.TryGetValue(entityId, out value) ? value : new InsightPoint(0f, 0f);
+        }
+
+        public bool ContainsNode(string entityId) => entityId != null && positions.ContainsKey(entityId);
+
+        public bool AreNeighbors(string leftId, string rightId)
+        {
+            if (leftId == null || rightId == null) return false;
+            for (int i = 0; i < edges.Count; i++)
+            {
+                InsightRelation relation = edges[i];
+                if (relation.FromId == leftId && relation.ToId == rightId ||
+                    relation.FromId == rightId && relation.ToId == leftId) return true;
+            }
+            return false;
+        }
+
+        internal void UpdateProgress(bool complete, int iterations)
+        {
+            Complete = complete;
+            Iterations = iterations;
         }
     }
 
     /// <summary>Incremental, snapshot-only layout session suitable for a frame budget.</summary>
     public sealed class InsightGraphLayoutSession
     {
-        private readonly Dictionary<string, InsightPoint> positions = new Dictionary<string, InsightPoint>(StringComparer.Ordinal);
+        private Dictionary<string, InsightPoint> positions = new Dictionary<string, InsightPoint>(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> nodeIndices = new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly List<InsightEntity> nodes = new List<InsightEntity>();
+        private readonly List<InsightPoint> pointValues = new List<InsightPoint>();
+        private readonly List<InsightPoint> delta = new List<InsightPoint>();
+        private readonly List<InsightRelation> edges = new List<InsightRelation>();
+        private readonly List<string> activeNodeIds = new List<string>();
+        private readonly List<List<InsightGraphNeighbor>> adjacency = new List<List<InsightGraphNeighbor>>();
+        private IReadOnlyDictionary<string, InsightPoint> positionView;
+        private IReadOnlyList<string> activeNodeView = new string[0];
+        private IReadOnlyList<InsightRelation> edgeView = new InsightRelation[0];
         private InsightModelSnapshot snapshot;
         private float width;
         private float height;
@@ -38,8 +77,28 @@ namespace InsightCanvas
         private bool complete;
         private bool resultDirty = true;
         private InsightGraphLayoutResult cachedResult;
+        private InsightGraphLayoutResult liveResult;
+
+        public InsightGraphLayoutSession()
+        {
+            positionView = new ReadOnlyDictionary<string, InsightPoint>(positions);
+        }
+
+        public int ActiveNodeCount => nodes.Count;
+        public int ActiveEdgeCount => edges.Count;
 
         public void Begin(InsightModelSnapshot value, float targetWidth, float targetHeight)
+        {
+            Begin(value, targetWidth, targetHeight, int.MaxValue, int.MaxValue, null);
+        }
+
+        public void Begin(InsightModelSnapshot value, float targetWidth, float targetHeight, int nodeBudget, int edgeBudget)
+        {
+            Begin(value, targetWidth, targetHeight, nodeBudget, edgeBudget, null);
+        }
+
+        public void Begin(InsightModelSnapshot value, float targetWidth, float targetHeight, int nodeBudget, int edgeBudget,
+            Func<InsightEntity, bool> nodeFilter)
         {
             snapshot = value;
             width = Math.Max(1f, targetWidth);
@@ -48,16 +107,55 @@ namespace InsightCanvas
             complete = value == null;
             resultDirty = true;
             cachedResult = null;
-            positions.Clear();
+            liveResult = null;
+            positions = new Dictionary<string, InsightPoint>(StringComparer.Ordinal);
+            positionView = new ReadOnlyDictionary<string, InsightPoint>(positions);
+            nodeIndices.Clear();
             nodes.Clear();
-            if (value == null) return;
-            for (int i = 0; i < value.Entities.Count; i++) nodes.Add(value.Entities[i]);
+            pointValues.Clear();
+            delta.Clear();
+            edges.Clear();
+            activeNodeIds.Clear();
+            for (int i = 0; i < adjacency.Count; i++) adjacency[i].Clear();
+            nodeBudget = Math.Max(0, nodeBudget);
+            edgeBudget = Math.Max(0, edgeBudget);
+            if (value == null)
+            {
+                UpdateReadOnlyViews();
+                return;
+            }
+
+            for (int i = 0; i < value.Entities.Count; i++)
+            {
+                InsightEntity entity = value.Entities[i];
+                if (nodeFilter == null || nodeFilter(entity)) nodes.Add(entity);
+            }
             nodes.Sort((left, right) => string.CompareOrdinal(left.Id, right.Id));
+            if (nodes.Count > nodeBudget) nodes.RemoveRange(nodeBudget, nodes.Count - nodeBudget);
+            while (adjacency.Count < nodes.Count) adjacency.Add(new List<InsightGraphNeighbor>());
             for (int i = 0; i < nodes.Count; i++)
             {
                 InsightEntity node = nodes[i];
-                positions[node.Id] = node.ManualPosition ?? InitialPosition(node.Id, i, nodes.Count, width, height);
+                nodeIndices[node.Id] = i;
+                activeNodeIds.Add(node.Id);
+                InsightPoint point = node.ManualPosition ?? InitialPosition(node.Id, i, nodes.Count, width, height);
+                pointValues.Add(point);
+                delta.Add(new InsightPoint());
+                positions[node.Id] = point;
             }
+
+            for (int i = 0; i < value.Relations.Count && edges.Count < edgeBudget; i++)
+            {
+                InsightRelation relation = value.Relations[i];
+                int fromIndex;
+                int toIndex;
+                if (!nodeIndices.TryGetValue(relation.FromId, out fromIndex) ||
+                    !nodeIndices.TryGetValue(relation.ToId, out toIndex)) continue;
+                edges.Add(relation);
+                adjacency[fromIndex].Add(new InsightGraphNeighbor(toIndex, relation));
+                if (fromIndex != toIndex) adjacency[toIndex].Add(new InsightGraphNeighbor(fromIndex, relation));
+            }
+            UpdateReadOnlyViews();
             if (nodes.Count <= 1) complete = true;
         }
 
@@ -80,26 +178,34 @@ namespace InsightCanvas
         {
             if (!resultDirty && cachedResult != null) return cachedResult;
             cachedResult = new InsightGraphLayoutResult(new ReadOnlyDictionary<string, InsightPoint>(
-                new Dictionary<string, InsightPoint>(positions, StringComparer.Ordinal)), complete, iterations);
+                new Dictionary<string, InsightPoint>(positions, StringComparer.Ordinal)), activeNodeView, edgeView, complete, iterations);
             resultDirty = false;
             return cachedResult;
         }
 
+        internal InsightGraphLayoutResult LiveResult()
+        {
+            if (liveResult == null)
+                liveResult = new InsightGraphLayoutResult(positionView, activeNodeView, edgeView, complete, iterations);
+            else
+                liveResult.UpdateProgress(complete, iterations);
+            return liveResult;
+        }
+
         private void Relax()
         {
-            Dictionary<string, InsightPoint> delta = new Dictionary<string, InsightPoint>(StringComparer.Ordinal);
             float ideal = Math.Max(24f, (float)Math.Sqrt(width * height / Math.Max(1, nodes.Count)) * 0.72f);
             for (int i = 0; i < nodes.Count; i++)
             {
                 InsightEntity left = nodes[i];
-                InsightPoint leftPosition = positions[left.Id];
+                InsightPoint leftPosition = pointValues[i];
                 float forceX = 0f;
                 float forceY = 0f;
                 for (int j = 0; j < nodes.Count; j++)
                 {
                     if (i == j) continue;
                     InsightEntity right = nodes[j];
-                    InsightPoint rightPosition = positions[right.Id];
+                    InsightPoint rightPosition = pointValues[j];
                     float dx = leftPosition.X - rightPosition.X;
                     float dy = leftPosition.Y - rightPosition.Y;
                     float distanceSquared = dx * dx + dy * dy;
@@ -113,29 +219,42 @@ namespace InsightCanvas
                     forceX += dx * repulsion;
                     forceY += dy * repulsion;
                 }
-                for (int edge = 0; edge < snapshot.Relations.Count; edge++)
+                List<InsightGraphNeighbor> neighbors = adjacency[i];
+                for (int edge = 0; edge < neighbors.Count; edge++)
                 {
-                    InsightRelation relation = snapshot.Relations[edge];
-                    string otherId = relation.FromId == left.Id ? relation.ToId : relation.ToId == left.Id ? relation.FromId : null;
-                    if (otherId == null || !positions.ContainsKey(otherId)) continue;
-                    InsightPoint other = positions[otherId];
+                    InsightGraphNeighbor neighbor = neighbors[edge];
+                    InsightPoint other = pointValues[neighbor.Index];
                     float dx = other.X - leftPosition.X;
                     float dy = other.Y - leftPosition.Y;
                     float distance = (float)Math.Sqrt(dx * dx + dy * dy);
                     if (distance < 0.01f) distance = 0.01f;
-                    float pull = (distance - ideal) * 0.018f * Math.Max(0.1f, Math.Abs(relation.Weight));
+                    float pull = (distance - ideal) * 0.018f * Math.Max(0.1f, Math.Abs(neighbor.Relation.Weight));
                     forceX += dx / distance * pull;
                     forceY += dy / distance * pull;
                 }
-                delta[left.Id] = new InsightPoint(forceX * 0.34f, forceY * 0.34f);
+                delta[i] = new InsightPoint(forceX * 0.34f, forceY * 0.34f);
             }
-            foreach (InsightEntity node in nodes)
+            for (int i = 0; i < nodes.Count; i++)
             {
-                InsightPoint current = positions[node.Id];
-                InsightPoint movement = delta[node.Id];
-                positions[node.Id] = new InsightPoint(Clamp(current.X + movement.X, 18f, width - 18f),
+                if (nodes[i].ManualPosition.HasValue)
+                {
+                    pointValues[i] = nodes[i].ManualPosition.Value;
+                    positions[nodes[i].Id] = pointValues[i];
+                    continue;
+                }
+                InsightPoint current = pointValues[i];
+                InsightPoint movement = delta[i];
+                InsightPoint next = new InsightPoint(Clamp(current.X + movement.X, 18f, width - 18f),
                     Clamp(current.Y + movement.Y, 18f, height - 18f));
+                pointValues[i] = next;
+                positions[nodes[i].Id] = next;
             }
+        }
+
+        private void UpdateReadOnlyViews()
+        {
+            activeNodeView = new ReadOnlyCollection<string>(new List<string>(activeNodeIds));
+            edgeView = new ReadOnlyCollection<InsightRelation>(new List<InsightRelation>(edges));
         }
 
         private static InsightPoint InitialPosition(string id, int index, int count, float width, float height)
@@ -166,6 +285,18 @@ namespace InsightCanvas
             if (maximum < minimum) return minimum;
             return value < minimum ? minimum : value > maximum ? maximum : value;
         }
+
+        private struct InsightGraphNeighbor
+        {
+            internal readonly int Index;
+            internal readonly InsightRelation Relation;
+
+            internal InsightGraphNeighbor(int index, InsightRelation relation)
+            {
+                Index = index;
+                Relation = relation;
+            }
+        }
     }
 
     /// <summary>Graph layout entry point with deterministic cached-friendly results.</summary>
@@ -175,6 +306,16 @@ namespace InsightCanvas
         {
             InsightGraphLayoutSession session = new InsightGraphLayoutSession();
             session.Begin(snapshot, width, height);
+            session.Step(iterations < 1 ? 1 : iterations);
+            return session.Result();
+        }
+
+        /// <summary>Computes a layout over only the requested active node and edge budgets.</summary>
+        public static InsightGraphLayoutResult Compute(InsightModelSnapshot snapshot, float width, float height,
+            int nodeBudget, int edgeBudget, int iterations = 14)
+        {
+            InsightGraphLayoutSession session = new InsightGraphLayoutSession();
+            session.Begin(snapshot, width, height, nodeBudget, edgeBudget);
             session.Step(iterations < 1 ? 1 : iterations);
             return session.Result();
         }

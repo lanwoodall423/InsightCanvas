@@ -75,6 +75,9 @@
         <member name="T:InsightCanvas.InsightExplanation">
             <summary>Structured derivation built through Explain.Value.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightExplanation.Label">
+            <summary>Display label for this explanation.</summary>
+        </member>
         <member name="M:InsightCanvas.InsightExplanation.Base(System.Single)">
             <summary>Sets the starting value.</summary>
         </member>
@@ -113,6 +116,9 @@
         </member>
         <member name="T:InsightCanvas.InsightGraphLayout">
             <summary>Graph layout entry point with deterministic cached-friendly results.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightGraphLayout.Compute(InsightCanvas.InsightModelSnapshot,System.Single,System.Single,System.Int32,System.Int32,System.Int32)">
+            <summary>Computes a layout over only the requested active node and edge budgets.</summary>
         </member>
         <member name="T:InsightCanvas.InsightLaboratory">
             <summary>Deterministic mock application used as the installed mod's first-release workbench.</summary>
@@ -219,6 +225,12 @@
         <member name="T:InsightCanvas.InsightEntity">
             <summary>An entity in a semantic visualization model.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightEntity.SourceId">
+            <summary>Optional pure-data source identifier. Source itself is runtime-only.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightEntity.IconId">
+            <summary>Optional pure-data icon identifier or path. Icon itself is runtime-only.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightAction">
             <summary>A user-invokable action associated with an entity or event.</summary>
         </member>
@@ -288,17 +300,60 @@
         <member name="T:InsightCanvas.InsightModelSnapshot">
             <summary>Immutable view of an InsightModel used by components during a frame.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightModelSnapshot.Metrics">
+            <summary>All metric lists keyed by their owning entity id.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSnapshot.Actions">
+            <summary>All action lists keyed by their owning entity id. Callbacks remain runtime-only.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSnapshot.Explanations">
+            <summary>All explanations keyed by their owning entity id.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightIds">
             <summary>Stable FNV-1a ids for integrations that do not already own a persistent id.</summary>
         </member>
         <member name="T:InsightCanvas.InsightMotion">
             <summary>Delta-time based, interruptible motion helpers for custom components.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightOverlayOwnership">
+            <summary>Portable owner bookkeeping shared by map overlays and the core harness.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightModelSerializationReport">
+            <summary>Diagnostics produced while reading or writing an Insight Canvas model document.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSerializationReport.Xml">
+            <summary>Serialized XML for a write report, or an empty string for a read report.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSerializationReport.Model">
+            <summary>Restored model for a read report, or null for a write report.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSerializationReport.Warnings">
+            <summary>Non-fatal omissions or compatibility notices.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSerializationReport.Errors">
+            <summary>Failures that prevented a complete read or write.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightModelSerializationReport.Succeeded">
+            <summary>True when no fatal serialization error was recorded.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightModelSerialization">
             <summary>
-            Optional interchange serialization for immutable snapshots. Insight Canvas does not automatically persist
-            temporary view state or source objects into RimWorld saves.
+            Deterministic XML interchange for pure model and display data. Runtime sources, icons, delegates,
+            textures, callbacks, map references, and other game objects are intentionally not reconstructed.
+            Schema version 2 adds badges, manual positions, explanations, action metadata, and source/icon ids.
             </summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModelSerialization.Serialize(InsightCanvas.InsightModelSnapshot)">
+            <summary>Backward-compatible write API. Use SerializeWithDiagnostics to inspect omissions.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModelSerialization.SerializeWithDiagnostics(InsightCanvas.InsightModelSnapshot)">
+            <summary>Serializes pure model data and reports runtime-only omissions.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModelSerialization.Deserialize(System.String)">
+            <summary>Backward-compatible read API. Runtime-only fields are restored in a disabled state.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightModelSerialization.DeserializeWithDiagnostics(System.String)">
+            <summary>Reads schema 2 or the prior unversioned format without reconstructing runtime objects.</summary>
         </member>
         <member name="T:InsightCanvas.InsightColor">
             <summary>Engine-independent RGBA token used by themes and test fixtures.</summary>
@@ -326,6 +381,9 @@
         </member>
         <member name="T:InsightCanvas.InsightTimelineMath">
             <summary>Timeline math and zoom-level aggregation without Unity or game-state access.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightTimelineMath.EffectiveRange(InsightCanvas.InsightTimeRange,InsightCanvas.InsightTimeRange)">
+            <summary>Resolves an empty selection as the complete event range rather than as a tick sentinel.</summary>
         </member>
         <member name="T:InsightCanvas.InsightComponentRole">
             <summary>Hints used by the stock view to coordinate a responsive component arrangement.</summary>

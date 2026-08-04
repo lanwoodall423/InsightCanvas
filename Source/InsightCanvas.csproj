@@ -12,27 +12,50 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
+  <!--
+    RimWorldDir may come from the environment or /p:RimWorldDir=.... Do not add a
+    developer-specific fallback here: the mod references proprietary game files.
+  -->
+  <PropertyGroup>
+    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldWin64_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldWin64_Data/Managed</RimWorldManagedDir>
+    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldLinux_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldLinux_Data/Managed</RimWorldManagedDir>
+    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldMac.app/Contents/Resources/Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldMac.app/Contents/Resources/Data/Managed</RimWorldManagedDir>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <Optimize>true</Optimize>
     <OutputPath>..\1.6\Assemblies\</OutputPath>
     <DebugType>none</DebugType>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(RimWorldManagedDir)' != '' and Exists('$(RimWorldManagedDir)/Assembly-CSharp.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.CoreModule.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll')">
     <Reference Include="Assembly-CSharp">
-      <HintPath>C:\Games\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>C:\Games\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>C:\Games\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>C:\Games\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <Target Name="ValidateRimWorldReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(RimWorldDir)' == ''"
+      Text="InsightCanvas requires RimWorldDir. Set the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; or the RimWorldDir environment variable, then build again." />
+    <Error Condition="'$(RimWorldDir)' != '' and '$(RimWorldManagedDir)' == ''"
+      Text="InsightCanvas could not find RimWorld's managed assemblies under RimWorldDir='$(RimWorldDir)'. Set RimWorldDir to the installation directory (for example /p:RimWorldDir=&lt;path&gt;) and verify the 1.6 Managed folder exists." />
+    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/Assembly-CSharp.dll')"
+      Text="InsightCanvas could not find Assembly-CSharp.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
+    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/UnityEngine.CoreModule.dll')"
+      Text="InsightCanvas could not find UnityEngine.CoreModule.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
+    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll')"
+      Text="InsightCanvas could not find UnityEngine.IMGUIModule.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
+    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll')"
+      Text="InsightCanvas could not find UnityEngine.TextRenderingModule.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
+  </Target>
 </Project>

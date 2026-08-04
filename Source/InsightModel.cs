@@ -56,6 +56,7 @@ namespace InsightCanvas
     {
         public long Start;
         public long End;
+        private readonly bool hasBounds;
 
         public InsightTimeRange(long start, long end)
         {
@@ -69,14 +70,19 @@ namespace InsightCanvas
                 Start = end;
                 End = start;
             }
+            hasBounds = true;
         }
 
-        public bool IsEmpty => End < Start;
-        public static InsightTimeRange Empty => new InsightTimeRange(1, 0);
-        public bool Contains(long tick) => IsEmpty || tick >= Start && tick <= End;
-        public bool Equals(InsightTimeRange other) => Start == other.Start && End == other.End;
+        public bool IsEmpty => !hasBounds;
+        public static InsightTimeRange Empty => default(InsightTimeRange);
+        public bool Contains(long tick) => !IsEmpty && tick >= Start && tick <= End;
+        public bool Equals(InsightTimeRange other)
+        {
+            return IsEmpty ? other.IsEmpty : !other.IsEmpty && Start == other.Start && End == other.End;
+        }
+
         public override bool Equals(object obj) => obj is InsightTimeRange && Equals((InsightTimeRange)obj);
-        public override int GetHashCode() => (Start.GetHashCode() * 397) ^ End.GetHashCode();
+        public override int GetHashCode() => IsEmpty ? 17 : (Start.GetHashCode() * 397) ^ End.GetHashCode();
     }
 
     /// <summary>Trend direction attached to a metric or history sample.</summary>
@@ -158,12 +164,16 @@ namespace InsightCanvas
         public string Category { get; private set; }
         public object Source { get; private set; }
         public object Icon { get; private set; }
+        /// <summary>Optional pure-data source identifier. Source itself is runtime-only.</summary>
+        public string SourceId { get; private set; }
+        /// <summary>Optional pure-data icon identifier or path. Icon itself is runtime-only.</summary>
+        public string IconId { get; private set; }
         public InsightPoint? ManualPosition { get; private set; }
         public IReadOnlyList<string> Badges => badges;
 
         public InsightEntity(string id, string label, string subtitle = null, string category = null,
             object source = null, object icon = null, IEnumerable<string> badges = null,
-            InsightPoint? manualPosition = null)
+            InsightPoint? manualPosition = null, string sourceId = null, string iconId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Entity ids must not be empty.", nameof(id));
             Id = id;
@@ -172,6 +182,8 @@ namespace InsightCanvas
             Category = category ?? string.Empty;
             Source = source;
             Icon = icon;
+            SourceId = sourceId ?? string.Empty;
+            IconId = iconId ?? string.Empty;
             ManualPosition = manualPosition;
             List<string> copy = new List<string>();
             if (badges != null)
@@ -329,7 +341,7 @@ namespace InsightCanvas
             if (entity == null) return this;
             if (entities.ContainsKey(entity.Id))
             {
-                authoringErrors.Add("Duplicate entity id: " + entity.Id);
+                AddAuthoringError("entities id '" + entity.Id + "': duplicate id");
                 return this;
             }
             entities.Add(entity.Id, entity);
@@ -424,44 +436,117 @@ namespace InsightCanvas
         {
             List<string> errors = new List<string>(authoringErrors);
             List<string> warnings = new List<string>();
+            foreach (KeyValuePair<string, InsightEntity> pair in entities)
+            {
+                InsightEntity entity = pair.Value;
+                if (string.IsNullOrWhiteSpace(entity.Id)) AddError(errors, "entities", entity.Id, "id must not be empty");
+                if (!entities.ContainsKey(entity.Id)) AddError(errors, "entities", entity.Id, "entity is not indexed by its own id");
+                if (string.IsNullOrWhiteSpace(entity.Label)) AddWarning(warnings, "entities", entity.Id, "label is empty");
+                if (!string.IsNullOrEmpty(entity.SourceId) && string.IsNullOrWhiteSpace(entity.SourceId))
+                    AddWarning(warnings, "entities", entity.Id, "source identifier is whitespace");
+                if (!string.IsNullOrEmpty(entity.IconId) && string.IsNullOrWhiteSpace(entity.IconId))
+                    AddWarning(warnings, "entities", entity.Id, "icon identifier is whitespace");
+                if (entity.ManualPosition.HasValue &&
+                    (!Finite(entity.ManualPosition.Value.X) || !Finite(entity.ManualPosition.Value.Y)))
+                    AddError(errors, "manualPositions", entity.Id, "position coordinates must be finite");
+                for (int badgeIndex = 0; badgeIndex < entity.Badges.Count; badgeIndex++)
+                    if (string.IsNullOrWhiteSpace(entity.Badges[badgeIndex]))
+                        AddWarning(warnings, "badges", entity.Id, "badge text is empty");
+            }
+
             HashSet<string> eventIds = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> actionIds = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < relations.Count; i++)
             {
                 InsightRelation relation = relations[i];
-                if (!entities.ContainsKey(relation.FromId)) errors.Add("Relation source is missing: " + relation.FromId);
-                if (!entities.ContainsKey(relation.ToId)) errors.Add("Relation target is missing: " + relation.ToId);
-                if (string.IsNullOrWhiteSpace(relation.Type)) warnings.Add("Relation has no type: " + relation.FromId + " -> " + relation.ToId);
-                if (!Finite(relation.Weight) || !Finite(relation.Confidence)) errors.Add("Relation contains a non-finite value: " + relation.FromId + " -> " + relation.ToId);
+                string relationId = (relation.FromId ?? string.Empty) + "->" + (relation.ToId ?? string.Empty);
+                if (!entities.ContainsKey(relation.FromId)) AddError(errors, "relations", relationId, "source entity reference is missing: " + relation.FromId);
+                if (!entities.ContainsKey(relation.ToId)) AddError(errors, "relations", relationId, "target entity reference is missing: " + relation.ToId);
+                if (string.IsNullOrWhiteSpace(relation.Type)) AddWarning(warnings, "relations", relationId, "type is empty");
+                if (!Finite(relation.Weight) || !Finite(relation.Confidence)) AddError(errors, "relations", relationId, "weight and confidence must be finite");
             }
             foreach (KeyValuePair<string, List<InsightMetric>> pair in metrics)
             {
-                if (!entities.ContainsKey(pair.Key)) errors.Add("Metrics reference a missing entity: " + pair.Key);
+                if (!entities.ContainsKey(pair.Key)) AddError(errors, "metrics", pair.Key, "owner entity reference is missing");
+                HashSet<string> metricIds = new HashSet<string>(StringComparer.Ordinal);
                 for (int i = 0; i < pair.Value.Count; i++)
                 {
                     InsightMetric metric = pair.Value[i];
-                    if (float.IsNaN(metric.Value) || float.IsInfinity(metric.Value)) errors.Add("Metric is not finite: " + pair.Key + "/" + metric.Label);
-                    if (!Finite(metric.Confidence) || metric.Confidence < 0f || metric.Confidence > 1f) errors.Add("Metric confidence is outside 0..1: " + pair.Key + "/" + metric.Label);
-                    if (!Finite(metric.Range.Minimum) || !Finite(metric.Range.Maximum)) errors.Add("Metric range is not finite: " + pair.Key + "/" + metric.Label);
-                    if (metric.Threshold.HasValue && !Finite(metric.Threshold.Value)) errors.Add("Metric threshold is not finite: " + pair.Key + "/" + metric.Label);
+                    string metricId = pair.Key + "/" + (metric.Label ?? string.Empty);
+                    if (string.IsNullOrWhiteSpace(metric.Label)) AddWarning(warnings, "metrics", metricId, "label is empty");
+                    else if (!metricIds.Add(metric.Label)) AddError(errors, "metrics", metricId, "duplicate metric label for owner");
+                    if (!Finite(metric.Value)) AddError(errors, "metrics", metricId, "value must be finite");
+                    if (!Finite(metric.Confidence) || metric.Confidence < 0f || metric.Confidence > 1f) AddError(errors, "metrics", metricId, "confidence must be in 0..1");
+                    if (!Finite(metric.Range.Minimum) || !Finite(metric.Range.Maximum)) AddError(errors, "metrics", metricId, "range must be finite");
+                    if (metric.Threshold.HasValue && !Finite(metric.Threshold.Value)) AddError(errors, "metrics", metricId, "threshold must be finite");
                     for (int sampleIndex = 0; sampleIndex < metric.History.Count; sampleIndex++)
-                        if (!Finite(metric.History[sampleIndex].Value)) errors.Add("Metric history is not finite: " + pair.Key + "/" + metric.Label);
+                        if (metric.History[sampleIndex] == null || !Finite(metric.History[sampleIndex].Value))
+                            AddError(errors, "metrics", metricId, "history sample value must be finite");
                 }
             }
             foreach (KeyValuePair<string, List<InsightAction>> pair in actions)
             {
-                if (!entities.ContainsKey(pair.Key)) errors.Add("Actions reference a missing entity: " + pair.Key);
+                if (!entities.ContainsKey(pair.Key)) AddError(errors, "actions", pair.Key, "owner entity reference is missing");
+                for (int i = 0; i < pair.Value.Count; i++)
+                {
+                    InsightAction action = pair.Value[i];
+                    string actionId = action.Id ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(actionId)) AddError(errors, "actions", actionId, "id must not be empty");
+                    else if (!actionIds.Add(actionId)) AddError(errors, "actions", actionId, "duplicate id");
+                    if (string.IsNullOrWhiteSpace(action.Label)) AddWarning(warnings, "actions", actionId, "label is empty");
+                    if (action.Enabled && action.Callback == null) AddWarning(warnings, "actions", actionId, "enabled action has no callback");
+                }
+            }
+            foreach (KeyValuePair<string, InsightExplanation> pair in explanations)
+            {
+                if (string.IsNullOrWhiteSpace(pair.Key)) AddError(errors, "explanations", pair.Key, "owner id must not be empty");
+                else if (!entities.ContainsKey(pair.Key)) AddError(errors, "explanations", pair.Key, "owner must reference an existing entity");
+                InsightExplanation explanation = pair.Value;
+                if (explanation == null)
+                {
+                    AddError(errors, "explanations", pair.Key, "explanation is null");
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(explanation.Label)) AddWarning(warnings, "explanations", pair.Key, "label is empty");
+                InsightExplanationResult result = explanation.Calculate();
+                if (!Finite(result.ComputedValue)) AddError(errors, "explanations", pair.Key, "computed value must be finite");
+                if (!float.IsNaN(result.DeclaredFinalValue) && !Finite(result.DeclaredFinalValue))
+                    AddError(errors, "explanations", pair.Key, "declared final value must be finite or NaN");
+                for (int segmentIndex = 0; segmentIndex < result.Segments.Count; segmentIndex++)
+                {
+                    InsightExplanationSegment segment = result.Segments[segmentIndex];
+                    if (string.IsNullOrWhiteSpace(segment.Label)) AddWarning(warnings, "explanations", pair.Key, "segment label is empty");
+                    if (!Finite(segment.Before) || !Finite(segment.After) || !Finite(segment.Amount) || !Finite(segment.Confidence))
+                        AddError(errors, "explanations", pair.Key, "segment contains a non-finite value");
+                    if (segment.HasRange && (!Finite(segment.Range.Minimum) || !Finite(segment.Range.Maximum)))
+                        AddError(errors, "explanations", pair.Key, "segment range must be finite");
+                }
             }
             foreach (InsightEvent insightEvent in events)
             {
-                if (!eventIds.Add(insightEvent.Id)) errors.Add("Duplicate event id: " + insightEvent.Id);
-                if (!Finite(insightEvent.Severity)) errors.Add("Event severity is not finite: " + insightEvent.Id);
+                string eventId = insightEvent.Id ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(eventId)) AddError(errors, "events", eventId, "id must not be empty");
+                else if (!eventIds.Add(eventId)) AddError(errors, "events", eventId, "duplicate id");
+                if (string.IsNullOrWhiteSpace(insightEvent.Label)) AddWarning(warnings, "events", eventId, "label is empty");
+                if (!Finite(insightEvent.Severity)) AddError(errors, "events", eventId, "severity must be finite");
                 for (int i = 0; i < insightEvent.EntityIds.Count; i++)
-                    if (!entities.ContainsKey(insightEvent.EntityIds[i])) warnings.Add("Event references a missing entity: " + insightEvent.EntityIds[i]);
+                    if (!entities.ContainsKey(insightEvent.EntityIds[i]))
+                        AddWarning(warnings, "events", eventId, "entity reference is missing: " + insightEvent.EntityIds[i]);
             }
             return new InsightModelValidation(errors, warnings);
         }
 
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private static void AddError(List<string> messages, string collection, string id, string reason)
+        {
+            messages.Add(collection + " id '" + (string.IsNullOrEmpty(id) ? "<empty>" : id) + "': " + reason);
+        }
+
+        private static void AddWarning(List<string> messages, string collection, string id, string reason)
+        {
+            messages.Add(collection + " id '" + (string.IsNullOrEmpty(id) ? "<empty>" : id) + "': " + reason);
+        }
 
         /// <summary>Creates a stable, read-only data snapshot for rendering.</summary>
         public InsightModelSnapshot Snapshot()
@@ -484,14 +569,19 @@ namespace InsightCanvas
 
         /// <summary>Alias for Snapshot, useful at the boundary between collection and rendering.</summary>
         public InsightModelSnapshot Build() => Snapshot();
+
+        internal void AddAuthoringError(string message)
+        {
+            if (!string.IsNullOrWhiteSpace(message)) authoringErrors.Add(message);
+        }
     }
 
     /// <summary>Immutable view of an InsightModel used by components during a frame.</summary>
     public sealed class InsightModelSnapshot
     {
         private readonly Dictionary<string, InsightEntity> byId;
-        private readonly Dictionary<string, IReadOnlyList<InsightMetric>> metrics;
-        private readonly Dictionary<string, IReadOnlyList<InsightAction>> actions;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<InsightMetric>> metrics;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<InsightAction>> actions;
         private readonly IReadOnlyDictionary<string, InsightExplanation> explanations;
 
         internal InsightModelSnapshot(string id, int revision, IReadOnlyList<InsightEntity> entities,
@@ -503,9 +593,12 @@ namespace InsightCanvas
             Revision = revision;
             Entities = entities;
             Relations = relations;
-            this.metrics = metrics;
-            this.actions = actions;
-            this.explanations = explanations;
+            this.metrics = new ReadOnlyDictionary<string, IReadOnlyList<InsightMetric>>(
+                metrics ?? new Dictionary<string, IReadOnlyList<InsightMetric>>(StringComparer.Ordinal));
+            this.actions = new ReadOnlyDictionary<string, IReadOnlyList<InsightAction>>(
+                actions ?? new Dictionary<string, IReadOnlyList<InsightAction>>(StringComparer.Ordinal));
+            this.explanations = explanations ?? new ReadOnlyDictionary<string, InsightExplanation>(
+                new Dictionary<string, InsightExplanation>(StringComparer.Ordinal));
             Events = events;
             byId = new Dictionary<string, InsightEntity>(StringComparer.Ordinal);
             for (int i = 0; i < entities.Count; i++) byId[entities[i].Id] = entities[i];
@@ -516,6 +609,12 @@ namespace InsightCanvas
         public IReadOnlyList<InsightEntity> Entities { get; private set; }
         public IReadOnlyList<InsightRelation> Relations { get; private set; }
         public IReadOnlyList<InsightEvent> Events { get; private set; }
+        /// <summary>All metric lists keyed by their owning entity id.</summary>
+        public IReadOnlyDictionary<string, IReadOnlyList<InsightMetric>> Metrics => metrics;
+        /// <summary>All action lists keyed by their owning entity id. Callbacks remain runtime-only.</summary>
+        public IReadOnlyDictionary<string, IReadOnlyList<InsightAction>> Actions => actions;
+        /// <summary>All explanations keyed by their owning entity id.</summary>
+        public IReadOnlyDictionary<string, InsightExplanation> Explanations => explanations;
 
         public InsightEntity Entity(string id)
         {

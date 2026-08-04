@@ -123,7 +123,7 @@ namespace InsightCanvas
                     for (int i = 0; i < values.Count; i++)
                     {
                         InsightAction action = values[i];
-                        options.Add(new FloatMenuOption(action.Label, () => Invoke(action, context.Window)));
+                        options.Add(new FloatMenuOption(action.Label, () => Invoke(action, context.Window, context.OverlayOwnerToken)));
                     }
                     if (options.Count > 0) Find.WindowStack.Add(new FloatMenu(options));
                 }
@@ -190,11 +190,15 @@ namespace InsightCanvas
             current.Use();
         }
 
-        private static void Invoke(InsightAction action, InsightWindow window)
+        private static void Invoke(InsightAction action, InsightWindow window, object ownerToken)
         {
             try
             {
-                if (action == null || !action.Invoke()) return;
+                if (action == null) return;
+                using (InsightMapBridge.BeginOwner(ownerToken))
+                {
+                    if (!action.Invoke()) return;
+                }
                 if (action.CloseWindowAfterInvoke) window?.Close(false);
             }
             catch (Exception exception) { Log.ErrorOnce("[Insight Canvas] Action failed: " + exception.Message, (action?.Id ?? "action").GetHashCode()); }

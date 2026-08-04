@@ -43,6 +43,17 @@ namespace InsightCanvas
     public static class InsightMapBridge
     {
         private static readonly Dictionary<string, InsightMapReference> links = new Dictionary<string, InsightMapReference>(StringComparer.Ordinal);
+        private static readonly object unownedOwnerToken = new object();
+        private static object activeOwnerToken;
+
+        internal static object CurrentOwnerToken => activeOwnerToken ?? unownedOwnerToken;
+
+        internal static IDisposable BeginOwner(object ownerToken)
+        {
+            object previous = activeOwnerToken;
+            activeOwnerToken = ownerToken ?? unownedOwnerToken;
+            return new OwnerScope(previous);
+        }
 
         /// <summary>Registers a transient id that can be used by an InsightEvent.MapLinkId.</summary>
         public static void RegisterLink(string id, InsightMapReference reference)
@@ -117,38 +128,45 @@ namespace InsightCanvas
         public static InsightAction Flash(string id, InsightMapReference reference, float seconds = 3f)
         {
             return new InsightAction(id ?? "flash", "InsightCanvas_PreviewMap".Translate(),
-                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Flash, seconds), reference != null && reference.HasLocation);
+                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Flash, seconds, CurrentOwnerToken),
+                reference != null && reference.HasLocation);
         }
 
         /// <summary>Registers a temporary heatmap-like field overlay.</summary>
         public static InsightAction Heatmap(string id, InsightMapReference reference, float seconds = 3f)
         {
             return new InsightAction(id ?? "heatmap", "InsightCanvas_ShowArea".Translate(),
-                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Heatmap, seconds), reference != null && reference.HasLocation);
+                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Heatmap, seconds, CurrentOwnerToken),
+                reference != null && reference.HasLocation);
         }
 
         /// <summary>Registers a temporary field outline.</summary>
         public static InsightAction Outline(string id, InsightMapReference reference, float seconds = 3f)
         {
             return new InsightAction(id ?? "outline", "InsightCanvas_ShowArea".Translate(),
-                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Outline, seconds), reference != null && reference.HasLocation);
+                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Outline, seconds, CurrentOwnerToken),
+                reference != null && reference.HasLocation);
         }
 
         /// <summary>Registers a temporary radius ring at a reference cell.</summary>
         public static InsightAction Radius(string id, InsightMapReference reference, float seconds = 3f)
         {
             return new InsightAction(id ?? "radius", "InsightCanvas_ShowRadius".Translate(),
-                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Radius, seconds), reference != null && reference.Cell.IsValid);
+                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Radius, seconds, CurrentOwnerToken),
+                reference != null && reference.Cell.IsValid);
         }
 
         /// <summary>Registers a temporary line through the reference cell sequence.</summary>
         public static InsightAction Path(string id, InsightMapReference reference, float seconds = 3f)
         {
             return new InsightAction(id ?? "path", "InsightCanvas_ShowPath".Translate(),
-                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Path, seconds), reference != null && reference.Cells.Count > 1);
+                () => InsightMapOverlay.Register(reference, InsightOverlayKind.Path, seconds, CurrentOwnerToken),
+                reference != null && reference.Cells.Count > 1);
         }
 
         public static void Clear(InsightWindow owner = null) => InsightMapOverlay.Clear(owner);
+
+        internal static void ClearOwnerToken(object ownerToken) => InsightMapOverlay.ClearOwner(ownerToken);
 
         private static void FocusNow(InsightMapReference reference, bool select)
         {
@@ -225,6 +243,24 @@ namespace InsightCanvas
             catch { result.Clear(); }
             return result;
         }
+
+        private sealed class OwnerScope : IDisposable
+        {
+            private readonly object previous;
+            private bool disposed;
+
+            internal OwnerScope(object previous)
+            {
+                this.previous = previous;
+            }
+
+            public void Dispose()
+            {
+                if (disposed) return;
+                disposed = true;
+                activeOwnerToken = previous;
+            }
+        }
     }
 
     internal enum InsightOverlayKind
@@ -241,6 +277,7 @@ namespace InsightCanvas
         public InsightMapReference Reference;
         public InsightOverlayKind Kind;
         public int ExpireTick;
+        public object OwnerToken;
     }
 
     /// <summary>Map-draw extension point used only for temporary Insight Canvas previews.</summary>
@@ -252,6 +289,8 @@ namespace InsightCanvas
 
         internal void Add(InsightOverlayEntry entry) => entries.Add(entry);
         internal void Clear() => entries.Clear();
+        internal void ClearOwner(object ownerToken) => InsightOverlayOwnership.ClearOwner(entries, ownerToken,
+            entry => entry == null ? null : entry.OwnerToken);
 
         public override void ExposeData()
         {
@@ -285,7 +324,7 @@ namespace InsightCanvas
 
     internal static class InsightMapOverlay
     {
-        public static void Register(InsightMapReference reference, InsightOverlayKind kind, float seconds)
+        public static void Register(InsightMapReference reference, InsightOverlayKind kind, float seconds, object ownerToken)
         {
             if (reference?.Map == null || !reference.HasLocation) return;
             InsightMapOverlayComponent component = reference.Map.GetComponent<InsightMapOverlayComponent>();
@@ -294,18 +333,40 @@ namespace InsightCanvas
             {
                 Reference = reference,
                 Kind = kind,
-                ExpireTick = (Find.TickManager?.TicksGame ?? 0) + Mathf.Max(1, Mathf.RoundToInt(seconds * 60f))
+                ExpireTick = (Find.TickManager?.TicksGame ?? 0) + Mathf.Max(1, Mathf.RoundToInt(seconds * 60f)),
+                OwnerToken = ownerToken
             });
         }
 
         public static void Clear(InsightWindow owner)
         {
             if (Current.Game == null) return;
+            if (owner == null)
+            {
+                ClearAll();
+                return;
+            }
+            ClearOwner(owner.OverlayOwnerToken);
+        }
+
+        internal static void ClearOwner(object ownerToken)
+        {
+            if (Current.Game == null) return;
             for (int i = 0; i < Current.Game.Maps.Count; i++)
             {
                 InsightMapOverlayComponent component = Current.Game.Maps[i].GetComponent<InsightMapOverlayComponent>();
                 if (component == null) continue;
-                // Expiry is the safety mechanism; clearing all temporary previews is safer than retaining stale map links.
+                component.ClearOwner(ownerToken);
+            }
+        }
+
+        private static void ClearAll()
+        {
+            for (int i = 0; i < Current.Game.Maps.Count; i++)
+            {
+                InsightMapOverlayComponent component = Current.Game.Maps[i].GetComponent<InsightMapOverlayComponent>();
+                if (component == null) continue;
+                // Explicit global cleanup remains available for map changes and shutdown paths.
                 component.Clear();
             }
         }

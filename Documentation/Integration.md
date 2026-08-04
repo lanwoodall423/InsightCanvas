@@ -36,6 +36,25 @@ For a main tab or another host window that owns its own frame chrome, use `Insig
 
 For a host such as a RimWorld `MainTabWindow`, use `InsightCanvasHost` with the same model, view, and context. It owns the same immutable snapshot boundary and exposes `Draw(Rect)`, `Diagnostics`, `Snapshot`, and `PostClose()`. Long-lived producers can call `InsightModel.Clear()` outside repaint before publishing the next complete collection pass; the host keeps the shared `InsightContext` and selection intact.
 
+## Serialization contract
+
+`InsightModelSerialization` has two compatible entry points:
+
+```csharp
+InsightModelSerializationReport saved = InsightModelSerialization.SerializeWithDiagnostics(model.Snapshot());
+string xml = saved.Xml;
+foreach (string warning in saved.Warnings) Log.Warning(warning);
+
+InsightModelSerializationReport loaded = InsightModelSerialization.DeserializeWithDiagnostics(xml);
+InsightModel restored = loaded.Model;
+```
+
+The current XML has `schemaVersion="2"` and is emitted deterministically. The reader accepts the original unversioned format as schema 1. The round-trippable boundary is pure model/display data: entity text, stable IDs, badges, `ManualPosition`, `SourceId`, `IconId`, relations, metrics and history, events and their entity/map-link IDs, explanations and their entity owners, and action IDs/labels/tooltips/close metadata.
+
+Runtime-only values are intentionally not reconstructed: `InsightEntity.Source`, `InsightEntity.Icon`, map or game object references, `InsightAction.Callback`, and live source/delegate state. Serialization reports warnings when those values are omitted. Deserialized actions have `Callback == null` and `Enabled == false`, so loading cannot create an apparently usable action with no implementation. Rebind callbacks, live sources, textures, and map links in the integration after loading; `InsightEvent.MapLinkId` remains a stable pure-data key only.
+
+Call `model.Validate()` before publishing or saving a model. Validation accumulates errors and warnings for empty or duplicate IDs, missing owners/endpoints, dangling manual positions, invalid numeric/display metadata, and non-invokable enabled actions. Each diagnostic includes the collection, relevant ID, and reason. Warnings are non-fatal display/runtime concerns; errors mean the model violates its documented reference or structural contract.
+
 ## Shared context
 
 All stock components receive the same `InsightContext`. They use `Select`, `Hover`, `Focus`, `SetFilter`, and `SetTimeRange`. Implementations should call `DisclosureFor` before displaying exact values. `IDisclosureProvider` is deliberately generic; `TieredDisclosureProvider` is only a convenient preview adapter and does not define a required knowledge system.

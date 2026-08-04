@@ -19,6 +19,7 @@ namespace InsightCanvas
         private bool themedHighContrast;
         private bool themedColorBlind;
         private InsightRenderContext renderContext;
+        private readonly object overlayOwnerToken = new object();
 
         public InsightWindow(InsightModel model, InsightView view, InsightContext context = null)
         {
@@ -38,6 +39,7 @@ namespace InsightCanvas
         public InsightDiagnostics Diagnostics => diagnostics;
         public InsightModelSnapshot Snapshot => snapshot;
         public InsightTheme ThemeOverride { get; set; }
+        internal object OverlayOwnerToken => overlayOwnerToken;
 
         public override Vector2 InitialSize => new Vector2(Mathf.Min(1280f, UI.screenWidth * 0.94f),
             Mathf.Min(860f, UI.screenHeight * 0.9f));
@@ -61,7 +63,7 @@ namespace InsightCanvas
                     diagnostics.LastSnapshotMilliseconds = (float)snapshotTimer.Elapsed.TotalMilliseconds;
                     EnsureTheme();
                     context.BeginFrame();
-                    DrawWindow(inRect);
+                    using (InsightMapBridge.BeginOwner(overlayOwnerToken)) DrawWindow(inRect);
                 }
                 catch (Exception exception)
                 {
@@ -104,13 +106,14 @@ namespace InsightCanvas
                 context.SetFilter(string.Empty);
                 context.Select(null);
                 context.ClearComparison();
-                context.SetTimeRange(new InsightTimeRange(1, 0));
+                context.SetTimeRange(InsightTimeRange.Empty);
                 view.Invalidate();
             }
             Rect body = new Rect(rect.x + 8f, header.yMax + 8f, rect.width - 16f,
                 Mathf.Max(0f, rect.height - header.height - (InsightCanvasMod.Settings?.ShowDiagnostics == false ? 16f : 48f)));
-            if (renderContext == null) renderContext = new InsightRenderContext(snapshot, context, theme, diagnostics, this, Time.deltaTime);
-            else renderContext.Update(snapshot, context, theme, diagnostics, this, Time.deltaTime);
+            if (renderContext == null) renderContext = new InsightRenderContext(snapshot, context, theme, diagnostics, this,
+                overlayOwnerToken, Time.deltaTime);
+            else renderContext.Update(snapshot, context, theme, diagnostics, this, overlayOwnerToken, Time.deltaTime);
             view.Draw(body, renderContext);
             if (InsightCanvasMod.Settings?.ShowDiagnostics != false)
             {

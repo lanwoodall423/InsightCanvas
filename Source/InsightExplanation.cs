@@ -84,6 +84,26 @@ namespace InsightCanvas
             declaredFinalValue = finalValue;
         }
 
+        /// <summary>Display label for this explanation.</summary>
+        public string Label => label;
+
+        internal float DeclaredFinalValue => declaredFinalValue;
+        internal bool HasBase => hasBase;
+        internal float BaseValue => baseValue;
+
+        internal IReadOnlyList<InsightExplanationOperationData> SerializationOperations()
+        {
+            List<InsightExplanationOperationData> result = new List<InsightExplanationOperationData>(operations.Count);
+            for (int i = 0; i < operations.Count; i++)
+            {
+                Operation operation = operations[i];
+                result.Add(new InsightExplanationOperationData(operation.Kind, operation.Label, operation.Amount,
+                    operation.Confidence, operation.Known, operation.RequirementMet, operation.Range,
+                    operation.Kind == InsightExplanationSegmentKind.Clamp || operation.Kind == InsightExplanationSegmentKind.Uncertainty));
+            }
+            return result;
+        }
+
         internal InsightExplanation Clone()
         {
             InsightExplanation copy = new InsightExplanation(label, declaredFinalValue)
@@ -247,6 +267,31 @@ namespace InsightCanvas
 
             public static Operation Uncertain(InsightRange range, float confidence, string reason) =>
                 new Operation { Kind = InsightExplanationSegmentKind.Uncertainty, Label = string.IsNullOrWhiteSpace(reason) ? "unknown information" : reason, Range = range, Confidence = confidence, Known = false };
+        }
+    }
+
+    internal sealed class InsightExplanationOperationData
+    {
+        internal readonly InsightExplanationSegmentKind Kind;
+        internal readonly string Label;
+        internal readonly float Amount;
+        internal readonly float Confidence;
+        internal readonly bool Known;
+        internal readonly bool RequirementMet;
+        internal readonly InsightRange Range;
+        internal readonly bool HasRange;
+
+        internal InsightExplanationOperationData(InsightExplanationSegmentKind kind, string label, float amount,
+            float confidence, bool known, bool requirementMet, InsightRange range, bool hasRange)
+        {
+            Kind = kind;
+            Label = label ?? string.Empty;
+            Amount = amount;
+            Confidence = confidence;
+            Known = known;
+            RequirementMet = requirementMet;
+            Range = range;
+            HasRange = hasRange;
         }
     }
 

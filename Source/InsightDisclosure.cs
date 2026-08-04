@@ -100,7 +100,7 @@ namespace InsightCanvas
         private string hoveredEntityId;
         private string focusedEntityId;
         private string filterText = string.Empty;
-        private InsightTimeRange timeRange = new InsightTimeRange(1, 0);
+        private InsightTimeRange timeRange = InsightTimeRange.Empty;
         private bool hoverSeenThisFrame;
         private readonly Dictionary<string, InsightDisclosure> disclosureCache = new Dictionary<string, InsightDisclosure>(StringComparer.Ordinal);
         private IDisclosureProvider disclosureProvider;

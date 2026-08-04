@@ -13,6 +13,9 @@ namespace InsightCanvas
         private int layoutRevision = -1;
         private float layoutWidth;
         private float layoutHeight;
+        private int layoutNodeBudget = -1;
+        private int layoutEdgeBudget = -1;
+        private string layoutFilter;
         private Vector2 pan;
         private float zoom = 1f;
         private Vector2 targetPan;
@@ -27,6 +30,7 @@ namespace InsightCanvas
         private float clusterLayoutHeight = -1f;
         private string clusterFilter;
         private int clusterNodeBudget = -1;
+        private int clusterEdgeBudget = -1;
 
         public InsightConstellation(string componentId = "constellation") : base(componentId, InsightComponentRole.Constellation, 190f) { }
 
@@ -59,18 +63,27 @@ namespace InsightCanvas
             }
             finally { GUI.EndGroup(); }
             DrawLegend(new Rect(viewport.x + 8f, viewport.y + 8f, Mathf.Min(220f, viewport.width - 16f), 20f), context);
-            context.Diagnostics.VisibleElements += context.Snapshot.Entities.Count + context.Snapshot.Relations.Count;
+            context.Diagnostics.VisibleElements += layout.ActiveNodeCount + layout.ActiveEdgeCount;
         }
 
         private void EnsureLayout(InsightRenderContext context, float width, float height)
         {
-            if (layoutRevision != context.Snapshot.Revision || Math.Abs(layoutWidth - width) > 0.5f || Math.Abs(layoutHeight - height) > 0.5f)
+            int nodeBudget = InsightCanvasMod.Settings?.NodeBudget ?? 180;
+            int edgeBudget = InsightCanvasMod.Settings?.EdgeBudget ?? 360;
+            string filter = context.Interaction.FilterText ?? string.Empty;
+            if (layoutRevision != context.Snapshot.Revision || Math.Abs(layoutWidth - width) > 0.5f ||
+                Math.Abs(layoutHeight - height) > 0.5f || layoutNodeBudget != nodeBudget || layoutEdgeBudget != edgeBudget ||
+                layoutFilter != filter)
             {
                 layoutRevision = context.Snapshot.Revision;
                 layoutWidth = width;
                 layoutHeight = height;
-                layoutSession.Begin(context.Snapshot, width, height);
-                layout = layoutSession.Result();
+                layoutNodeBudget = nodeBudget;
+                layoutEdgeBudget = edgeBudget;
+                layoutFilter = filter;
+                layoutSession.Begin(context.Snapshot, width, height, nodeBudget, edgeBudget,
+                    context.Interaction.MatchesFilter);
+                layout = layoutSession.LiveResult();
                 pan = Vector2.zero;
                 zoom = 1f;
                 targetPan = Vector2.zero;
@@ -78,12 +91,12 @@ namespace InsightCanvas
                 context.Diagnostics.Invalidate();
             }
             layoutSession.Step(2);
-            layout = layoutSession.Result();
+            layout = layoutSession.LiveResult();
         }
 
         private void DrawGraph(Rect viewport, InsightRenderContext context)
         {
-            if (layout == null || context.Snapshot.Entities.Count == 0)
+            if (layout == null || layout.ActiveNodeCount == 0)
             {
                 InsightDraw.Empty(new Rect(0f, 20f, viewport.width, viewport.height - 40f), context.Theme, "InsightCanvas_NoRelationships".Translate());
                 return;
@@ -91,10 +104,9 @@ namespace InsightCanvas
             Vector2 center = new Vector2(viewport.width * 0.5f, viewport.height * 0.5f);
             DrawEdges(center, context);
             bool cluster = zoom < 0.56f;
-            int nodeBudget = InsightCanvasMod.Settings?.NodeBudget ?? 180;
             if (cluster)
             {
-                RefreshClusters(context, center, nodeBudget);
+                RefreshClusters(context, center);
                 for (int i = 0; i < clusterVisuals.Count; i++)
                 {
                     ClusterVisual visual = clusterVisuals[i];
@@ -104,31 +116,27 @@ namespace InsightCanvas
             }
             else
             {
-                int drawnNodes = 0;
-                for (int i = 0; i < context.Snapshot.Entities.Count && drawnNodes < nodeBudget; i++)
+                for (int i = 0; i < layout.ActiveNodeIds.Count; i++)
                 {
-                    InsightEntity entity = context.Snapshot.Entities[i];
-                    if (!context.Interaction.MatchesFilter(entity)) continue;
-                    drawnNodes++;
+                    InsightEntity entity = context.Snapshot.Entity(layout.ActiveNodeIds[i]);
+                    if (entity == null) continue;
                     DrawNode(ScreenPosition(entity.Id, center), entity, context, 1);
                 }
             }
         }
 
-        private void RefreshClusters(InsightRenderContext context, Vector2 center, int nodeBudget)
+        private void RefreshClusters(InsightRenderContext context, Vector2 center)
         {
             if (clusterRevision == context.Snapshot.Revision && clusterIterations == (layout?.Iterations ?? -1) &&
                 clusterPan == pan && Math.Abs(clusterLayoutWidth - layoutWidth) < 0.5f &&
-                Math.Abs(clusterLayoutHeight - layoutHeight) < 0.5f && clusterFilter == context.Interaction.FilterText &&
-                clusterNodeBudget == nodeBudget && clusterVisuals.Count > 0) return;
+                Math.Abs(clusterLayoutHeight - layoutHeight) < 0.5f && clusterFilter == layoutFilter &&
+                clusterNodeBudget == layoutNodeBudget && clusterEdgeBudget == layoutEdgeBudget && clusterVisuals.Count > 0) return;
             clusterVisuals.Clear();
             Dictionary<int, ClusterVisual> lookup = new Dictionary<int, ClusterVisual>();
-            int drawnNodes = 0;
-            for (int i = 0; i < context.Snapshot.Entities.Count && drawnNodes < nodeBudget; i++)
+            for (int i = 0; i < layout.ActiveNodeIds.Count; i++)
             {
-                InsightEntity entity = context.Snapshot.Entities[i];
-                if (!context.Interaction.MatchesFilter(entity)) continue;
-                drawnNodes++;
+                InsightEntity entity = context.Snapshot.Entity(layout.ActiveNodeIds[i]);
+                if (entity == null) continue;
                 Vector2 position = ScreenPosition(entity.Id, center);
                 int key = Mathf.RoundToInt(position.x / 46f) * 100000 + Mathf.RoundToInt(position.y / 46f);
                 ClusterVisual visual;
@@ -145,20 +153,19 @@ namespace InsightCanvas
             clusterPan = pan;
             clusterLayoutWidth = layoutWidth;
             clusterLayoutHeight = layoutHeight;
-            clusterFilter = context.Interaction.FilterText;
-            clusterNodeBudget = nodeBudget;
+            clusterFilter = layoutFilter;
+            clusterNodeBudget = layoutNodeBudget;
+            clusterEdgeBudget = layoutEdgeBudget;
         }
 
         private void DrawEdges(Vector2 center, InsightRenderContext context)
         {
-            int edgeBudget = InsightCanvasMod.Settings?.EdgeBudget ?? 360;
-            int drawn = 0;
-            for (int i = 0; i < context.Snapshot.Relations.Count && drawn < edgeBudget; i++)
+            for (int i = 0; i < layout.Edges.Count; i++)
             {
-                InsightRelation relation = context.Snapshot.Relations[i];
+                InsightRelation relation = layout.Edges[i];
                 InsightEntity from = context.Snapshot.Entity(relation.FromId);
                 InsightEntity to = context.Snapshot.Entity(relation.ToId);
-                if (from == null || to == null || !context.Interaction.MatchesFilter(from) && !context.Interaction.MatchesFilter(to)) continue;
+                if (from == null || to == null || !layout.ContainsNode(relation.FromId) || !layout.ContainsNode(relation.ToId)) continue;
                 InsightDisclosure fromDisclosure = context.Interaction.DisclosureFor(from);
                 InsightDisclosure toDisclosure = context.Interaction.DisclosureFor(to);
                 if (!fromDisclosure.IdentityVisible && !toDisclosure.IdentityVisible) continue;
@@ -181,7 +188,6 @@ namespace InsightCanvas
                     Text.Anchor = TextAnchor.UpperLeft;
                 }
                 if (relation.Directed) DrawArrow(start, end, color);
-                drawn++;
             }
         }
 
@@ -194,7 +200,7 @@ namespace InsightCanvas
             if (hovered) context.Interaction.Hover(entity.Id);
             bool selected = context.Interaction.SelectedEntityId == entity.Id;
             bool neighbor = context.Interaction.HoveredEntityId == entity.Id ||
-                InsightGraphLayout.AreNeighbors(context.Snapshot, context.Interaction.HoveredEntityId, entity.Id);
+                layout.AreNeighbors(context.Interaction.HoveredEntityId, entity.Id);
             InsightColor fill = selected ? context.Theme.Selected : hovered || neighbor ? context.Theme.Hover : context.Theme.ElevatedSurface;
             Widgets.DrawBoxSolid(hit, InsightDraw.Color(fill));
             Widgets.DrawBox(hit, selected ? 2 : 1);

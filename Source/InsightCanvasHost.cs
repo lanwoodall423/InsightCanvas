@@ -22,6 +22,7 @@ namespace InsightCanvas
         private bool themedHighContrast;
         private bool themedColorBlind;
         private InsightRenderContext renderContext;
+        private readonly object overlayOwnerToken = new object();
 
         public InsightCanvasHost(InsightModel model, InsightView view, InsightContext context = null)
         {
@@ -59,10 +60,10 @@ namespace InsightCanvas
                     context.BeginFrame();
                     float frameDelta = deltaTime < 0f ? Time.deltaTime : deltaTime;
                     if (renderContext == null)
-                        renderContext = new InsightRenderContext(snapshot, context, theme, diagnostics, null, frameDelta);
+                        renderContext = new InsightRenderContext(snapshot, context, theme, diagnostics, null, overlayOwnerToken, frameDelta);
                     else
-                        renderContext.Update(snapshot, context, theme, diagnostics, null, frameDelta);
-                    view.Draw(rect, renderContext);
+                        renderContext.Update(snapshot, context, theme, diagnostics, null, overlayOwnerToken, frameDelta);
+                    using (InsightMapBridge.BeginOwner(overlayOwnerToken)) view.Draw(rect, renderContext);
                 }
                 catch (Exception exception)
                 {
@@ -80,7 +81,7 @@ namespace InsightCanvas
         }
 
         /// <summary>Clears temporary map previews owned by the embedded view.</summary>
-        public void PostClose() => InsightMapBridge.Clear();
+        public void PostClose() => InsightMapBridge.ClearOwnerToken(overlayOwnerToken);
 
         private void EnsureTheme()
         {

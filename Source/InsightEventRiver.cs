@@ -8,12 +8,11 @@ namespace InsightCanvas
     /// <summary>Zoomable event timeline with deterministic low-zoom clustering and metric tracks.</summary>
     public sealed class InsightEventRiver : InsightComponentBase
     {
-        private InsightTimeRange visibleRange = new InsightTimeRange(1, 0);
-        private InsightTimeRange allRange = new InsightTimeRange(1, 0);
+        private InsightTimeRange allRange = InsightTimeRange.Empty;
         private string selectedEventId;
         private IReadOnlyList<InsightTimelineCluster> cachedClusters = new InsightTimelineCluster[0];
         private int clusterRevision = -1;
-        private InsightTimeRange clusterRange = new InsightTimeRange(1, 0);
+        private InsightTimeRange clusterRange = InsightTimeRange.Empty;
         private float clusterWidth = -1f;
         private int clusterBudget;
 
@@ -30,18 +29,17 @@ namespace InsightCanvas
             Text.Font = GameFont.Small;
             EnsureRange(context);
             if (Widgets.ButtonText(new Rect(header.xMax - 292f, header.y + 1f, 82f, 26f), "InsightCanvas_AllTime".Translate()))
-                context.Interaction.SetTimeRange(allRange);
+                context.Interaction.SetTimeRange(InsightTimeRange.Empty);
             if (Widgets.ButtonText(new Rect(header.xMax - 204f, header.y + 1f, 92f, 26f), "InsightCanvas_ZoomIn".Translate()))
-                SetZoom(context, 1.8f, allRange.Start + (allRange.End - allRange.Start) / 2);
+                SetZoom(context, 1.8f, InsightTimelineMath.TickAt(allRange, 0.5));
             if (Widgets.ButtonText(new Rect(header.xMax - 106f, header.y + 1f, 100f, 26f), "InsightCanvas_ZoomOut".Translate()))
-                SetZoom(context, 0.55f, allRange.Start + (allRange.End - allRange.Start) / 2);
-            InsightTimeRange range = context.Interaction.TimeRange.IsEmpty ? visibleRange : context.Interaction.TimeRange;
+                SetZoom(context, 0.55f, InsightTimelineMath.TickAt(allRange, 0.5));
+            InsightTimeRange range = InsightTimelineMath.EffectiveRange(context.Interaction.TimeRange, allRange);
             if (range.IsEmpty)
             {
                 InsightDraw.Empty(new Rect(rect.x + 8f, header.yMax + 4f, rect.width - 16f, rect.height - 46f), theme, "InsightCanvas_NoEvents".Translate());
                 return;
             }
-            visibleRange = range;
             Rect plot = new Rect(rect.x + 10f, header.yMax + 4f, rect.width - 20f, Mathf.Max(0f, rect.height - 48f));
             DrawTracks(plot, context, range);
             DrawEvents(plot, context, range);
@@ -53,8 +51,6 @@ namespace InsightCanvas
         {
             if (!allRange.IsEmpty && allRange.Equals(InsightTimelineMath.Bounds(context.Snapshot.Events))) return;
             allRange = InsightTimelineMath.Bounds(context.Snapshot.Events);
-            visibleRange = allRange;
-            if (!allRange.IsEmpty && context.Interaction.TimeRange.IsEmpty) context.Interaction.SetTimeRange(allRange);
         }
 
         private void DrawEvents(Rect plot, InsightRenderContext context, InsightTimeRange range)
@@ -169,7 +165,7 @@ namespace InsightCanvas
                 float x = plot.x + plot.width * i / tickCount;
                 GUI.color = InsightDraw.Color(context.Theme.SecondaryText.WithAlpha(0.35f));
                 Widgets.DrawLineVertical(x, eventY + 7f, Mathf.Max(0f, plot.yMax - eventY - 7f));
-                long tick = range.Start + (long)((range.End - range.Start) * (i / (float)tickCount));
+                long tick = InsightTimelineMath.TickAt(range, (double)i / tickCount);
                 Text.Anchor = TextAnchor.UpperCenter;
                 GUI.color = InsightDraw.Color(context.Theme.SecondaryText);
                 Widgets.Label(new Rect(x - 45f, eventY + 8f, 90f, 18f), tick.ToString());
@@ -182,14 +178,15 @@ namespace InsightCanvas
             Event current = Event.current;
             if (current == null || current.type != EventType.ScrollWheel || !Mouse.IsOver(plot)) return;
             float factor = current.delta.y > 0f ? 1.35f : 0.74f;
-            long cursor = range.Start + (long)((current.mousePosition.x - plot.x) / Mathf.Max(1f, plot.width) * (range.End - range.Start));
+            long cursor = InsightTimelineMath.TickAt(range,
+                (current.mousePosition.x - plot.x) / Mathf.Max(1f, plot.width));
             SetZoom(context, factor, cursor);
             current.Use();
         }
 
         private void SetZoom(InsightRenderContext context, float factor, long cursor)
         {
-            InsightTimeRange range = context.Interaction.TimeRange.IsEmpty ? allRange : context.Interaction.TimeRange;
+            InsightTimeRange range = InsightTimelineMath.EffectiveRange(context.Interaction.TimeRange, allRange);
             context.Interaction.SetTimeRange(InsightTimelineMath.Zoom(range, factor, cursor));
         }
 
