@@ -4,6 +4,58 @@ using System.Collections.ObjectModel;
 
 namespace InsightCanvas
 {
+    /// <summary>Viewport transform calculated by the graph's Fit All action.</summary>
+    internal struct InsightGraphFit
+    {
+        internal InsightGraphFit(float zoom, InsightPoint pan)
+        {
+            Zoom = zoom;
+            Pan = pan;
+        }
+
+        internal float Zoom;
+        internal InsightPoint Pan;
+    }
+
+    /// <summary>Unity-free graph viewport fitting math.</summary>
+    internal static class InsightGraphViewport
+    {
+        internal static InsightGraphFit Fit(InsightGraphLayoutResult layout, float width, float height, float margin)
+        {
+            width = Math.Max(1f, width);
+            height = Math.Max(1f, height);
+            margin = Math.Max(0f, margin);
+            if (layout == null || layout.ActiveNodeCount == 0) return new InsightGraphFit(1f, new InsightPoint());
+
+            float minimumX = float.MaxValue;
+            float minimumY = float.MaxValue;
+            float maximumX = float.MinValue;
+            float maximumY = float.MinValue;
+            for (int i = 0; i < layout.ActiveNodeIds.Count; i++)
+            {
+                InsightPoint point = layout.Position(layout.ActiveNodeIds[i]);
+                minimumX = Math.Min(minimumX, point.X);
+                minimumY = Math.Min(minimumY, point.Y);
+                maximumX = Math.Max(maximumX, point.X);
+                maximumY = Math.Max(maximumY, point.Y);
+            }
+
+            float spanX = Math.Max(1f, maximumX - minimumX);
+            float spanY = Math.Max(1f, maximumY - minimumY);
+            float availableWidth = Math.Max(1f, width - margin * 2f);
+            float availableHeight = Math.Max(1f, height - margin * 2f);
+            float zoom = Math.Min(availableWidth / spanX, availableHeight / spanY);
+            if (float.IsNaN(zoom) || float.IsInfinity(zoom)) zoom = 1f;
+            zoom = Math.Max(0.25f, Math.Min(2.8f, zoom));
+
+            InsightPoint boundsCenter = new InsightPoint((minimumX + maximumX) * 0.5f, (minimumY + maximumY) * 0.5f);
+            InsightPoint viewportCenter = new InsightPoint(width * 0.5f, height * 0.5f);
+            return new InsightGraphFit(zoom, new InsightPoint(
+                (viewportCenter.X - boundsCenter.X) * zoom,
+                (viewportCenter.Y - boundsCenter.Y) * zoom));
+        }
+    }
+
     /// <summary>Deterministic graph positions and layout metadata.</summary>
     public sealed class InsightGraphLayoutResult
     {

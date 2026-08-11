@@ -4,5 +4,5 @@
   <author>Lan</author>
   <packageId>lan.insightcanvas</packageId>
   <supportedVersions><li>1.6</li></supportedVersions>
-  <description>A reusable semantic visualization framework for interactive cards, explanations, constellations, event rivers, and temporary map links.</description>
+  <description>An opt-in composable UI framework for RimWorld mods: responsive layouts, scoped themes, stateful controls, virtualization, and a polished Feature Showcase. Advanced semantic visualizations remain available as optional extensions.</description>
 </ModMetaData>

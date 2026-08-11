@@ -41,7 +41,7 @@ namespace InsightCanvas
             Rect header = new Rect(rect.x + 8f, rect.y + 6f, rect.width - 16f, 32f);
             Text.Font = GameFont.Medium;
             GUI.color = InsightDraw.Color(theme.PrimaryText);
-            Widgets.Label(new Rect(header.x, header.y, header.width - 190f, 26f), "InsightCanvas_Constellation".Translate());
+            Widgets.Label(new Rect(header.x, header.y, header.width - 190f, 30f), "InsightCanvas_Constellation".Translate());
             Text.Font = GameFont.Small;
             if (Widgets.ButtonText(new Rect(header.xMax - 184f, header.y + 1f, 78f, 26f), "InsightCanvas_Fit".Translate())) Fit();
             if (Widgets.ButtonText(new Rect(header.xMax - 100f, header.y + 1f, 94f, 26f), "InsightCanvas_Focus".Translate())) FocusSelected(context);
@@ -277,8 +277,9 @@ namespace InsightCanvas
 
         private void Fit()
         {
-            targetZoom = 1f;
-            targetPan = Vector2.zero;
+            InsightGraphFit fit = InsightGraphViewport.Fit(layout, layoutWidth, layoutHeight, 32f);
+            targetZoom = fit.Zoom;
+            targetPan = new Vector2(fit.Pan.X, fit.Pan.Y);
         }
 
         private void FocusSelected(InsightRenderContext context)

@@ -1,5 +1,55 @@
 # Insight Canvas Integration
 
+## Composable UI v2
+
+The general-purpose API is deliberately independent of `InsightModel`. A consumer creates an ordinary element tree and supplies stable IDs for elements whose state should persist:
+
+```csharp
+InsightUiElement root = InsightUi.Column("research-screen",
+    InsightUi.Breadcrumbs("crumbs", "Colony", "Research"),
+    InsightUi.Row("toolbar",
+        InsightUi.Button("refresh", "Refresh", Refresh),
+        InsightUi.IconButton("help", "?", ShowHelp).SetTooltip("Explain this screen")),
+    InsightUi.Split("body",
+        InsightUi.Surface("navigation", InsightUi.Tabs("sections")
+            .Add("overview", "Overview", BuildOverview())
+            .Add("history", "History", BuildHistory())),
+        InsightUi.Scroll("details", BuildDetails()), 0.28f).SetFlex(1f))
+    .SetGap(10f)
+    .SetPadding(12f);
+
+InsightUiDocument document = new InsightUiDocument("Research screen", root)
+{
+    Density = InsightUiDensity.Normal,
+    HighContrast = false,
+    ReducedMotion = false
+};
+Find.WindowStack.Add(new InsightUiWindow(document));
+```
+
+The same document can be embedded in a caller-owned `Rect`:
+
+```csharp
+private readonly InsightUiHost host = new InsightUiHost(document);
+
+public override void DoWindowContents(Rect rect)
+{
+    host.Draw(rect, Time.deltaTime);
+}
+
+public override void PostClose()
+{
+    host.PostClose();
+    base.PostClose();
+}
+```
+
+`InsightUiElement` has explicit `Measure`, `Arrange`, and `Paint` phases. `InsightUi.Row`, `Column`, `Wrap`, `Grid`, `Split`, `Scroll`, and `VirtualList` provide layout; `Surface`, `Badge`, `Progress`, `Label`, `Button`, `IconButton`, `Toggle`, `Slider`, `TextField`, `Tabs`, and `Breadcrumbs` provide composable visual and interaction primitives. `InsightUiStateStore` is owned by the document, so the same stable ID can be reused in separate windows without leaking selection or scroll state. `InsightUiDiagnostics` reports frames, measure/arrange work, visible elements, invalidations, and render failures.
+
+`InsightTheme` is cloned and accessibility-adjusted at the document boundary. The renderer scopes GUI state and restores color, enabled state, text settings, matrix, and clipping state after every draw. No global `GUI.skin` or vanilla window is changed. For long collections, use `InsightVirtualization.Range` for custom renderers or `InsightUi.VirtualList` for fixed-height rows.
+
+The Feature Showcase is an example consumer of this API, not a privileged framework path. The semantic model, graph, explanation, event, timeline, and map-link types below remain available as optional advanced extensions; ordinary menus should not depend on them.
+
 ## Minimal model
 
 The public model is a fluent collector. IDs are owned by the dependent mod and should remain stable for the lifetime of a source object.

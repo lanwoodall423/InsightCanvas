@@ -38,6 +38,7 @@ namespace InsightCanvas
         public InsightContext Context => context;
         public InsightDiagnostics Diagnostics => diagnostics;
         public InsightModelSnapshot Snapshot => snapshot;
+        internal int RenderErrors { get; private set; }
         public InsightTheme ThemeOverride { get; set; }
         internal object OverlayOwnerToken => overlayOwnerToken;
 
@@ -67,6 +68,7 @@ namespace InsightCanvas
                 }
                 catch (Exception exception)
                 {
+                    RenderErrors++;
                     Log.ErrorOnce("[Insight Canvas] Window failed to draw: " + exception, "insight-window-draw".GetHashCode());
                     GUI.color = Color.white;
                     Widgets.Label(inRect, "Insight Canvas could not render this snapshot. See the log for details.");
@@ -97,11 +99,17 @@ namespace InsightCanvas
             GUI.color = InsightDraw.Color(theme.SecondaryText);
             string selection = context.SelectedEntityId == null ? "InsightCanvas_NoSelection".Translate() :
                 "InsightCanvas_Selected".Translate(context.SelectedEntityId);
-            Widgets.Label(new Rect(header.x + header.width * 0.42f, header.y + 8f, header.width * 0.25f, 24f), selection);
-            DrawDisclosureControls(new Rect(header.xMax - 440f, header.y + 6f, 330f, 30f));
-            if (model.Id == "Insight Canvas Laboratory" && Widgets.ButtonText(new Rect(header.xMax - 144f, header.y + 6f, 64f, 30f), "InsightCanvas_Tools".Translate()))
+            InsightRect headerLayout = new InsightRect(header.x, header.y, header.width, header.height);
+            InsightRect disclosureLayout = InsightHeaderLayout.DisclosureControls(headerLayout);
+            float selectionX = header.x + header.width * 0.42f;
+            float selectionWidth = Mathf.Max(0f, disclosureLayout.X - selectionX - 8f);
+            Widgets.Label(new Rect(selectionX, header.y + 8f, selectionWidth, 24f), selection);
+            DrawDisclosureControls(new Rect(disclosureLayout.X, disclosureLayout.Y, disclosureLayout.Width, disclosureLayout.Height));
+            InsightRect toolsLayout = InsightHeaderLayout.ToolsButton(headerLayout);
+            if (model.Id == "Insight Canvas Laboratory" && Widgets.ButtonText(new Rect(toolsLayout.X, toolsLayout.Y, toolsLayout.Width, toolsLayout.Height), "InsightCanvas_Tools".Translate()))
                 Find.WindowStack.Add(new InsightLaboratoryToolsWindow(this));
-            if (Widgets.ButtonText(new Rect(header.xMax - 72f, header.y + 6f, 64f, 30f), "InsightCanvas_Reset".Translate()))
+            InsightRect resetLayout = InsightHeaderLayout.ResetButton(headerLayout);
+            if (Widgets.ButtonText(new Rect(resetLayout.X, resetLayout.Y, resetLayout.Width, resetLayout.Height), "InsightCanvas_Reset".Translate()))
             {
                 context.SetFilter(string.Empty);
                 context.Select(null);
@@ -142,17 +150,26 @@ namespace InsightCanvas
             TieredDisclosureProvider tiered = context.DisclosureProvider as TieredDisclosureProvider;
             if (tiered == null || tiered.Count == 0) return;
             float width = Mathf.Min(78f, (rect.width - 4f * (tiered.Count - 1)) / tiered.Count);
-            for (int i = 0; i < tiered.Count; i++)
+            GameFont previousFont = Text.Font;
+            Text.Font = GameFont.Tiny;
+            try
             {
-                int level = i;
-                InsightDisclosure disclosure = tiered.Level(i);
-                if (Widgets.ButtonText(new Rect(rect.x + i * (width + 4f), rect.y, width, 28f), disclosure.Label,
-                    active: tiered.ActiveLevel != i))
+                for (int i = 0; i < tiered.Count; i++)
                 {
-                    tiered.ActiveLevel = level;
-                    context.NotifyDisclosureChanged();
-                    view.Invalidate();
+                    int level = i;
+                    InsightDisclosure disclosure = tiered.Level(i);
+                    if (Widgets.ButtonText(new Rect(rect.x + i * (width + 4f), rect.y, width, 28f), disclosure.Label,
+                        active: tiered.ActiveLevel != i))
+                    {
+                        tiered.ActiveLevel = level;
+                        context.NotifyDisclosureChanged();
+                        view.Invalidate();
+                    }
                 }
+            }
+            finally
+            {
+                Text.Font = previousFont;
             }
         }
     }

@@ -12,11 +12,16 @@ internal static class Program
             ValidationCoverage();
             ModelClear();
             LayoutMath();
+            ComposableLayout();
+            UiStateIsolation();
+            ResponsiveGridAndVirtualization();
+            UiThemeScope();
             SelectionPropagation();
             ExplanationCalculation();
             ThemeParsing();
             GraphDeterminism();
             GraphBudgeting();
+            GraphFitAndHeaderGeometry();
             TimelineMath();
             OverlayOwnership();
             Serialization();
@@ -96,6 +101,13 @@ internal static class Program
         Assert(grid.Count == 4 && Math.Abs(grid[0].Rect.Width - 48f) < 0.01f, "grid allocation changed");
         InsightRect centered = InsightLayout.Align(new InsightRect(0f, 0f, 100f, 50f), 40f, 20f, InsightAlignment.Center);
         Assert(Math.Abs(centered.X - 30f) < 0.01f && Math.Abs(centered.Y - 15f) < 0.01f, "alignment changed");
+        InsightRect header = new InsightRect(0f, 0f, 1280f, 43f);
+        InsightRect disclosure = InsightHeaderLayout.DisclosureControls(header);
+        InsightRect tools = InsightHeaderLayout.ToolsButton(header);
+        InsightRect reset = InsightHeaderLayout.ResetButton(header);
+        Assert(disclosure.Width >= 329.99f && disclosure.Right <= tools.X - 8f &&
+            tools.Right <= reset.X - 8f && reset.Right <= header.Right - 8f,
+            "header controls overlap or exceed the window");
     }
 
     private static void ModelClear()
@@ -107,6 +119,78 @@ internal static class Program
         InsightModelSnapshot snapshot = model.Snapshot();
         Assert(snapshot.Entities.Count == 0 && snapshot.Relations.Count == 0 && snapshot.Events.Count == 0 &&
             model.Revision > revision, "model clear did not replace published data");
+    }
+
+    private static void ComposableLayout()
+    {
+        InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+        InsightUiElement fixedPanel = InsightUi.Surface("fixed", InsightUi.Label("fixed-label", "Fixed"))
+            .SetWidth(InsightLength.Fixed(120f));
+        InsightUiElement flexiblePanel = InsightUi.Surface("flex", InsightUi.Label("flex-label", "Flexible"))
+            .SetFlex(1f);
+        InsightUiStack row = InsightUi.Row("row", fixedPanel, flexiblePanel).SetGap(8f) as InsightUiStack;
+        InsightUiSize measured = row.Measure(new InsightUiConstraints(0f, 400f, 0f, 120f), frame);
+        row.Arrange(new InsightRect(0f, 0f, 400f, 120f), frame);
+        Assert(measured.Width > 0f && row.Children[0].LayoutRect.Width >= 119f &&
+            row.Children[1].LayoutRect.Width > row.Children[0].LayoutRect.Width &&
+            row.Children[1].LayoutRect.Right <= 400.01f, "composable row did not honor fixed/flexible layout");
+
+        InsightUiStack wrapped = InsightUi.Wrap("wrapped",
+            InsightUi.Label("one", "one").SetWidth(InsightLength.Fixed(90f)),
+            InsightUi.Label("two", "two").SetWidth(InsightLength.Fixed(90f)),
+            InsightUi.Label("three", "three").SetWidth(InsightLength.Fixed(90f)));
+        wrapped.SetGap(8f);
+        wrapped.Measure(new InsightUiConstraints(0f, 190f, 0f, 200f), frame);
+        wrapped.Arrange(new InsightRect(0f, 0f, 190f, 200f), frame);
+        Assert(wrapped.Children[2].LayoutRect.Y > wrapped.Children[0].LayoutRect.Y, "wrapped layout did not create a second line");
+    }
+
+    private static void UiStateIsolation()
+    {
+        InsightUiDocument first = new InsightUiDocument("first", InsightUi.Empty("root"));
+        InsightUiDocument second = new InsightUiDocument("second", InsightUi.Empty("root"));
+        first.State.SetBool("panel.open", true);
+        first.State.SetFloat("scroll", 42f);
+        Assert(first.State.GetBool("panel.open") && Math.Abs(first.State.GetFloat("scroll") - 42f) < 0.001f &&
+            !second.State.GetBool("panel.open") && Math.Abs(second.State.GetFloat("scroll")) < 0.001f,
+            "composable state leaked between documents");
+        int revision = first.Revision;
+        first.Invalidate();
+        Assert(first.Revision > revision && first.Diagnostics.Invalidations == 1, "document invalidation was not scoped");
+    }
+
+    private static void ResponsiveGridAndVirtualization()
+    {
+        InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Compact, false, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 0.016f);
+        InsightUiGrid grid = InsightUi.Grid("grid", 150f)
+            .Add(InsightUi.Surface("a", InsightUi.Label("a-label", "A")),
+                InsightUi.Surface("b", InsightUi.Label("b-label", "B")),
+                InsightUi.Surface("c", InsightUi.Label("c-label", "C")),
+                InsightUi.Surface("d", InsightUi.Label("d-label", "D")));
+        grid.Measure(new InsightUiConstraints(0f, 420f, 0f, 400f), frame);
+        grid.Arrange(new InsightRect(0f, 0f, 420f, 240f), frame);
+        Assert(grid.Children[0].LayoutRect.X < grid.Children[1].LayoutRect.X &&
+            grid.Children[2].LayoutRect.Y > grid.Children[0].LayoutRect.Y,
+            "adaptive grid did not arrange rows and columns");
+        InsightVirtualizedRange range = InsightVirtualization.Range(1000, 24f, 240f, 480f, 2);
+        Assert(range.Start < 20 && range.Contains(20) && range.End > 25 && range.End < 1000,
+            "virtualized range did not include the viewport with overscan");
+        Assert(Math.Abs(InsightVirtualization.ContentHeight(10, 24f) - 240f) < 0.001f,
+            "virtualized content height changed");
+    }
+
+    private static void UiThemeScope()
+    {
+        InsightUiDocument first = new InsightUiDocument("first-theme", InsightUi.Empty("root"));
+        InsightUiDocument second = new InsightUiDocument("second-theme", InsightUi.Empty("root"));
+        InsightColor original = second.Theme.Selected;
+        first.Theme.Selected = new InsightColor(1f, 0f, 0f);
+        first.HighContrast = true;
+        InsightTheme accessible = first.Theme.WithAccessibility(true, InsightColorBlindMode.None);
+        Assert(first.Theme.Selected.Equals(new InsightColor(1f, 0f, 0f)) && second.Theme.Selected.Equals(original) &&
+            !accessible.PrimaryText.Equals(first.Theme.PrimaryText), "theme overrides were not scoped or transformed");
     }
 
     private static void SelectionPropagation()
@@ -165,6 +249,25 @@ internal static class Program
         for (int i = 0; i < result.Edges.Count; i++)
             Assert(result.ContainsNode(result.Edges[i].FromId) && result.ContainsNode(result.Edges[i].ToId),
                 "budgeted graph retained an edge outside its active node set");
+    }
+
+    private static void GraphFitAndHeaderGeometry()
+    {
+        InsightModel model = InsightModel.Create("fit").Entity(new InsightEntity("left", "Left",
+                manualPosition: new InsightPoint(40f, 30f)))
+            .Entity(new InsightEntity("right", "Right", manualPosition: new InsightPoint(360f, 210f)))
+            .Entity(new InsightEntity("center", "Center", manualPosition: new InsightPoint(200f, 120f)));
+        InsightGraphLayoutResult layout = InsightGraphLayout.Compute(model.Snapshot(), 400f, 240f, 10);
+        InsightGraphFit fit = InsightGraphViewport.Fit(layout, 400f, 240f, 24f);
+        Assert(fit.Zoom > 1f && fit.Zoom <= 2.8f, "Fit All did not calculate a bounded zoom");
+        for (int i = 0; i < layout.ActiveNodeIds.Count; i++)
+        {
+            InsightPoint point = layout.Position(layout.ActiveNodeIds[i]);
+            float x = 200f + (point.X - 200f) * fit.Zoom + fit.Pan.X;
+            float y = 120f + (point.Y - 120f) * fit.Zoom + fit.Pan.Y;
+            Assert(x >= 24f - 0.01f && x <= 376f + 0.01f && y >= 24f - 0.01f && y <= 216f + 0.01f,
+                "Fit All left an active node outside the viewport bounds");
+        }
     }
 
     private static void TimelineMath()

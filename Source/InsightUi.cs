@@ -330,10 +330,10 @@ namespace InsightCanvas
             Panel(rect, theme, true);
             Text.Font = GameFont.Medium;
             GUI.color = Color(theme.PrimaryText);
-            Widgets.Label(new Rect(rect.x + 10f, rect.y + 5f, rect.width - 20f, 26f), title ?? string.Empty);
+            Widgets.Label(new Rect(rect.x + 10f, rect.y + 4f, rect.width - 20f, 30f), title ?? string.Empty);
             Text.Font = GameFont.Tiny;
             GUI.color = Color(theme.SecondaryText);
-            if (!string.IsNullOrEmpty(subtitle)) Widgets.Label(new Rect(rect.x + 10f, rect.y + 30f, rect.width - 20f, 18f), subtitle);
+            if (!string.IsNullOrEmpty(subtitle)) Widgets.Label(new Rect(rect.x + 10f, rect.y + 31f, rect.width - 20f, 17f), subtitle);
             Text.Font = GameFont.Small;
         }
 

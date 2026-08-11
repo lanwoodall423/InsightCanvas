@@ -4,6 +4,12 @@
         <name>InsightCanvas</name>
     </assembly>
     <members>
+        <member name="T:InsightCanvas.InsightCanvasAutoTestComponent">
+            <summary>
+            Runs a small installed-mod smoke test when DevBridge2 launches RimWorld with -quicktest.
+            The component is inert during normal launches because DEVBRIDGE_ROOT is not present.
+            </summary>
+        </member>
         <member name="T:InsightCanvas.InsightCanvasHost">
             <summary>
             Embeds the retained Insight Canvas view inside a host window such as a RimWorld main tab.
@@ -21,6 +27,9 @@
         </member>
         <member name="T:InsightCanvas.InsightCanvasMod">
             <summary>Mod entry point. Insight Canvas deliberately has no Harmony dependency.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightCanvasMod.OpenFeatureShowcase">
+            <summary>Opens the opt-in general-purpose UI feature gallery.</summary>
         </member>
         <member name="M:InsightCanvas.InsightCanvasMod.OpenLaboratory">
             <summary>Opens the independent workbench using its deterministic mock dataset.</summary>
@@ -105,6 +114,18 @@
         <member name="T:InsightCanvas.InsightExplanationPanel">
             <summary>Interactive waterfall and plain-language explanation for the shared selection.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightFeatureShowcase">
+            <summary>
+            A small, interactive gallery for the general-purpose UI layer. This is deliberately
+            a consumer of the public composable API rather than a special renderer feature.
+            </summary>
+        </member>
+        <member name="T:InsightCanvas.InsightGraphFit">
+            <summary>Viewport transform calculated by the graph's Fit All action.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightGraphViewport">
+            <summary>Unity-free graph viewport fitting math.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightGraphLayoutResult">
             <summary>Deterministic graph positions and layout metadata.</summary>
         </member>
@@ -158,6 +179,9 @@
         </member>
         <member name="T:InsightCanvas.InsightLayout">
             <summary>Responsive row, column, grid, overlay, and padding math.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightHeaderLayout">
+            <summary>Shared geometry for the window header controls.</summary>
         </member>
         <member name="T:InsightCanvas.InsightLayoutCache">
             <summary>Explicitly invalidated cache for measured component geometry.</summary>
@@ -423,6 +447,126 @@
         </member>
         <member name="T:InsightCanvas.InsightDraw">
             <summary>Small code-drawn renderer; all colors come from semantic theme tokens.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiDensity">
+            <summary>Density presets used by the composable UI layer.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiOrientation">
+            <summary>Primary axis used by stack containers.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiWrapMode">
+            <summary>Overflow behavior used by a stack or scroll container.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiTextStyle">
+            <summary>Semantic text roles understood by a renderer.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSize">
+            <summary>Engine-independent size used during measure and arrange.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiConstraints">
+            <summary>Available bounds passed to an element's measure phase.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiPadding">
+            <summary>Four-sided padding that remains independent from Unity's Rect type.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiStyle">
+            <summary>Shared layout and visual tokens for one composable element.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiStateStore">
+            <summary>Per-document state store. It is deliberately instance-owned, never global.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiDiagnostics">
+            <summary>Engine-independent diagnostics for a composable document.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiFrame">
+            <summary>State and services passed through one measure, arrange, and paint cycle.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiPainter">
+            <summary>Renderer contract implemented by the RimWorld/Unity adapter and portable test doubles.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiDocument">
+            <summary>Reusable document that can be embedded in a host Rect or placed in a Window.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiElement">
+            <summary>Base class for composable, measure/arrange/paint UI elements.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUi">
+            <summary>Convenient factory methods for the public composable API.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiStack">
+            <summary>Simple row/column container with flex, min/max, and optional wrapping.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSurface">
+            <summary>Surface/card element that scopes padding, background, border, and elevation.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiLabel">
+            <summary>Text element with renderer-provided measurement.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiButton">
+            <summary>Action button or selectable row.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiBadge">
+            <summary>Compact semantic status pill.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiProgress">
+            <summary>Compact progress indicator with a themed track and fill.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiIconButton">
+            <summary>Small icon/text action that shares button interaction and theme behavior.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiBreadcrumbs">
+            <summary>Non-interactive breadcrumb trail for nested screens and inspectors.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiToggle">
+            <summary>Stateful checkbox/toggle control.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSlider">
+            <summary>Stateful scalar slider.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiTextField">
+            <summary>Stateful text field.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiDivider">
+            <summary>One-pixel visual separator.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSpacer">
+            <summary>Fixed or flexible empty space.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiGrid">
+            <summary>Adaptive grid that chooses columns from available width.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSplit">
+            <summary>Two-pane container with a stable, clamped split ratio.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiScroll">
+            <summary>Scrollable content whose offset is stored by this document, not globally.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiTab">
+            <summary>One tab in an InsightUiTabs container.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiTabs">
+            <summary>Stateful tab strip whose content remains an ordinary composable element.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightVirtualizedRange">
+            <summary>Visible item range used by virtualized list implementations.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightVirtualization">
+            <summary>Pure virtualization math shared by list widgets and portable tests.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiVirtualList">
+            <summary>Fixed-height virtualized list. Only the visible range is measured, arranged, and painted.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiHost">
+            <summary>Embeds a general-purpose Insight UI document in a caller-owned Rect.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiWindow">
+            <summary>Window shell for documents built from the same composable API as embedded views.</summary>
+        </member>
+        <member name="T:InsightCanvas.RimWorldInsightUiPainter">
+            <summary>RimWorld/Unity implementation of the renderer contract.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiRenderer">
+            <summary>Static entry point for embedding a document in a caller-owned Rect.</summary>
         </member>
         <member name="T:InsightCanvas.InsightWindow">
             <summary>Coordinates a model snapshot, shared interaction state, and retained components in a RimWorld Window.</summary>

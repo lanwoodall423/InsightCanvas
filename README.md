@@ -1,12 +1,33 @@
 # Insight Canvas
 
-Insight Canvas is a RimWorld 1.6 framework for semantic, interactive visualizations. Dependent mods publish entities, relations, metrics, explanations, events, and actions; the framework coordinates cards, a relationship constellation, an explanation waterfall, an event river, disclosure, and temporary map links.
+Insight Canvas is a RimWorld 1.6 opt-in UI framework and design system for mod authors. It provides composable rows, columns, adaptive grids, split panes, scroll regions, stateful controls, scoped themes, virtualization, and a conventional Window shell without globally changing vanilla or third-party UI.
 
-The installed mod is useful on its own. Open **Mod settings > Insight Canvas > Open Insight Canvas Laboratory**, or use the development-mode **Insight Canvas > Open Laboratory** action. The laboratory demonstrates shared selection, disclosure previews, deterministic graph layout, uncertainty treatment, metric history, and diagnostics.
+The installed mod is useful on its own. Open **Mod settings > Insight Canvas > Open Feature Showcase**, or use the development-mode **Insight Canvas > Open Feature Showcase** action. The showcase demonstrates responsive layout, stable document state, controls, virtualization, scoped themes, density, and accessibility. The earlier semantic Laboratory remains an optional advanced extension for graph, explanation, event, and map-link consumers.
 
-The assembly has no Harmony dependency. It uses ordinary RimWorld windows, `WindowStack`, debug actions, camera selection, and map-component drawing hooks. Code-drawn visuals are the default so the framework remains usable without external art; optional theme texture paths are supported by the theme model for future content packs.
+The assembly has no Harmony dependency and never mutates the global GUI skin. It uses ordinary RimWorld windows, `WindowStack`, debug actions, and a caller-owned `Rect` embedding entry point. Code-drawn visuals are the default so the framework remains usable without external art; optional theme texture paths remain available to advanced extensions.
 
 See [`Documentation/Integration.md`](Documentation/Integration.md) for the public API and architectural constraints.
+
+## Composable UI v2
+
+Ordinary UI does not require an `InsightModel`. Build an element tree, give it a document-owned state store and theme, then either embed it or open it as a Window:
+
+```csharp
+InsightUiElement root = InsightUi.Column("settings",
+    InsightUi.Label("title", "Colony settings", InsightUiTextStyle.Title),
+    InsightUi.Surface("general", InsightUi.Column("general-content",
+        InsightUi.Toggle("show-hints", "Show hints"),
+        InsightUi.Button("apply", "Apply", ApplySettings))),
+    InsightUi.Grid("cards", 220f)
+        .Add(InsightUi.Badge("status", "Ready"), InsightUi.Progress("progress", 0.72f)))
+    .SetGap(10f)
+    .SetPadding(12f);
+
+InsightUiDocument document = new InsightUiDocument("Settings", root);
+Find.WindowStack.Add(new InsightUiWindow(document));
+```
+
+For an existing host window, keep the `InsightUiDocument` and `InsightUiHost`, then call `host.Draw(rect, deltaTime)` from `DoWindowContents`. The document owns selection, tab, expansion, focus, and scroll state; themes and accessibility options are scoped to that document. `InsightUiRenderer.Draw(rect, document)` is also available as a direct embedding entry point.
 
 ## Supported version and prerequisites
 
@@ -60,7 +81,7 @@ Quote the property argument when the installation path contains spaces, for exam
 - Require a visible green GitHub Actions run for the exact commit under release review.
 - Set `RimWorldDir` and build the Release mod assembly locally.
 - Confirm `1.6/Assemblies/InsightCanvas.dll` and `.xml` are present and no proprietary DLLs were added to the package.
-- Install the package in RimWorld 1.6 and complete an in-game smoke test covering the laboratory, map overlays, timeline, graph, and serialization integrations.
+- Install the package in RimWorld 1.6 and complete an in-game smoke test covering the Feature Showcase, embedding/window lifecycle, and preserved semantic extensions such as map overlays, timeline, graph, and serialization integrations.
 - Run `git diff --check` and review the package metadata before distribution.
 
 ## Serialization boundary

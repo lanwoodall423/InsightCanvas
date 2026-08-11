@@ -22,7 +22,7 @@ namespace InsightCanvas
             Rect inner = rect.ContractedBy(10f);
             Text.Font = GameFont.Medium;
             GUI.color = InsightDraw.Color(theme.PrimaryText);
-            Widgets.Label(new Rect(inner.x, inner.y, inner.width, 26f), "InsightCanvas_Explanation".Translate());
+            Widgets.Label(new Rect(inner.x, inner.y, inner.width, 30f), "InsightCanvas_Explanation".Translate());
             Text.Font = GameFont.Small;
             string selectedId = context.Interaction.SelectedEntityId;
             InsightEntity entity = context.Snapshot.Entity(selectedId);
@@ -35,7 +35,7 @@ namespace InsightCanvas
             }
             InsightDisclosure disclosure = context.Interaction.DisclosureFor(entity);
             GUI.color = InsightDraw.Color(theme.SecondaryText);
-            Widgets.Label(new Rect(inner.x, inner.y + 27f, inner.width, 20f), entity.Label + "  |  " + disclosure.Label);
+            Widgets.Label(new Rect(inner.x, inner.y + 30f, inner.width, 20f), entity.Label + "  |  " + disclosure.Label);
             if (cachedExplanation != explanation || cachedRevision != context.Snapshot.Revision)
             {
                 cachedExplanation = explanation;

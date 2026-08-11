@@ -23,9 +23,33 @@ The build targets RimWorld 1.6 and writes `1.6/Assemblies/InsightCanvas.dll` and
 
 Before release, require both a visible green GitHub Actions run for the exact commit and an in-game RimWorld 1.6 smoke test of the installed package. CI cannot cover game DLL compatibility, RimWorld window lifecycle, map overlays, or actual Unity rendering.
 
-## Laboratory checklist
+## Automatic in-game suite
 
-1. Open the laboratory from mod settings while playing and resize it from a wide desktop window to a narrow window.
+`Source/InsightCanvasAutoTest.cs` owns the automatic in-game checks. It activates only when a DevBridge quicktest launch supplies `DEVBRIDGE_ROOT`; DevBridge does not execute or interpret these tests. The mod waits for a playable map, then checks the demo model and validation counts, graph layout and fit bounds, responsive header geometry, a live map flash action, laboratory window creation, snapshot publication, layout, and Unity rendering. The window is closed after the checks so temporary map overlays are cleaned up.
+
+The runner writes its status to `DevBridge2/Runtime/insightcanvas-autotest.json`. A normal run is:
+
+```text
+DevBridge.cmd restart
+DevBridge.cmd test begin
+# wait for Runtime/insightcanvas-autotest.json to report PASS or FAIL
+DevBridge.cmd test end <lease-id printed by test begin>
+```
+
+The bridge is used only for launch, restart, readiness, and test-lease coordination; the pass/fail result is produced by Insight Canvas itself.
+
+## Feature Showcase checklist
+
+1. Open **Mod settings > Insight Canvas > Open Feature Showcase** while playing and resize the Window from a wide desktop size to a narrow size.
+2. Visit Overview, Layout, Controls, Virtualization, and Themes. Confirm tab selection remains stable while switching pages.
+3. Exercise the controls page: toggle reduced motion and high contrast, change density, type into the field, and invoke both actions.
+4. Scroll the layout and virtualization pages. The list should remain responsive while its visible range stays bounded.
+5. Confirm the default theme remains warm charcoal with readable neutral text and restrained accent colors. Reset the showcase and confirm document state returns to its defaults.
+6. Embed an `InsightUiDocument` in a test consumer using `InsightUiHost`; close the host and verify that its state and any owner-scoped map previews are cleaned up.
+
+## Legacy semantic extension checklist
+
+1. Open the semantic laboratory from a consumer or development build and resize it from a wide desktop window to a narrow window.
 2. Hover and select a card; confirm the constellation node, explanation panel, and event river use the same entity.
 3. Use the graph fit, focus, middle-drag, and wheel zoom controls. Inspect low-zoom cluster aggregation and high-zoom relation labels.
 4. Change disclosure from Unknown through Mastered. Exact values, history, causal factors, and labels should reveal progressively; unknown states retain symbols and text.

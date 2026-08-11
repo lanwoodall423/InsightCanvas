@@ -63,8 +63,15 @@ namespace InsightCanvas
             listing.Label("InsightCanvas_EdgeBudget".Translate(Settings.EdgeBudget));
             Settings.EdgeBudget = (int)listing.Slider(Settings.EdgeBudget, 64f, 2000f);
             listing.GapLine(6f);
-            if (Widgets.ButtonText(listing.GetRect(30f), "InsightCanvas_OpenLaboratory".Translate())) OpenLaboratory();
+            if (Widgets.ButtonText(listing.GetRect(30f), "InsightCanvas_OpenFeatureShowcase".Translate())) OpenFeatureShowcase();
             listing.End();
+        }
+
+        /// <summary>Opens the opt-in general-purpose UI feature gallery.</summary>
+        public static void OpenFeatureShowcase()
+        {
+            if (Find.WindowStack == null) return;
+            Find.WindowStack.Add(InsightFeatureShowcase.CreateWindow());
         }
 
         /// <summary>Opens the independent workbench using its deterministic mock dataset.</summary>
@@ -77,5 +84,9 @@ namespace InsightCanvas
         [DebugAction("Insight Canvas", "Open Laboratory", actionType = DebugActionType.Action,
             allowedGameStates = AllowedGameStates.Playing)]
         public static void OpenLaboratoryDebugAction() => OpenLaboratory();
+
+        [DebugAction("Insight Canvas", "Open Feature Showcase", actionType = DebugActionType.Action,
+            allowedGameStates = AllowedGameStates.Playing)]
+        public static void OpenFeatureShowcaseDebugAction() => OpenFeatureShowcase();
     }
 }

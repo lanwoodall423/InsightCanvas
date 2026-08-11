@@ -245,6 +245,23 @@ namespace InsightCanvas
         }
     }
 
+    /// <summary>Shared geometry for the window header controls.</summary>
+    internal static class InsightHeaderLayout
+    {
+        internal static InsightRect DisclosureControls(InsightRect header)
+        {
+            float right = Math.Max(header.X + 8f, header.Right - 152f);
+            float left = Math.Max(header.X + 8f, Math.Min(right, header.Right - 482f));
+            return new InsightRect(left, header.Y + 6f, Math.Max(0f, Math.Min(330f, right - left)), 30f);
+        }
+
+        internal static InsightRect ToolsButton(InsightRect header) =>
+            new InsightRect(header.Right - 144f, header.Y + 6f, 64f, 30f);
+
+        internal static InsightRect ResetButton(InsightRect header) =>
+            new InsightRect(header.Right - 72f, header.Y + 6f, 64f, 30f);
+    }
+
     /// <summary>Explicitly invalidated cache for measured component geometry.</summary>
     public sealed class InsightLayoutCache
     {

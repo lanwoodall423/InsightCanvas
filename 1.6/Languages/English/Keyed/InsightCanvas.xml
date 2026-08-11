@@ -9,6 +9,7 @@
   <InsightCanvas_NodeBudget>Graph node budget: {0}</InsightCanvas_NodeBudget>
   <InsightCanvas_EdgeBudget>Graph edge budget: {0}</InsightCanvas_EdgeBudget>
   <InsightCanvas_OpenLaboratory>Open Insight Canvas Laboratory</InsightCanvas_OpenLaboratory>
+  <InsightCanvas_OpenFeatureShowcase>Open Feature Showcase</InsightCanvas_OpenFeatureShowcase>
   <InsightCanvas_NoComponents>No visualization components have been added.</InsightCanvas_NoComponents>
   <InsightCanvas_CardOverview>Entity overview</InsightCanvas_CardOverview>
   <InsightCanvas_Compact>Compact</InsightCanvas_Compact>

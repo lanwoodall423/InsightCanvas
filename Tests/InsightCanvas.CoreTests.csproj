@@ -19,5 +19,7 @@
     <Compile Include="..\Source\InsightOverlayOwnership.cs" Link="InsightOverlayOwnership.cs" />
     <Compile Include="..\Source\InsightSerialization.cs" Link="InsightSerialization.cs" />
     <Compile Include="..\Source\InsightMotion.cs" Link="InsightMotion.cs" />
+    <Compile Include="..\Source\InsightUiCore.cs" Link="InsightUiCore.cs" />
+    <Compile Include="..\Source\InsightUiElements.cs" Link="InsightUiElements.cs" />
   </ItemGroup>
 </Project>
