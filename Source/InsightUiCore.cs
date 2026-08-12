@@ -36,6 +36,24 @@ namespace InsightCanvas
         Label
     }
 
+    /// <summary>Semantic tone used by persistent in-layout callouts.</summary>
+    public enum InsightUiCalloutSeverity
+    {
+        Info,
+        Success,
+        Warning,
+        Error
+    }
+
+    /// <summary>Direction from which a SlideFade element enters or exits its final bounds.</summary>
+    public enum InsightUiSlideDirection
+    {
+        Up,
+        Down,
+        Left,
+        Right
+    }
+
     /// <summary>Direction used by document-level focus traversal.</summary>
     public enum InsightUiFocusDirection
     {
@@ -552,6 +570,8 @@ namespace InsightCanvas
         public InsightUiToastService Toasts { get; private set; }
         /// <summary>Gets the current nested visual opacity, used by fade/reveal elements.</summary>
         public float Opacity { get; private set; } = 1f;
+        /// <summary>Gets the caller-owned bounds used by transient elements for safe placement.</summary>
+        public InsightRect HostBounds { get; private set; }
         public float DeltaTime { get; private set; }
         public Func<string, InsightUiTextStyle, float, InsightUiSize> TextMeasurer { get; set; }
         /// <summary>Optional normal RimWorld control measurement, without semantic typography scaling.</summary>
@@ -559,7 +579,8 @@ namespace InsightCanvas
 
         public InsightUiFrame(InsightTheme theme, InsightUiDensity density, bool highContrast, bool reducedMotion,
             InsightUiStateStore state, InsightUiDiagnostics diagnostics, float deltaTime,
-            InsightUiFocusState focus = null, InsightUiEffects effects = null, InsightUiToastService toasts = null)
+            InsightUiFocusState focus = null, InsightUiEffects effects = null, InsightUiToastService toasts = null,
+            InsightRect? hostBounds = null)
         {
             Theme = theme ?? InsightTheme.Default;
             Density = density;
@@ -570,6 +591,7 @@ namespace InsightCanvas
             Focus = focus ?? new InsightUiFocusState();
             Effects = effects ?? new InsightUiEffects();
             Toasts = toasts ?? new InsightUiToastService();
+            HostBounds = hostBounds ?? new InsightRect(0f, 0f, 0f, 0f);
             DeltaTime = deltaTime < 0f ? 0f : deltaTime;
         }
 
@@ -741,6 +763,22 @@ namespace InsightCanvas
         void Texture(InsightRect rect, object texture, InsightColor? tint, InsightUiFrame frame);
     }
 
+    /// <summary>Optional paint-only translation capability used by restrained motion primitives.</summary>
+    public interface IInsightUiTranslationPainter
+    {
+        /// <summary>Pushes a temporary visual offset; layout coordinates remain unchanged.</summary>
+        void PushTranslation(InsightPoint offset);
+        /// <summary>Restores the translation active before the matching push.</summary>
+        void PopTranslation();
+    }
+
+    /// <summary>Optional pointer hit-testing capability used by display-only hover context.</summary>
+    public interface IInsightUiHoverPainter
+    {
+        /// <summary>Returns whether the current pointer is inside the supplied arranged bounds.</summary>
+        bool IsPointerOver(InsightRect rect, InsightUiFrame frame);
+    }
+
     /// <summary>Optional icon capability implemented by renderers that understand consumer-supplied textures.</summary>
     public interface IInsightUiIconPainter
     {
@@ -786,6 +824,7 @@ namespace InsightCanvas
     /// <summary>Reusable document that can be embedded in a host Rect or placed in a Window.</summary>
     public sealed class InsightUiDocument
     {
+        private InsightUiElement root;
         private InsightTheme theme;
         private InsightTheme accessibleTheme;
         private InsightTheme accessibleThemeSource;
@@ -796,7 +835,6 @@ namespace InsightCanvas
         public InsightUiDocument(string id, InsightUiElement root)
         {
             Id = string.IsNullOrWhiteSpace(id) ? "Insight Canvas" : id;
-            Root = root ?? InsightUi.Empty("root");
             theme = InsightTheme.Default;
             State = new InsightUiStateStore();
             Diagnostics = new InsightUiDiagnostics();
@@ -804,10 +842,21 @@ namespace InsightCanvas
             Effects = new InsightUiEffects();
             Toasts = new InsightUiToastService();
             Density = InsightUiDensity.Normal;
+            this.root = root ?? InsightUi.Empty("root");
         }
 
         public string Id { get; private set; }
-        public InsightUiElement Root { get; set; }
+        /// <summary>Gets or replaces the document root; replacing it closes transient descendants of the old root.</summary>
+        public InsightUiElement Root
+        {
+            get => root;
+            set
+            {
+                if (ReferenceEquals(root, value)) return;
+                root?.CloseTransient(State);
+                root = value ?? InsightUi.Empty("root");
+            }
+        }
         public InsightTheme Theme
         {
             get => theme;

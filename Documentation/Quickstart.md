@@ -57,6 +57,24 @@ public void ClosePanel()
 
 `PostClose()` clears document-owned focus, effects, toasts, popovers, dropdowns, and map-bridge ownership. If a consumer already manages its own lifecycle, it can call `InsightUiRenderer.Draw(rect, document)` directly and still use the same public element tree.
 
+## Reusable information surfaces
+
+Common RimWorld summaries can stay compositional instead of introducing a data model:
+
+```csharp
+InsightUiStatRow reserve = InsightUi.StatRow("reserve", "Stored power", "620 / 1000 Wd")
+    .SetSecondary("Workshop reserve");
+InsightUiElement summary = InsightUi.Column("summary",
+    InsightUi.SectionHeader("storage", "Storage", "Configure stockpile behavior"),
+    InsightUi.Callout("power-warning", InsightUiCalloutSeverity.Warning,
+        "Insufficient power", "This workbench will stop when stored energy is exhausted.")
+        .SetContent(reserve),
+    InsightUi.Meter("power", 620f, 1000f).SetLabel("Stored power").SetValueText("620 / 1000 Wd")
+).SetGap(8f);
+```
+
+`Callout`, `SectionHeader`, `Meter`, and `StatRow` are ordinary composites of the existing primitives. They inherit the document theme, density, contrast, and motion settings and work in either an embedded host or `InsightUiWindow`.
+
 ## 4. Bind existing ModSettings
 
 Bindings keep the consumer's settings object authoritative; no second synchronization dictionary is needed:
@@ -110,6 +128,20 @@ Use document-owned effects for brief feedback and close them with the document l
 document.Effects.Flash("saved-card");
 document.Toasts.Show("Saved", InsightToastSeverity.Success);
 ```
+
+For a restrained paint-only reveal or display-only context card, use the same ordinary composition API:
+
+```csharp
+InsightUiElement details = InsightUi.SlideFade("details", settings.ShowDetails,
+    InsightUi.Surface("details-card", InsightUi.Label("copy", "Additional settings")));
+InsightUiElement help = InsightUi.HoverCard("help-card",
+    InsightUi.Label("help-trigger", "Hover for context"),
+    InsightUi.Column("help-content",
+        InsightUi.Label("help-title", "Context", InsightUiTextStyle.Heading),
+        InsightUi.Label("help-copy", "A short, display-only explanation.")));
+```
+
+`SlideFade` keeps the arranged geometry unchanged and uses a short cardinal 4–8 px travel. `HoverCard` waits briefly before opening, allows a small trigger-to-card grace period, clamps to the host Rect, and is cleared by `InsightUiHost.PostClose()` or `InsightUiWindow.PostClose()`. It does not take focus or introduce a general overlay manager.
 
 For a custom preview, use `InsightUi.Custom` and optional renderer capabilities:
 

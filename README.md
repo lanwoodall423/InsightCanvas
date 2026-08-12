@@ -77,11 +77,11 @@ The same `InsightUiDocument` can be passed to `InsightUiWindow`, used with `Insi
 
 ### Core UI
 
-Documents, hosts, windows, rows, columns, wrapping, grids, split panes, scroll regions, surfaces, cards, labels, badges, dividers, progress, buttons, icon buttons, toggles, sliders, text fields, selectors, expanders, tabs, navigation, breadcrumbs, searchable fields, popovers, toolbars, scoped state, bindings, focus, themes, accessibility, icons, custom drawing, and virtualization.
+Documents, hosts, windows, rows, columns, wrapping, grids, split panes, scroll regions, surfaces, cards, labels, badges, dividers, progress, callouts, section headers, meters, stat rows, buttons, icon buttons, toggles, sliders, text fields, selectors, expanders, tabs, navigation, breadcrumbs, searchable fields, popovers, toolbars, scoped state, bindings, focus, themes, accessibility, icons, custom drawing, and virtualization.
 
 ### Effects and polish
 
-`InsightUi.Fade`, `Reveal`, and `Highlight` provide keyed transitions. `document.Effects` provides short-lived flashes and `document.Toasts` provides document-local feedback. Motion is subtle, interruptible, and settles immediately when `ReducedMotion` is enabled; it does not silently change layout.
+`InsightUi.Fade`, `SlideFade`, `Reveal`, and `Highlight` provide keyed, document-owned visual feedback. `SlideFade` is paint-only, travels a short 4–8 px cardinal distance, keeps final layout geometry, and settles immediately when `ReducedMotion` is enabled. `HoverCard` is an optional display-only context card with a brief delay, a small trigger-to-card grace period, host-bound placement, and ordinary composable content. `document.Effects` provides short-lived flashes and `document.Toasts` provides document-local feedback. Motion is subtle, interruptible, and never silently changes layout. Close an `InsightUiHost` or `InsightUiWindow` to clear effects and transient cards.
 
 ### Advanced extensions
 

@@ -496,6 +496,12 @@
         <member name="T:InsightCanvas.InsightUiTextStyle">
             <summary>Semantic text roles understood by a renderer.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiCalloutSeverity">
+            <summary>Semantic tone used by persistent in-layout callouts.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSlideDirection">
+            <summary>Direction from which a SlideFade element enters or exits its final bounds.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiFocusDirection">
             <summary>Direction used by document-level focus traversal.</summary>
         </member>
@@ -640,6 +646,9 @@
         <member name="P:InsightCanvas.InsightUiFrame.Opacity">
             <summary>Gets the current nested visual opacity, used by fade/reveal elements.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiFrame.HostBounds">
+            <summary>Gets the caller-owned bounds used by transient elements for safe placement.</summary>
+        </member>
         <member name="P:InsightCanvas.InsightUiFrame.NativeTextMeasurer">
             <summary>Optional normal RimWorld control measurement, without semantic typography scaling.</summary>
         </member>
@@ -679,6 +688,21 @@
         <member name="M:InsightCanvas.IInsightUiCustomPainter.Texture(InsightCanvas.InsightRect,System.Object,System.Nullable{InsightCanvas.InsightColor},InsightCanvas.InsightUiFrame)">
             <summary>Draws a consumer-supplied texture when supported.</summary>
         </member>
+        <member name="T:InsightCanvas.IInsightUiTranslationPainter">
+            <summary>Optional paint-only translation capability used by restrained motion primitives.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiTranslationPainter.PushTranslation(InsightCanvas.InsightPoint)">
+            <summary>Pushes a temporary visual offset; layout coordinates remain unchanged.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiTranslationPainter.PopTranslation">
+            <summary>Restores the translation active before the matching push.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiHoverPainter">
+            <summary>Optional pointer hit-testing capability used by display-only hover context.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiHoverPainter.IsPointerOver(InsightCanvas.InsightRect,InsightCanvas.InsightUiFrame)">
+            <summary>Returns whether the current pointer is inside the supplied arranged bounds.</summary>
+        </member>
         <member name="T:InsightCanvas.IInsightUiIconPainter">
             <summary>Optional icon capability implemented by renderers that understand consumer-supplied textures.</summary>
         </member>
@@ -715,6 +739,9 @@
         <member name="T:InsightCanvas.InsightUiDocument">
             <summary>Reusable document that can be embedded in a host Rect or placed in a Window.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiDocument.Root">
+            <summary>Gets or replaces the document root; replacing it closes transient descendants of the old root.</summary>
+        </member>
         <member name="P:InsightCanvas.InsightUiDocument.Effects">
             <summary>Gets keyed transitions and feedback effects scoped to this document.</summary>
         </member>
@@ -733,8 +760,155 @@
         <member name="T:InsightCanvas.InsightUi">
             <summary>Convenient factory methods for the public composable API.</summary>
         </member>
+        <member name="M:InsightCanvas.InsightUi.Callout(System.String,InsightCanvas.InsightUiCalloutSeverity,System.String,System.String)">
+            <summary>Creates persistent explanatory content with a semantic status tone.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUi.SectionHeader(System.String,System.String,System.String,InsightCanvas.InsightUiIcon,InsightCanvas.InsightUiElement,System.Boolean)">
+            <summary>Creates a compact section hierarchy with optional supporting content.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUi.Meter(System.String,System.Single,System.Single)">
+            <summary>Creates a normalized current/max meter built on the progress primitive.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUi.StatRow(System.String,System.String,System.String)">
+            <summary>Creates a compact inspector row with a trailing value.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUi.SlideFade(System.String,System.Boolean,InsightCanvas.InsightUiElement,InsightCanvas.InsightUiSlideDirection)">
+            <summary>Creates a restrained paint-only slide and fade from one of four cardinal directions.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUi.HoverCard(System.String,InsightCanvas.InsightUiElement,InsightCanvas.InsightUiElement)">
+            <summary>Creates display-only rich hover context with document-scoped delay and cleanup.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiStack">
             <summary>Simple row/column container with flex, min/max, and optional wrapping.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiCallout">
+            <summary>Persistent, in-layout explanatory notice composed from ordinary Insight Canvas elements.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Severity">
+            <summary>Gets or sets the semantic tone used by the callout.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Title">
+            <summary>Gets or sets the short explanatory heading.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Body">
+            <summary>Gets or sets the optional explanatory body.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Icon">
+            <summary>Gets the optional leading icon.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Content">
+            <summary>Gets the optional content element below the message.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Actions">
+            <summary>Gets the optional action element below the message.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCallout.Children">
+            <summary>Gets the single composed root exposed to traversal and diagnostics.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiCallout.SetIcon(InsightCanvas.InsightUiIcon)">
+            <summary>Adds an optional icon while retaining the normal icon fallback behavior.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiCallout.SetContent(InsightCanvas.InsightUiElement)">
+            <summary>Adds arbitrary normal Insight Canvas content below the explanatory text.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiCallout.SetActions(InsightCanvas.InsightUiElement)">
+            <summary>Adds optional actions or another normal element below the callout body.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSectionHeader">
+            <summary>Reusable section title with optional icon, subtitle, trailing action, and divider.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSectionHeader.Title">
+            <summary>Gets or sets the primary heading.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSectionHeader.Subtitle">
+            <summary>Gets or sets the optional supporting line.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSectionHeader.Icon">
+            <summary>Gets the optional leading icon.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSectionHeader.Trailing">
+            <summary>Gets the optional trailing action or content element.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSectionHeader.Divider">
+            <summary>Gets whether a divider follows the header.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSectionHeader.Children">
+            <summary>Gets the active wide or narrow root exposed to traversal and diagnostics.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSectionHeader.SetIcon(InsightCanvas.InsightUiIcon)">
+            <summary>Sets or clears the optional leading icon.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSectionHeader.SetTrailing(InsightCanvas.InsightUiElement)">
+            <summary>Sets or clears the optional trailing action or content element.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSectionHeader.SetDivider(System.Boolean)">
+            <summary>Sets whether a theme-colored divider follows the header.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiMeter">
+            <summary>Normalized capacity, power, heat, mood, or completion indicator built on Progress.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.Current">
+            <summary>Gets or sets the current value before normalization.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.Maximum">
+            <summary>Gets or sets the positive capacity used for normalization.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.Label">
+            <summary>Gets the optional label shown above the progress track.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.ValueText">
+            <summary>Gets the optional trailing value text.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.Color">
+            <summary>Gets the optional custom progress color.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.NormalizedValue">
+            <summary>Gets the clamped current-to-maximum ratio.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiMeter.Children">
+            <summary>Gets the composed root and its progress primitive.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiMeter.SetLabel(System.String)">
+            <summary>Sets the optional label shown above the progress track.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiMeter.SetValueText(System.String)">
+            <summary>Sets the optional trailing value text shown with the meter.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiMeter.SetColor(System.Nullable{InsightCanvas.InsightColor})">
+            <summary>Sets a custom fill color, or clears it to use the document accent.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiStatRow">
+            <summary>Compact label/value inspector row with optional icon and secondary caption.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiStatRow.Label">
+            <summary>Gets or sets the primary label.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiStatRow.Value">
+            <summary>Gets or sets the trailing value.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiStatRow.Secondary">
+            <summary>Gets the optional supporting caption.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiStatRow.Icon">
+            <summary>Gets the optional leading icon.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiStatRow.ValueColor">
+            <summary>Gets the optional custom value color.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiStatRow.Children">
+            <summary>Gets the active wide or narrow root exposed to traversal and diagnostics.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiStatRow.SetSecondary(System.String)">
+            <summary>Sets optional supporting text beneath the label.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiStatRow.SetIcon(InsightCanvas.InsightUiIcon)">
+            <summary>Sets or clears the optional leading icon.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiStatRow.SetValueColor(System.Nullable{InsightCanvas.InsightColor})">
+            <summary>Sets a custom value color, or clears it to use the normal text role.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiStatRow.SetTooltip(System.String)">
+            <summary>Sets the row tooltip while retaining the fluent row type.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiSurface">
             <summary>Surface/card element that scopes padding, background, border, and elevation.</summary>
@@ -853,6 +1027,30 @@
         <member name="T:InsightCanvas.InsightUiFade">
             <summary>Layout-preserving fade/reveal wrapper driven by a keyed document effect.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiSlideFade">
+            <summary>Layout-preserving slide and fade driven by one keyed document transition.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSlideFade.VisibleTarget">
+            <summary>Gets or sets the target visibility; the final content bounds remain arranged either way.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSlideFade.Direction">
+            <summary>Gets the cardinal direction from which the content enters.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSlideFade.Duration">
+            <summary>Gets or sets the short transition duration in seconds.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSlideFade.Travel">
+            <summary>Gets or sets the travel distance in logical pixels; six pixels is the default.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSlideFade.Content">
+            <summary>Gets the ordinary composed content.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSlideFade.Children">
+            <summary>Exposes the ordinary content for traversal and diagnostics.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSlideFade.SetVisible(System.Boolean)">
+            <summary>Changes the target visibility without changing layout geometry.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiHighlight">
             <summary>Subtle keyed highlight flash for save, copy, or validation feedback.</summary>
         </member>
@@ -861,6 +1059,30 @@
         </member>
         <member name="M:InsightCanvas.InsightUiPopover.Bind(System.Func{System.Boolean},System.Action{System.Boolean})">
             <summary>Binds the transient open state to consumer-owned state.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiHoverCard">
+            <summary>Display-only rich hover context that uses ordinary content and a small host-bound overlay.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.Trigger">
+            <summary>Gets the ordinary trigger element.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.Content">
+            <summary>Gets the ordinary display-only content element.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.IsOpen">
+            <summary>Gets whether the document currently presents this hover card.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.HoverDelay">
+            <summary>Gets or sets the brief pointer dwell before the card appears.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.CloseDelay">
+            <summary>Gets or sets the short grace period while moving from trigger to card.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.CardRect">
+            <summary>Gets the host-clamped arranged bounds of the transient card.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiHoverCard.Children">
+            <summary>Exposes the trigger and display-only content for traversal and diagnostics.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiDropdown">
             <summary>Conventional dropdown menu with a compact header and transient option list.</summary>

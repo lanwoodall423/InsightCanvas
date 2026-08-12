@@ -151,7 +151,12 @@ namespace InsightCanvas
 
         public void Paint(IInsightUiPainter painter, InsightUiFrame frame)
         {
-            if (!Visible || LayoutRect.Width <= 0.01f || LayoutRect.Height <= 0.01f) return;
+            if (!Visible)
+            {
+                CloseTransient(frame?.State);
+                return;
+            }
+            if (LayoutRect.Width <= 0.01f || LayoutRect.Height <= 0.01f) return;
             frame.Diagnostics.RecordVisible();
             if (Focusable || StateBearing) frame.RegisterElement(this, Focusable, TextInput);
             if (!string.IsNullOrEmpty(TooltipText)) painter.Tooltip(LayoutRect, TooltipText, frame);
@@ -230,6 +235,19 @@ namespace InsightCanvas
 
         public static InsightUiSurface Surface(string id, InsightUiElement child = null) => new InsightUiSurface(id, child);
         public static InsightUiScope Scope(string id, InsightUiElement child) => new InsightUiScope(id, child);
+        /// <summary>Creates persistent explanatory content with a semantic status tone.</summary>
+        public static InsightUiCallout Callout(string id, InsightUiCalloutSeverity severity, string title,
+            string body = null) => new InsightUiCallout(id, severity, title, body);
+        /// <summary>Creates a compact section hierarchy with optional supporting content.</summary>
+        public static InsightUiSectionHeader SectionHeader(string id, string title, string subtitle = null,
+            InsightUiIcon icon = null, InsightUiElement trailing = null, bool divider = false) =>
+            new InsightUiSectionHeader(id, title, subtitle, icon, trailing, divider);
+        /// <summary>Creates a normalized current/max meter built on the progress primitive.</summary>
+        public static InsightUiMeter Meter(string id, float current, float maximum) =>
+            new InsightUiMeter(id, current, maximum);
+        /// <summary>Creates a compact inspector row with a trailing value.</summary>
+        public static InsightUiStatRow StatRow(string id, string label, string value) =>
+            new InsightUiStatRow(id, label, value);
         public static InsightUiLabel Label(string id, string text, InsightUiTextStyle style = InsightUiTextStyle.Body) =>
             new InsightUiLabel(id, text, style);
         public static InsightUiButton Button(string id, string label, Action onClick = null) => new InsightUiButton(id, label, onClick);
@@ -273,10 +291,17 @@ namespace InsightCanvas
             new InsightUiFade(id, visible, content);
         public static InsightUiFade Reveal(string id, bool visible, InsightUiElement content) =>
             new InsightUiFade(id, visible, content);
+        /// <summary>Creates a restrained paint-only slide and fade from one of four cardinal directions.</summary>
+        public static InsightUiSlideFade SlideFade(string id, bool visible, InsightUiElement content,
+            InsightUiSlideDirection direction = InsightUiSlideDirection.Down) =>
+            new InsightUiSlideFade(id, visible, content, direction);
         public static InsightUiHighlight Highlight(string id, InsightUiElement content, InsightColor? color = null) =>
             new InsightUiHighlight(id, content, color);
         public static InsightUiPopover Popover(string id, InsightUiElement trigger, InsightUiElement content) =>
             new InsightUiPopover(id, trigger, content);
+        /// <summary>Creates display-only rich hover context with document-scoped delay and cleanup.</summary>
+        public static InsightUiHoverCard HoverCard(string id, InsightUiElement trigger, InsightUiElement content) =>
+            new InsightUiHoverCard(id, trigger, content);
         public static InsightUiDropdown Dropdown(string id, string label, string[] options, int selected = 0,
             Action<int, string> changed = null) => new InsightUiDropdown(id, label, options, selected, changed);
         public static InsightUiSearchField SearchField(string id, string value = "", string placeholder = "Search",
@@ -474,6 +499,551 @@ namespace InsightCanvas
                 x += slot.Width + gap;
                 lineHeight = Math.Max(lineHeight, slot.Height);
             }
+        }
+    }
+
+    /// <summary>Persistent, in-layout explanatory notice composed from ordinary Insight Canvas elements.</summary>
+    public sealed class InsightUiCallout : InsightUiElement
+    {
+        private static readonly IReadOnlyList<InsightUiElement> EmptyChildren = new InsightUiElement[0];
+        private readonly string rootId;
+        private InsightUiElement root;
+        private IReadOnlyList<InsightUiElement> childList = EmptyChildren;
+        private InsightUiSurface surface;
+        private InsightUiSurface accent;
+        private InsightUiLabel titleLabel;
+        private InsightUiLabel bodyLabel;
+
+        public InsightUiCallout(string id, InsightUiCalloutSeverity severity, string title, string body = null)
+            : base(id)
+        {
+            rootId = id ?? string.Empty;
+            Severity = severity;
+            Title = title ?? string.Empty;
+            Body = body ?? string.Empty;
+            Rebuild();
+        }
+
+        /// <summary>Gets or sets the semantic tone used by the callout.</summary>
+        public InsightUiCalloutSeverity Severity { get; set; }
+        /// <summary>Gets or sets the short explanatory heading.</summary>
+        public string Title { get; set; }
+        /// <summary>Gets or sets the optional explanatory body.</summary>
+        public string Body { get; set; }
+        /// <summary>Gets the optional leading icon.</summary>
+        public InsightUiIcon Icon { get; private set; }
+        /// <summary>Gets the optional content element below the message.</summary>
+        public InsightUiElement Content { get; private set; }
+        /// <summary>Gets the optional action element below the message.</summary>
+        public InsightUiElement Actions { get; private set; }
+        /// <summary>Gets the single composed root exposed to traversal and diagnostics.</summary>
+        public override IReadOnlyList<InsightUiElement> Children => childList;
+
+        /// <summary>Adds an optional icon while retaining the normal icon fallback behavior.</summary>
+        public InsightUiCallout SetIcon(InsightUiIcon icon)
+        {
+            Icon = icon;
+            Rebuild();
+            return this;
+        }
+
+        /// <summary>Adds arbitrary normal Insight Canvas content below the explanatory text.</summary>
+        public InsightUiCallout SetContent(InsightUiElement content)
+        {
+            Content = content;
+            Rebuild();
+            return this;
+        }
+
+        /// <summary>Adds optional actions or another normal element below the callout body.</summary>
+        public InsightUiCallout SetActions(InsightUiElement actions)
+        {
+            Actions = actions;
+            Rebuild();
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            PrepareForFrame(frame);
+            return root == null ? new InsightUiSize(0f, 0f) : root.Measure(constraints, frame);
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            root?.Arrange(rect, frame);
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            PrepareForFrame(frame);
+            root?.Paint(painter, frame);
+        }
+
+        private void PrepareForFrame(InsightUiFrame frame)
+        {
+            titleLabel.Text = Title ?? string.Empty;
+            bodyLabel.Text = Body ?? string.Empty;
+            bodyLabel.Visible = !string.IsNullOrWhiteSpace(bodyLabel.Text);
+            InsightColor color = SeverityColor(Severity, frame);
+            surface.Style.Background = frame.Theme.Surface.Blend(color, 0.18f);
+            surface.Style.Border = color.WithAlpha(0.86f);
+            surface.Style.BorderWidth = 1f;
+            surface.Style.Elevated = true;
+            accent.Style.Background = color;
+            accent.Style.Border = null;
+        }
+
+        private void SetRoot(InsightUiElement element)
+        {
+            if (ReferenceEquals(root, element)) return;
+            root = element;
+            childList = root == null ? EmptyChildren : new[] { root };
+        }
+
+        private void Rebuild()
+        {
+            titleLabel = InsightUi.Label(rootId + ".title", Title, InsightUiTextStyle.Heading);
+            bodyLabel = InsightUi.Label(rootId + ".body", Body, InsightUiTextStyle.Body);
+            bodyLabel.Visible = !string.IsNullOrWhiteSpace(Body);
+            InsightUiStack text = InsightUi.Column(rootId + ".text").SetGap(3f).Add(titleLabel, bodyLabel);
+            InsightUiStack header = InsightUi.Row(rootId + ".header").SetGap(8f)
+                .SetAlignment(InsightAlignment.Start, InsightAlignment.Stretch);
+            if (Icon != null) header.Add(InsightUi.Icon(rootId + ".icon", Icon));
+            header.Add(text);
+
+            InsightUiStack content = InsightUi.Column(rootId + ".content").SetGap(7f).Add(header);
+            if (Content != null) content.Add(Content);
+            if (Actions != null) content.Add(Actions);
+
+            accent = InsightUi.Surface(rootId + ".accent");
+            accent.SetPadding(0f);
+            accent.SetWidth(InsightLength.Fixed(3f));
+            accent.SetCornerRadius(0f);
+            accent.SetAlignment(InsightAlignment.Start, InsightAlignment.Stretch);
+
+            InsightUiStack composition = InsightUi.Row(rootId + ".composition").SetGap(8f)
+                .SetAlignment(InsightAlignment.Start, InsightAlignment.Stretch).Add(accent, content);
+            surface = InsightUi.Surface(rootId + ".surface", composition);
+            surface.Style.Elevated = true;
+            SetRoot(surface);
+        }
+
+        private static InsightColor SeverityColor(InsightUiCalloutSeverity severity, InsightUiFrame frame)
+        {
+            switch (severity)
+            {
+                case InsightUiCalloutSeverity.Success: return frame.Theme.Positive;
+                case InsightUiCalloutSeverity.Warning: return frame.Theme.Warning;
+                case InsightUiCalloutSeverity.Error: return frame.Theme.Negative;
+                default: return frame.Theme.Selected;
+            }
+        }
+    }
+
+    /// <summary>Reusable section title with optional icon, subtitle, trailing action, and divider.</summary>
+    public sealed class InsightUiSectionHeader : InsightUiElement
+    {
+        private const float NarrowWidth = 420f;
+        private static readonly IReadOnlyList<InsightUiElement> EmptyChildren = new InsightUiElement[0];
+        private string rootId;
+        private InsightUiElement root;
+        private IReadOnlyList<InsightUiElement> childList = EmptyChildren;
+        private InsightUiStack wideRoot;
+        private InsightUiStack narrowRoot;
+        private InsightUiLabel titleLabel;
+        private InsightUiLabel subtitleLabel;
+
+        public InsightUiSectionHeader(string id, string title, string subtitle = null,
+            InsightUiIcon icon = null, InsightUiElement trailing = null, bool divider = false) : base(id)
+        {
+            rootId = id ?? string.Empty;
+            Title = title ?? string.Empty;
+            Subtitle = subtitle ?? string.Empty;
+            Icon = icon;
+            Trailing = trailing;
+            Divider = divider;
+            Rebuild();
+        }
+
+        /// <summary>Gets or sets the primary heading.</summary>
+        public string Title { get; set; }
+        /// <summary>Gets or sets the optional supporting line.</summary>
+        public string Subtitle { get; set; }
+        /// <summary>Gets the optional leading icon.</summary>
+        public InsightUiIcon Icon { get; private set; }
+        /// <summary>Gets the optional trailing action or content element.</summary>
+        public InsightUiElement Trailing { get; private set; }
+        /// <summary>Gets whether a divider follows the header.</summary>
+        public bool Divider { get; private set; }
+        /// <summary>Gets the active wide or narrow root exposed to traversal and diagnostics.</summary>
+        public override IReadOnlyList<InsightUiElement> Children => childList;
+
+        /// <summary>Sets or clears the optional leading icon.</summary>
+        public InsightUiSectionHeader SetIcon(InsightUiIcon icon)
+        {
+            Icon = icon;
+            Rebuild();
+            return this;
+        }
+
+        /// <summary>Sets or clears the optional trailing action or content element.</summary>
+        public InsightUiSectionHeader SetTrailing(InsightUiElement trailing)
+        {
+            Trailing = trailing;
+            Rebuild();
+            return this;
+        }
+
+        /// <summary>Sets whether a theme-colored divider follows the header.</summary>
+        public InsightUiSectionHeader SetDivider(bool divider = true)
+        {
+            Divider = divider;
+            Rebuild();
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            PrepareForMeasure(constraints);
+            PrepareForFrame();
+            return root == null ? new InsightUiSize(0f, 0f) : root.Measure(constraints, frame);
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            root?.Arrange(rect, frame);
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            PrepareForFrame();
+            root?.Paint(painter, frame);
+        }
+
+        private void PrepareForMeasure(InsightUiConstraints constraints)
+        {
+            SetRoot(!float.IsPositiveInfinity(constraints.MaxWidth) && constraints.MaxWidth < NarrowWidth
+                ? narrowRoot : wideRoot);
+        }
+
+        private void PrepareForFrame()
+        {
+            titleLabel.Text = Title ?? string.Empty;
+            subtitleLabel.Text = Subtitle ?? string.Empty;
+            subtitleLabel.Visible = !string.IsNullOrWhiteSpace(subtitleLabel.Text);
+        }
+
+        private void Rebuild()
+        {
+            titleLabel = InsightUi.Label(rootId + ".title", Title, InsightUiTextStyle.Heading);
+            subtitleLabel = InsightUi.Label(rootId + ".subtitle", Subtitle, InsightUiTextStyle.Caption);
+            subtitleLabel.Visible = !string.IsNullOrWhiteSpace(Subtitle);
+            InsightUiStack text = InsightUi.Column(rootId + ".text").SetGap(2f).Add(titleLabel, subtitleLabel);
+
+            InsightUiStack leading = InsightUi.Row(rootId + ".leading").SetGap(8f)
+                .SetAlignment(InsightAlignment.Start, InsightAlignment.Center);
+            if (Icon != null) leading.Add(InsightUi.Icon(rootId + ".icon", Icon));
+            leading.Add(text);
+
+            InsightUiStack wideRow = InsightUi.Row(rootId + ".wide-row").SetGap(8f)
+                .SetAlignment(InsightAlignment.Start, InsightAlignment.Center).Add(leading);
+            if (Trailing != null)
+                wideRow.Add(InsightUi.Spacer(rootId + ".wide-spacer").SetFlex(1f), Trailing);
+            wideRoot = InsightUi.Column(rootId + ".wide-root").SetGap(6f).Add(wideRow);
+
+            InsightUiStack narrow = InsightUi.Column(rootId + ".narrow-root").SetGap(5f).Add(leading);
+            if (Trailing != null)
+                narrow.Add(InsightUi.Row(rootId + ".narrow-action").SetGap(4f).Add(
+                    InsightUi.Spacer(rootId + ".narrow-spacer").SetFlex(1f), Trailing));
+            narrowRoot = narrow;
+            if (Divider)
+            {
+                wideRoot.Add(InsightUi.Divider(rootId + ".wide-divider"));
+                narrowRoot.Add(InsightUi.Divider(rootId + ".narrow-divider"));
+            }
+            SetRoot(wideRoot);
+        }
+
+        private void SetRoot(InsightUiElement element)
+        {
+            if (ReferenceEquals(root, element)) return;
+            root = element;
+            childList = root == null ? EmptyChildren : new[] { root };
+        }
+    }
+
+    /// <summary>Normalized capacity, power, heat, mood, or completion indicator built on Progress.</summary>
+    public sealed class InsightUiMeter : InsightUiElement
+    {
+        private const float NarrowWidth = 300f;
+        private static readonly IReadOnlyList<InsightUiElement> EmptyChildren = new InsightUiElement[0];
+        private readonly string rootId;
+        private InsightUiElement compositeRoot;
+        private IReadOnlyList<InsightUiElement> childList = EmptyChildren;
+        private readonly InsightUiStack root;
+        private readonly InsightUiLabel wideLabel;
+        private readonly InsightUiLabel wideValue;
+        private readonly InsightUiLabel narrowLabel;
+        private readonly InsightUiLabel narrowValue;
+        private readonly InsightUiProgress progress;
+        private readonly InsightUiStack wideHeader;
+        private readonly InsightUiStack narrowValueRow;
+        private readonly InsightUiStack narrowHeader;
+
+        public InsightUiMeter(string id, float current, float maximum) : base(id)
+        {
+            rootId = id ?? string.Empty;
+            Current = current;
+            Maximum = maximum;
+            wideLabel = InsightUi.Label(rootId + ".label", string.Empty, InsightUiTextStyle.Body);
+            wideValue = InsightUi.Label(rootId + ".value", string.Empty, InsightUiTextStyle.Caption);
+            narrowLabel = InsightUi.Label(rootId + ".narrow-label", string.Empty, InsightUiTextStyle.Body);
+            narrowValue = InsightUi.Label(rootId + ".narrow-value", string.Empty, InsightUiTextStyle.Caption);
+            wideHeader = InsightUi.Row(rootId + ".wide-header").SetGap(6f).Add(
+                wideLabel, InsightUi.Spacer(rootId + ".wide-spacer").SetFlex(1f), wideValue);
+            narrowValueRow = InsightUi.Row(rootId + ".narrow-value-row").SetGap(4f).Add(
+                InsightUi.Spacer(rootId + ".narrow-spacer").SetFlex(1f), narrowValue);
+            narrowHeader = InsightUi.Column(rootId + ".narrow-header").SetGap(3f).Add(narrowLabel, narrowValueRow);
+            progress = InsightUi.Progress(rootId + ".progress", 0f);
+            root = InsightUi.Column(rootId + ".root").SetGap(5f);
+            SetRoot(root);
+        }
+
+        /// <summary>Gets or sets the current value before normalization.</summary>
+        public float Current { get; set; }
+        /// <summary>Gets or sets the positive capacity used for normalization.</summary>
+        public float Maximum { get; set; }
+        /// <summary>Gets the optional label shown above the progress track.</summary>
+        public string Label { get; private set; }
+        /// <summary>Gets the optional trailing value text.</summary>
+        public string ValueText { get; private set; }
+        /// <summary>Gets the optional custom progress color.</summary>
+        public InsightColor? Color { get; private set; }
+        /// <summary>Gets the clamped current-to-maximum ratio.</summary>
+        public float NormalizedValue => Normalize(Current, Maximum);
+        /// <summary>Gets the composed root and its progress primitive.</summary>
+        public override IReadOnlyList<InsightUiElement> Children => childList;
+
+        /// <summary>Sets the optional label shown above the progress track.</summary>
+        public InsightUiMeter SetLabel(string label)
+        {
+            Label = label;
+            return this;
+        }
+
+        /// <summary>Sets the optional trailing value text shown with the meter.</summary>
+        public InsightUiMeter SetValueText(string valueText)
+        {
+            ValueText = valueText;
+            return this;
+        }
+
+        /// <summary>Sets a custom fill color, or clears it to use the document accent.</summary>
+        public InsightUiMeter SetColor(InsightColor? color)
+        {
+            Color = color;
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            PrepareForMeasure(constraints);
+            PrepareForFrame();
+            return compositeRoot == null ? new InsightUiSize(0f, 0f) : compositeRoot.Measure(constraints, frame);
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            compositeRoot?.Arrange(rect, frame);
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            PrepareForFrame();
+            compositeRoot?.Paint(painter, frame);
+        }
+
+        private void PrepareForMeasure(InsightUiConstraints constraints)
+        {
+            bool compact = !float.IsPositiveInfinity(constraints.MaxWidth) && constraints.MaxWidth < NarrowWidth;
+            root.Clear();
+            bool hasHeader = !string.IsNullOrWhiteSpace(Label) || !string.IsNullOrWhiteSpace(ValueText);
+            if (hasHeader) root.Add(compact ? (InsightUiElement)narrowHeader : wideHeader);
+            root.Add(progress);
+            SetRoot(root);
+        }
+
+        private void PrepareForFrame()
+        {
+            string label = Label ?? string.Empty;
+            string value = ValueText ?? string.Empty;
+            wideLabel.Text = label;
+            wideValue.Text = value;
+            narrowLabel.Text = label;
+            narrowValue.Text = value;
+            wideLabel.Visible = !string.IsNullOrWhiteSpace(label);
+            narrowLabel.Visible = wideLabel.Visible;
+            wideValue.Visible = !string.IsNullOrWhiteSpace(value);
+            narrowValue.Visible = wideValue.Visible;
+            progress.Value = NormalizedValue;
+            progress.Color = Color;
+        }
+
+        private void SetRoot(InsightUiElement element)
+        {
+            if (ReferenceEquals(compositeRoot, element)) return;
+            compositeRoot = element;
+            childList = compositeRoot == null ? EmptyChildren : new[] { compositeRoot };
+        }
+
+        internal static float Normalize(float current, float maximum)
+        {
+            if (float.IsNaN(current) || float.IsNaN(maximum) || maximum <= 0f ||
+                float.IsInfinity(current) || float.IsInfinity(maximum)) return 0f;
+            return Math.Max(0f, Math.Min(1f, current / maximum));
+        }
+    }
+
+    /// <summary>Compact label/value inspector row with optional icon and secondary caption.</summary>
+    public sealed class InsightUiStatRow : InsightUiElement
+    {
+        private const float NarrowWidth = 300f;
+        private static readonly IReadOnlyList<InsightUiElement> EmptyChildren = new InsightUiElement[0];
+        private readonly string rootId;
+        private InsightUiElement root;
+        private IReadOnlyList<InsightUiElement> childList = EmptyChildren;
+        private InsightUiStack wideRoot;
+        private InsightUiStack narrowRoot;
+        private InsightUiLabel wideLabel;
+        private InsightUiLabel narrowLabel;
+        private InsightUiLabel wideValue;
+        private InsightUiLabel narrowValue;
+        private InsightUiLabel wideSecondary;
+        private InsightUiLabel narrowSecondary;
+
+        public InsightUiStatRow(string id, string label, string value) : base(id)
+        {
+            rootId = id ?? string.Empty;
+            Label = label ?? string.Empty;
+            Value = value ?? string.Empty;
+            Rebuild();
+        }
+
+        /// <summary>Gets or sets the primary label.</summary>
+        public string Label { get; set; }
+        /// <summary>Gets or sets the trailing value.</summary>
+        public string Value { get; set; }
+        /// <summary>Gets the optional supporting caption.</summary>
+        public string Secondary { get; private set; }
+        /// <summary>Gets the optional leading icon.</summary>
+        public InsightUiIcon Icon { get; private set; }
+        /// <summary>Gets the optional custom value color.</summary>
+        public InsightColor? ValueColor { get; private set; }
+        /// <summary>Gets the active wide or narrow root exposed to traversal and diagnostics.</summary>
+        public override IReadOnlyList<InsightUiElement> Children => childList;
+
+        /// <summary>Sets optional supporting text beneath the label.</summary>
+        public InsightUiStatRow SetSecondary(string secondary)
+        {
+            Secondary = secondary;
+            return this;
+        }
+
+        /// <summary>Sets or clears the optional leading icon.</summary>
+        public InsightUiStatRow SetIcon(InsightUiIcon icon)
+        {
+            Icon = icon;
+            Rebuild();
+            return this;
+        }
+
+        /// <summary>Sets a custom value color, or clears it to use the normal text role.</summary>
+        public InsightUiStatRow SetValueColor(InsightColor? color)
+        {
+            ValueColor = color;
+            return this;
+        }
+
+        /// <summary>Sets the row tooltip while retaining the fluent row type.</summary>
+        public new InsightUiStatRow SetTooltip(string tooltip)
+        {
+            base.SetTooltip(tooltip);
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            PrepareForMeasure(constraints);
+            PrepareForFrame();
+            return root == null ? new InsightUiSize(0f, 0f) : root.Measure(constraints, frame);
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            root?.Arrange(rect, frame);
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            PrepareForFrame();
+            root?.Paint(painter, frame);
+        }
+
+        private void PrepareForMeasure(InsightUiConstraints constraints)
+        {
+            SetRoot(!float.IsPositiveInfinity(constraints.MaxWidth) && constraints.MaxWidth < NarrowWidth
+                ? narrowRoot : wideRoot);
+        }
+
+        private void PrepareForFrame()
+        {
+            string label = Label ?? string.Empty;
+            string value = Value ?? string.Empty;
+            string secondary = Secondary ?? string.Empty;
+            wideLabel.Text = label;
+            narrowLabel.Text = label;
+            wideValue.Text = value;
+            narrowValue.Text = value;
+            wideSecondary.Text = secondary;
+            narrowSecondary.Text = secondary;
+            wideSecondary.Visible = !string.IsNullOrWhiteSpace(secondary);
+            narrowSecondary.Visible = wideSecondary.Visible;
+            wideValue.Color = ValueColor;
+            narrowValue.Color = ValueColor;
+        }
+
+        private void Rebuild()
+        {
+            wideLabel = InsightUi.Label(rootId + ".label", Label, InsightUiTextStyle.Body);
+            wideSecondary = InsightUi.Label(rootId + ".secondary", Secondary, InsightUiTextStyle.Caption);
+            InsightUiStack wideText = InsightUi.Column(rootId + ".wide-text").SetGap(2f).Add(wideLabel, wideSecondary);
+            wideValue = InsightUi.Label(rootId + ".value", Value, InsightUiTextStyle.Body);
+            InsightUiStack wide = InsightUi.Row(rootId + ".wide-row").SetGap(8f)
+                .SetAlignment(InsightAlignment.Start, InsightAlignment.Center);
+            if (Icon != null) wide.Add(InsightUi.Icon(rootId + ".icon", Icon));
+            wide.Add(wideText, InsightUi.Spacer(rootId + ".wide-spacer").SetFlex(1f), wideValue);
+            wideRoot = InsightUi.Column(rootId + ".wide-root").Add(wide);
+
+            narrowLabel = InsightUi.Label(rootId + ".narrow-label", Label, InsightUiTextStyle.Body);
+            narrowSecondary = InsightUi.Label(rootId + ".narrow-secondary", Secondary, InsightUiTextStyle.Caption);
+            InsightUiStack narrowText = InsightUi.Column(rootId + ".narrow-text").SetGap(2f).Add(narrowLabel, narrowSecondary);
+            narrowValue = InsightUi.Label(rootId + ".narrow-value", Value, InsightUiTextStyle.Body);
+            InsightUiStack narrowLeading = InsightUi.Row(rootId + ".narrow-leading").SetGap(8f)
+                .SetAlignment(InsightAlignment.Start, InsightAlignment.Center);
+            if (Icon != null) narrowLeading.Add(InsightUi.Icon(rootId + ".narrow-icon", Icon));
+            narrowLeading.Add(narrowText);
+            InsightUiStack narrowValueRow = InsightUi.Row(rootId + ".narrow-value-row").SetGap(4f).Add(
+                InsightUi.Spacer(rootId + ".narrow-spacer").SetFlex(1f), narrowValue);
+            narrowRoot = InsightUi.Column(rootId + ".narrow-root").SetGap(3f).Add(narrowLeading, narrowValueRow);
+            SetRoot(wideRoot);
+        }
+
+        private void SetRoot(InsightUiElement element)
+        {
+            if (ReferenceEquals(root, element)) return;
+            root = element;
+            childList = root == null ? EmptyChildren : new[] { root };
         }
     }
 
@@ -1524,6 +2094,7 @@ namespace InsightCanvas
     {
         private readonly List<InsightUiTab> pages = new List<InsightUiTab>();
         private readonly List<InsightUiElement> children = new List<InsightUiElement>();
+        private string lastActivePageId;
 
         public InsightUiNavigation(string id, float breakpoint = 720f) : base(id)
         {
@@ -1634,8 +2205,17 @@ namespace InsightCanvas
                 ? frame.State.GetString(frame.StateKey(Id + ".active"), ActivePageId)
                 : boundGetter();
             if (!string.IsNullOrEmpty(stored)) ActivePageId = stored;
-            for (int i = 0; i < pages.Count; i++) if (pages[i].Id == ActivePageId) return pages[i];
-            return pages.Count == 0 ? null : pages[0];
+            InsightUiTab active = null;
+            for (int i = 0; i < pages.Count; i++)
+                if (pages[i].Id == ActivePageId) { active = pages[i]; break; }
+            if (active == null && pages.Count > 0) active = pages[0];
+            if (active != null && !string.IsNullOrEmpty(lastActivePageId) && lastActivePageId != active.Id)
+            {
+                for (int i = 0; i < pages.Count; i++)
+                    if (pages[i].Id == lastActivePageId) { pages[i].Content.CloseTransient(frame.State); break; }
+            }
+            lastActivePageId = active?.Id;
+            return active;
         }
 
         private void PaintRail(InsightRect rail, IInsightUiPainter painter, InsightUiFrame frame)
@@ -1879,6 +2459,85 @@ namespace InsightCanvas
         protected override bool StateBearing => true;
     }
 
+    /// <summary>Layout-preserving slide and fade driven by one keyed document transition.</summary>
+    public sealed class InsightUiSlideFade : InsightUiElement
+    {
+        private readonly InsightUiElement content;
+
+        public InsightUiSlideFade(string id, bool visible, InsightUiElement content,
+            InsightUiSlideDirection direction = InsightUiSlideDirection.Down) : base(id)
+        {
+            VisibleTarget = visible;
+            Direction = direction;
+            this.content = content ?? InsightUi.Empty(id + ".empty", string.Empty);
+            Duration = 0.16f;
+            Travel = 6f;
+        }
+
+        /// <summary>Gets or sets the target visibility; the final content bounds remain arranged either way.</summary>
+        public bool VisibleTarget { get; set; }
+        /// <summary>Gets the cardinal direction from which the content enters.</summary>
+        public InsightUiSlideDirection Direction { get; private set; }
+        /// <summary>Gets or sets the short transition duration in seconds.</summary>
+        public float Duration { get; set; }
+        /// <summary>Gets or sets the travel distance in logical pixels; six pixels is the default.</summary>
+        public float Travel { get; set; }
+        /// <summary>Gets the ordinary composed content.</summary>
+        public InsightUiElement Content => content;
+        /// <summary>Exposes the ordinary content for traversal and diagnostics.</summary>
+        public override IReadOnlyList<InsightUiElement> Children => new[] { content };
+
+        /// <summary>Changes the target visibility without changing layout geometry.</summary>
+        public InsightUiSlideFade SetVisible(bool visible)
+        {
+            VisibleTarget = visible;
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame) =>
+            content.Measure(constraints, frame);
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame) => content.Arrange(rect, frame);
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            float duration = float.IsNaN(Duration) || float.IsInfinity(Duration) ? 0.16f : Math.Max(0.01f, Duration);
+            float travel = float.IsNaN(Travel) || float.IsInfinity(Travel) ? 6f : Math.Max(0f, Travel);
+            float progress = frame.Effects.Transition(frame.EffectiveId(Id) + ".slide",
+                VisibleTarget ? 1f : 0f, frame.DeltaTime, duration, frame.ReducedMotion, InsightMotionEasing.EaseOut);
+            InsightPoint offset = Offset(Direction, travel * (1f - progress));
+            IInsightUiTranslationPainter translation = painter as IInsightUiTranslationPainter;
+            bool translated = translation != null && (Math.Abs(offset.X) > 0.001f || Math.Abs(offset.Y) > 0.001f);
+            frame.PushOpacity(progress);
+            try
+            {
+                if (progress > 0.001f)
+                {
+                    if (translated) translation.PushTranslation(offset);
+                    try { content.Paint(painter, frame); }
+                    finally { if (translated) translation.PopTranslation(); }
+                }
+            }
+            finally
+            {
+                frame.PopOpacity();
+            }
+        }
+
+        private static InsightPoint Offset(InsightUiSlideDirection direction, float distance)
+        {
+            switch (direction)
+            {
+                case InsightUiSlideDirection.Up: return new InsightPoint(0f, -distance);
+                case InsightUiSlideDirection.Left: return new InsightPoint(-distance, 0f);
+                case InsightUiSlideDirection.Right: return new InsightPoint(distance, 0f);
+                default: return new InsightPoint(0f, distance);
+            }
+        }
+
+        protected override bool StateBearing => true;
+    }
+
     /// <summary>Subtle keyed highlight flash for save, copy, or validation feedback.</summary>
     public sealed class InsightUiHighlight : InsightUiElement
     {
@@ -2020,6 +2679,211 @@ namespace InsightCanvas
             }
             IsOpen = boundGetter == null ? frame.State.GetBool(frame.StateKey(Id + ".open"), IsOpen) : boundGetter();
             return IsOpen;
+        }
+
+        protected override bool StateBearing => true;
+    }
+
+    /// <summary>Display-only rich hover context that uses ordinary content and a small host-bound overlay.</summary>
+    public sealed class InsightUiHoverCard : InsightUiElement
+    {
+        private const float DefaultHoverDelay = 0.18f;
+        private const float DefaultCloseDelay = 0.12f;
+        private const float CardGap = 6f;
+        private const float CardPadding = 8f;
+        private const float MaximumCardWidth = 320f;
+        private const float MaximumCardHeight = 260f;
+        private readonly InsightUiElement trigger;
+        private readonly InsightUiElement content;
+        private readonly InsightUiPadding padding = InsightUiPadding.All(CardPadding);
+        private InsightRect cardRect;
+        private bool isOpen;
+        private float leaveElapsed;
+        private int lastPaintedFrame = -1;
+        private string lastOpenKey;
+        private string lastElapsedKey;
+        private string lastLeaveKey;
+        private string lastFrameKey;
+
+        public InsightUiHoverCard(string id, InsightUiElement trigger, InsightUiElement content) : base(id)
+        {
+            this.trigger = trigger ?? InsightUi.Empty(id + ".trigger", "Details");
+            this.content = content ?? InsightUi.Empty(id + ".content", string.Empty);
+            HoverDelay = DefaultHoverDelay;
+            CloseDelay = DefaultCloseDelay;
+        }
+
+        /// <summary>Gets the ordinary trigger element.</summary>
+        public InsightUiElement Trigger => trigger;
+        /// <summary>Gets the ordinary display-only content element.</summary>
+        public InsightUiElement Content => content;
+        /// <summary>Gets whether the document currently presents this hover card.</summary>
+        public bool IsOpen => isOpen;
+        /// <summary>Gets or sets the brief pointer dwell before the card appears.</summary>
+        public float HoverDelay { get; set; }
+        /// <summary>Gets or sets the short grace period while moving from trigger to card.</summary>
+        public float CloseDelay { get; set; }
+        /// <summary>Gets the host-clamped arranged bounds of the transient card.</summary>
+        public InsightRect CardRect => cardRect;
+        /// <summary>Exposes the trigger and display-only content for traversal and diagnostics.</summary>
+        public override IReadOnlyList<InsightUiElement> Children => new[] { trigger, content };
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            InsightUiSize triggerSize = trigger.Measure(constraints, frame);
+            float maxWidth = MaximumCardWidth;
+            float maxHeight = MaximumCardHeight;
+            if (frame.HostBounds.Width > 0.01f)
+                maxWidth = Math.Min(maxWidth, Math.Max(0f, frame.HostBounds.Width - padding.Horizontal));
+            else if (!float.IsPositiveInfinity(constraints.MaxWidth))
+                maxWidth = Math.Min(maxWidth, Math.Max(0f, constraints.MaxWidth - padding.Horizontal));
+            if (frame.HostBounds.Height > 0.01f)
+                maxHeight = Math.Min(maxHeight, Math.Max(0f, frame.HostBounds.Height - padding.Vertical));
+            content.Measure(new InsightUiConstraints(0f, maxWidth, 0f, maxHeight), frame);
+            return triggerSize;
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            trigger.Arrange(rect, frame);
+            InsightUiSize desired = new InsightUiSize(content.MeasuredSize.Width + padding.Horizontal,
+                content.MeasuredSize.Height + padding.Vertical);
+            InsightRect host = HostBounds(rect, desired, frame);
+            cardRect = Place(rect, desired, host);
+            content.Arrange(new InsightRect(cardRect.X + padding.Left, cardRect.Y + padding.Top,
+                Math.Max(0f, cardRect.Width - padding.Horizontal), Math.Max(0f, cardRect.Height - padding.Vertical)), frame);
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            UpdateHoverState(painter as IInsightUiHoverPainter, frame);
+            trigger.Paint(painter, frame);
+            if (!isOpen || !content.Visible || content.LayoutRect.Width <= 0.01f || content.LayoutRect.Height <= 0.01f)
+                return;
+
+            painter.Surface(cardRect, new InsightUiStyle
+            {
+                Background = frame.Theme.ElevatedSurface,
+                Border = frame.Theme.SecondaryText.WithAlpha(0.45f),
+                BorderWidth = 1f,
+                CornerRadius = frame.Theme.CornerRadius,
+                Elevated = true,
+                Padding = padding,
+                Clip = true
+            }, frame);
+            painter.BeginClip(content.LayoutRect);
+            try { content.Paint(painter, frame); }
+            finally { painter.EndClip(); }
+        }
+
+        internal override void CloseTransient(InsightUiStateStore state)
+        {
+            RemoveState(state, lastOpenKey, Id + ".hover.open");
+            RemoveState(state, lastElapsedKey, Id + ".hover.elapsed");
+            RemoveState(state, lastLeaveKey, Id + ".hover.leave");
+            RemoveState(state, lastFrameKey, Id + ".hover.frame");
+            isOpen = false;
+            leaveElapsed = 0f;
+            lastPaintedFrame = -1;
+            lastOpenKey = null;
+            lastElapsedKey = null;
+            lastLeaveKey = null;
+            lastFrameKey = null;
+            base.CloseTransient(state);
+        }
+
+        private void UpdateHoverState(IInsightUiHoverPainter hover, InsightUiFrame frame)
+        {
+            int currentFrame = frame.Diagnostics.Frame;
+            lastOpenKey = frame.StateKey(Id + ".hover.open");
+            lastElapsedKey = frame.StateKey(Id + ".hover.elapsed");
+            lastLeaveKey = frame.StateKey(Id + ".hover.leave");
+            lastFrameKey = frame.StateKey(Id + ".hover.frame");
+            int storedFrame = frame.State.GetInt(lastFrameKey, -1);
+            if ((lastPaintedFrame >= 0 && currentFrame > lastPaintedFrame + 1) ||
+                (storedFrame >= 0 && storedFrame != currentFrame - 1))
+                ResetState(frame);
+            lastPaintedFrame = currentFrame;
+
+            if (hover == null || !trigger.Visible || !content.Visible)
+            {
+                ResetState(frame);
+                return;
+            }
+
+            bool triggerHovered = hover.IsPointerOver(trigger.LayoutRect, frame);
+            bool cardHovered = isOpen && hover.IsPointerOver(cardRect, frame);
+            bool inside = triggerHovered || cardHovered;
+            float delta = Math.Max(0f, frame.DeltaTime);
+            if (!isOpen)
+            {
+                leaveElapsed = 0f;
+                float elapsed = frame.State.GetFloat(lastElapsedKey, 0f);
+                elapsed = triggerHovered ? elapsed + delta : 0f;
+                if (triggerHovered && elapsed >= SafeDelay(HoverDelay))
+                {
+                    isOpen = true;
+                    elapsed = 0f;
+                }
+                frame.State.SetFloat(lastElapsedKey, elapsed);
+            }
+            else
+            {
+                leaveElapsed = inside ? 0f : leaveElapsed + delta;
+                if (!inside && leaveElapsed >= SafeDelay(CloseDelay))
+                {
+                    isOpen = false;
+                    leaveElapsed = 0f;
+                    frame.State.SetFloat(lastElapsedKey, 0f);
+                }
+            }
+            frame.State.SetBool(lastOpenKey, isOpen);
+            frame.State.SetFloat(lastLeaveKey, leaveElapsed);
+            frame.State.SetInt(lastFrameKey, currentFrame);
+        }
+
+        private void ResetState(InsightUiFrame frame)
+        {
+            ResetState(frame.State);
+        }
+
+        private void ResetState(InsightUiStateStore state)
+        {
+            isOpen = false;
+            leaveElapsed = 0f;
+            RemoveState(state, lastOpenKey, Id + ".hover.open");
+            RemoveState(state, lastElapsedKey, Id + ".hover.elapsed");
+            RemoveState(state, lastLeaveKey, Id + ".hover.leave");
+            RemoveState(state, lastFrameKey, Id + ".hover.frame");
+        }
+
+        private static void RemoveState(InsightUiStateStore state, string key, string fallback)
+        {
+            state.Remove(key);
+            if (!string.Equals(key, fallback, StringComparison.Ordinal)) state.Remove(fallback);
+        }
+
+        private static float SafeDelay(float delay) =>
+            float.IsNaN(delay) || float.IsInfinity(delay) ? DefaultHoverDelay : Math.Max(0f, delay);
+
+        private static InsightRect HostBounds(InsightRect triggerRect, InsightUiSize desired, InsightUiFrame frame)
+        {
+            if (frame.HostBounds.Width > 0.01f && frame.HostBounds.Height > 0.01f) return frame.HostBounds;
+            return new InsightRect(triggerRect.X, triggerRect.Y, Math.Max(triggerRect.Width, desired.Width),
+                Math.Max(triggerRect.Height, desired.Height));
+        }
+
+        private static InsightRect Place(InsightRect triggerRect, InsightUiSize desired, InsightRect host)
+        {
+            float width = Math.Min(desired.Width, Math.Max(0f, host.Width));
+            float height = Math.Min(desired.Height, Math.Max(0f, host.Height));
+            float x = triggerRect.X;
+            float y = triggerRect.Bottom + CardGap;
+            if (x + width > host.Right) x = triggerRect.Right - width;
+            if (y + height > host.Bottom) y = triggerRect.Y - height - CardGap;
+            x = Math.Max(host.X, Math.Min(x, host.Right - width));
+            y = Math.Max(host.Y, Math.Min(y, host.Bottom - height));
+            return new InsightRect(x, y, width, height);
         }
 
         protected override bool StateBearing => true;

@@ -76,7 +76,8 @@ namespace InsightCanvas
 
     /// <summary>RimWorld/Unity implementation of the renderer contract.</summary>
     public sealed class RimWorldInsightUiPainter : IInsightUiPainter, IInsightUiCustomPainter,
-        IInsightUiIconPainter, IInsightUiFocusPainter, IInsightUiDragPainter
+        IInsightUiIconPainter, IInsightUiFocusPainter, IInsightUiDragPainter,
+        IInsightUiTranslationPainter, IInsightUiHoverPainter
     {
         internal const int RoundedSurfaceCacheCapacity = InsightUiSurfaceMath.RoundedRadiusBucketCount;
         private static readonly Texture2D[] roundedSurfaceMasks = new Texture2D[RoundedSurfaceCacheCapacity];
@@ -409,6 +410,22 @@ namespace InsightCanvas
             origin = origins.Count > 0 ? origins.Pop() : Vector2.zero;
         }
 
+        public void PushTranslation(InsightPoint offset)
+        {
+            origins.Push(origin);
+            origin -= new Vector2(offset.X, offset.Y);
+        }
+
+        public void PopTranslation()
+        {
+            origin = origins.Count > 0 ? origins.Pop() : Vector2.zero;
+        }
+
+        public bool IsPointerOver(InsightRect rect, InsightUiFrame frame)
+        {
+            return Event.current != null && ToRect(rect).Contains(Event.current.mousePosition);
+        }
+
         public float ScrollOffset(InsightRect viewport, float contentHeight, float offset, string stateKey, InsightUiFrame frame)
         {
             float maximum = Mathf.Max(0f, contentHeight - viewport.Height);
@@ -616,7 +633,8 @@ namespace InsightCanvas
                 float elapsed = deltaTime < 0f ? Time.deltaTime : deltaTime;
                 document.Toasts.Advance(elapsed, reducedMotion);
                 InsightUiFrame frame = new InsightUiFrame(theme, document.Density, highContrast, reducedMotion,
-                    document.State, document.Diagnostics, elapsed, document.Focus, document.Effects, document.Toasts);
+                    document.State, document.Diagnostics, elapsed, document.Focus, document.Effects, document.Toasts,
+                    new InsightRect(rect.x, rect.y, rect.width, rect.height));
                 frame.TextMeasurer = (text, style, maxWidth) => painter.MeasureText(text, style, maxWidth, frame);
                 frame.NativeTextMeasurer = (text, style, maxWidth) => painter.MeasureNativeText(text, style, maxWidth, frame);
                 try

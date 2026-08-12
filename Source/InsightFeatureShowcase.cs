@@ -36,6 +36,8 @@ namespace InsightCanvas
             private InsightUiProgress motionProgress;
             private InsightUiExpander overviewInspector;
             private InsightUiExpander motionReveal;
+            private InsightUiSlideFade motionSlide;
+            private InsightUiHoverCard controlsHoverCard;
             private InsightUiElement layoutPreview;
             private float simulatedWidth = 560f;
             private float motionTarget = 0.42f;
@@ -129,6 +131,23 @@ namespace InsightCanvas
                         InsightUi.Badge("overview-access-badge", "RimWorld+ default", InsightTheme.Default.Warning))));
                 column.Add(cards);
 
+                InsightUiSectionHeader compositeHeader = InsightUi.SectionHeader("overview-composite-header",
+                    "Persistent composition", "Small composites for common RimWorld information surfaces.",
+                    InsightUiIcon.FromText("◆").WithAccessibleDescription("Composition examples"));
+                InsightUiStatRow powerStat = InsightUi.StatRow("overview-power-stat", "Stored power", "620 / 1000 Wd")
+                    .SetSecondary("Workshop reserve").SetIcon(InsightUiIcon.FromText("⚡"))
+                    .SetValueColor(InsightTheme.Default.Positive)
+                    .SetTooltip("A compact key/value row can live inside any card or inspector.");
+                InsightUiCallout notice = InsightUi.Callout("overview-power-callout", InsightUiCalloutSeverity.Warning,
+                    "Insufficient power", "This workbench will stop when stored energy is exhausted.")
+                    .SetIcon(InsightUiIcon.FromText("!").WithAccessibleDescription("Warning"))
+                    .SetContent(powerStat)
+                    .SetActions(InsightUi.Row("overview-callout-actions").SetGap(7f).Add(
+                        InsightUi.Button("overview-callout-inspect", "Inspect reserve", () => SetInteraction("Reserve inspector opened"))));
+                InsightUiMeter reserveMeter = InsightUi.Meter("overview-reserve-meter", 620f, 1000f)
+                    .SetLabel("Stored power").SetValueText("620 / 1000 Wd").SetColor(InsightTheme.Default.Warning);
+                column.Add(compositeHeader, notice, reserveMeter);
+
                 overviewInspector = InsightUi.Expander("overview-inspector", "Expand a compact card into a richer inspector",
                     Card("overview-inspector-content", InsightUi.Column("overview-inspector-body").SetGap(6f).Add(
                         InsightUi.Label("overview-inspector-heading", "The same surface can become a working view.", InsightUiTextStyle.Heading),
@@ -169,6 +188,9 @@ namespace InsightCanvas
                     InsightUi.Label("foundation-heading", "Heading hierarchy", InsightUiTextStyle.Heading),
                     InsightUi.Label("foundation-body", "Body text stays readable at normal UI scale.", InsightUiTextStyle.Body),
                     InsightUi.Label("foundation-caption", "Caption · secondary context · 12px intent", InsightUiTextStyle.Caption));
+                InsightUiSectionHeader primitivesHeader = InsightUi.SectionHeader("foundation-primitives-header",
+                    "Surface primitives", "Cards, notices, metrics, and status rows share the same theme tokens.",
+                    InsightUiIcon.FromText("◈"), divider: true);
                 InsightUiGrid primitives = InsightUi.Grid("foundations-primitives", 190f);
                 primitives.Add(Card("foundation-surface-card", InsightUi.Column("foundation-surface-body").SetGap(6f).Add(
                         InsightUi.Label("foundation-card-title", "Surface", InsightUiTextStyle.Heading),
@@ -200,7 +222,7 @@ namespace InsightCanvas
                 square.SetCornerRadius(0f);
                 square.Style.Elevated = false;
                 InsightUiGrid radiusExamples = InsightUi.Grid("foundation-radius-examples", 190f).Add(themeRadius, rounded, square);
-                column.Add(type, InsightUi.Divider("foundation-divider"), colors, primitives,
+                column.Add(type, primitivesHeader, InsightUi.Divider("foundation-divider"), colors, primitives,
                     InsightUi.Label("foundation-radius-note", "Surfaces share one restrained radius contract: theme fallback, element override, or square.", InsightUiTextStyle.Caption),
                     radiusExamples);
                 return column;
@@ -260,8 +282,8 @@ namespace InsightCanvas
                 InsightUiSegmented segmented = InsightUi.Segmented("controls-segmented",
                     new[] { "Draft", "Review", "Live" }, 1, (index, value) => SetInteraction("Segment selected: " + value));
                 InsightUiStack settings = InsightUi.Column("controls-settings").SetGap(7f);
-                InsightUiButton overflowButton = InsightUi.Button("controls-overflow-trigger", "Open popover",
-                    () => SetInteraction("Popover action selected"));
+                 InsightUiButton overflowButton = InsightUi.Button("controls-overflow-trigger", "Open popover",
+                     () => SetInteraction("Popover action selected"));
                 InsightUiPopover overflow = InsightUi.Popover("controls-overflow", overflowButton,
                     Card("controls-overflow-card", InsightUi.Column("controls-overflow-body").SetGap(5f).Add(
                         InsightUi.Label("controls-overflow-title", "Context menu", InsightUiTextStyle.Heading),
@@ -269,9 +291,16 @@ namespace InsightCanvas
                         {
                             Document.Toasts.Show("Summary copied", InsightToastSeverity.Success);
                             SetInteraction("Popover action: copied summary");
-                        }),
-                        InsightUi.Button("controls-overflow-dismiss", "Dismiss", () => SetInteraction("Popover dismissed")))));
-                settings.Add(highContrast, reducedMotion, selector, dropdown, segmented, textField, overflow, interactionStatus);
+                         }),
+                         InsightUi.Button("controls-overflow-dismiss", "Dismiss", () => SetInteraction("Popover dismissed")))));
+                controlsHoverCard = InsightUi.HoverCard("controls-hover-card",
+                    InsightUi.Label("controls-hover-trigger", "Hover for context", InsightUiTextStyle.Caption)
+                        .SetTooltip("Brief context appears after a short hover delay"),
+                    InsightUi.Column("controls-hover-content").SetGap(4f).Add(
+                        InsightUi.Label("controls-hover-title", "Context card", InsightUiTextStyle.Heading),
+                        InsightUi.Label("controls-hover-copy", "Display-only help can stay near its trigger without taking focus or changing layout.", InsightUiTextStyle.Body)));
+                settings.Add(highContrast, reducedMotion, selector, dropdown, segmented, textField, overflow,
+                    controlsHoverCard, interactionStatus);
 
                 InsightUiButton disabled = InsightUi.Button("controls-disabled", "Disabled action", () => SetInteraction("This should not run"));
                 disabled.Enabled = false;
@@ -361,16 +390,23 @@ namespace InsightCanvas
                 motionProgress = InsightUi.Progress("motion-progress", motionTarget, InsightTheme.Default.Selected);
                 InsightUiButton advance = InsightUi.Button("motion-advance", "Reveal next state", () =>
                 {
-                    motionTarget = motionTarget >= 0.99f ? 0.18f : Math.Min(0.99f, motionTarget + 0.18f);
-                    motionProgress.Value = motionTarget;
-                    Document.Effects.Flash("motion-progress-highlight");
+                     motionTarget = motionTarget >= 0.99f ? 0.18f : Math.Min(0.99f, motionTarget + 0.18f);
+                     motionProgress.Value = motionTarget;
+                     motionSlide.VisibleTarget = !motionSlide.VisibleTarget;
+                     Document.Effects.Flash("motion-progress-highlight");
                     Document.Invalidate();
                 });
                 InsightUiButton select = InsightUi.Button("motion-select", "Select milestone", () => SetInteraction("Milestone selected with a short reveal"));
-                motionReveal = InsightUi.Expander("motion-reveal", "Expand reveal panel",
+                 motionReveal = InsightUi.Expander("motion-reveal", "Expand reveal panel",
                     InsightUi.Column("motion-reveal-body").SetGap(6f).Add(
                         InsightUi.Label("motion-reveal-copy", "Expansion, selection, and progress changes use the same document frame and remain interruptible.", InsightUiTextStyle.Body),
-                        InsightUi.Badge("motion-reveal-badge", "100–200 ms intent", InsightTheme.Default.Positive)), false);
+                         InsightUi.Badge("motion-reveal-badge", "100–200 ms intent", InsightTheme.Default.Positive)), false);
+                motionSlide = InsightUi.SlideFade("motion-slide-fade", false,
+                    Card("motion-slide-card", InsightUi.Column("motion-slide-body").SetGap(5f).Add(
+                        InsightUi.Label("motion-slide-title", "SlideFade detail", InsightUiTextStyle.Heading),
+                        InsightUi.Label("motion-slide-copy", "A short paint-only reveal keeps its final layout slot while the content settles into place.", InsightUiTextStyle.Caption),
+                        InsightUi.Badge("motion-slide-badge", "6 px · 160 ms", InsightTheme.Default.Selected))),
+                    InsightUiSlideDirection.Down);
                 InsightUiToggle toggle = InsightUi.Toggle("motion-reduced-toggle", "Reduced motion", Document.ReducedMotion, value =>
                 {
                     Document.ReducedMotion = value;
@@ -378,9 +414,9 @@ namespace InsightCanvas
                 });
                 InsightUiHighlight motionProgressHighlight = InsightUi.Highlight("motion-progress-highlight",
                     motionProgress, InsightTheme.Default.Focus);
-                column.Add(Card("motion-demo-card", InsightUi.Column("motion-demo-body").SetGap(8f).Add(
-                    InsightUi.Label("motion-demo-title", "Feedback without noise", InsightUiTextStyle.Heading), motionStatus, motionProgressHighlight,
-                    InsightUi.Row("motion-buttons").SetGap(7f).Add(advance, select), toggle)), motionReveal);
+                 column.Add(Card("motion-demo-card", InsightUi.Column("motion-demo-body").SetGap(8f).Add(
+                     InsightUi.Label("motion-demo-title", "Feedback without noise", InsightUiTextStyle.Heading), motionStatus, motionProgressHighlight,
+                     InsightUi.Row("motion-buttons").SetGap(7f).Add(advance, select), toggle)), motionReveal, motionSlide);
                 return column;
             }
 

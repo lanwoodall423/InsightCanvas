@@ -8,7 +8,7 @@ Run the game-independent harness from the repository root:
 dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release --nologo
 ```
 
-The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, and pure focus traversal.
+The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, SlideFade interruption/settling and nested translation restoration, HoverCard delay/grace/edge placement/cleanup, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, and pure focus traversal.
 
 ## RimWorld build
 
@@ -22,7 +22,7 @@ The build writes `1.6/Assemblies/InsightCanvas.dll` and `.xml`. `git diff --chec
 
 ## Automatic in-game suite
 
-`Source/InsightCanvasAutoTest.cs` owns the automatic in-game checks. It activates only when a DevBridge2 quicktest launch supplies `DEVBRIDGE_ROOT`; DevBridge2 only launches/restarts RimWorld, reports readiness, and coordinates leases. The mod waits for a playable map, validates the optional deterministic semantic sample and map flash, checks flex and virtualization math, checks per-document state isolation, creates the public-API Feature Showcase, verifies all ten pages, switches through wide side navigation and narrow compact navigation, waits for rendered frames, and verifies layout, visible elements, and render-error counters.
+`Source/InsightCanvasAutoTest.cs` owns the automatic in-game checks. It activates only when a DevBridge2 quicktest launch supplies `DEVBRIDGE_ROOT`; DevBridge2 only launches/restarts RimWorld, reports readiness, and coordinates leases. The mod waits for a playable map, validates the optional deterministic semantic sample and map flash, checks the Unity painter's translation and pointer capability wiring, checks flex and virtualization math, checks per-document state isolation, creates the public-API Feature Showcase, verifies all ten pages, switches through wide side navigation and narrow compact navigation, waits for rendered frames, and verifies layout, visible elements, and render-error counters, including the dogfooded SlideFade and HoverCard.
 
 The result is written by the mod to `DevBridge2/Runtime/insightcanvas-autotest.json`:
 
@@ -42,10 +42,10 @@ Never add test execution logic to DevBridge2 and never launch or stop RimWorld d
 3. On Overview, expand the compact inspector and trigger the map action. With no playable map, confirm the useful empty-state message; with a map, confirm the center flash action.
 4. On Foundations, inspect typography, spacing/density notes, surfaces, separators, badges, and semantic status colors.
 5. On Layout, drag width simulation, inspect wrapping, adaptive cards, split panes, and the reachable scroll sample.
-6. On Controls, exercise toggles, the selector, slider, text field, selected/disabled/warning/destructive buttons, icon action, and expander. Confirm status text changes.
+6. On Controls, exercise toggles, the selector, slider, text field, selected/disabled/warning/destructive buttons, icon action, expander, and the brief display-only HoverCard context treatment. Confirm status text changes.
 7. On Navigation and Workspaces, switch tabs, use toolbar actions, breadcrumbs, the inspector pane, and comparison layout.
 8. On Data Display, filter the deterministic virtualized list and select two records. Confirm the comparison inspector and empty search state.
-9. On Motion and Feedback, reveal progress states, expand the reveal panel, select the milestone, and toggle reduced motion live.
+ 9. On Motion and Feedback, reveal progress states, expand the reveal panel, select the milestone, toggle reduced motion live, and press **Reveal next state** to dogfood the paint-only `SlideFade` detail card.
 10. On Themes and Accessibility, switch RimWorld+, Field Notes, and Night Watch, change density, high contrast, and reduced motion. Open another consumer to confirm settings remain document-scoped.
 11. On Advanced Widgets, inspect the optional graph, timeline, explanation, and map-link cards; the surrounding UI remains usable without semantic data.
 12. On Diagnostics, confirm frame/render status, visible element count, layout passes, invalidations, selected page, breakpoint mode, theme/density, and captured error state.

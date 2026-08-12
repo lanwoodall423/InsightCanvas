@@ -34,6 +34,7 @@ internal static class Program
             SerializationOrdering();
             MotionSettings();
             Prompt2Foundations();
+            Prompt3Foundations();
             Console.WriteLine("Insight Canvas core tests passed.");
             return 0;
         }
@@ -775,6 +776,55 @@ internal static class Program
 
     private static void Prompt2Foundations()
     {
+        InsightTheme promptTheme = InsightTheme.Default.Clone();
+        promptTheme.Warning = new InsightColor(0.91f, 0.48f, 0.16f);
+        InsightUiCallout callout = InsightUi.Callout("prompt2-callout", InsightUiCalloutSeverity.Warning,
+            "Initial title", "Initial body").SetIcon(InsightUiIcon.FromText("!"));
+        callout.Title = "Updated title";
+        callout.Body = "Updated body";
+        TestPainter compositePainter = new TestPainter();
+        RenderAtWidth(callout, 520f, 180f, promptTheme, InsightUiDensity.Normal, compositePainter);
+        InsightUiSurface calloutAccent = FindElement(callout, "prompt2-callout.accent") as InsightUiSurface;
+        InsightUiLabel calloutTitle = FindElement(callout, "prompt2-callout.title") as InsightUiLabel;
+        InsightUiLabel calloutBody = FindElement(callout, "prompt2-callout.body") as InsightUiLabel;
+        Assert(calloutAccent != null && calloutAccent.Style.Background.Equals(promptTheme.Warning) &&
+            calloutTitle != null && calloutTitle.DisplayText == "Updated title" &&
+            calloutBody != null && calloutBody.DisplayText == "Updated body",
+            "callout severity or dynamic content did not resolve through the frame theme");
+
+        Assert(Math.Abs(InsightUi.Meter("meter-half", 50f, 100f).NormalizedValue - 0.5f) < 0.001f &&
+            InsightUi.Meter("meter-low", -10f, 100f).NormalizedValue == 0f &&
+            InsightUi.Meter("meter-high", 120f, 100f).NormalizedValue == 1f &&
+            InsightUi.Meter("meter-invalid", 1f, 0f).NormalizedValue == 0f,
+            "meter normalization did not clamp capacity values deterministically");
+
+        InsightUiSectionHeader section = InsightUi.SectionHeader("prompt2-section", "Storage", "Configure stockpile behavior")
+            .SetIcon(InsightUiIcon.FromText("S"))
+            .SetTrailing(InsightUi.Button("prompt2-section-action", "Reset"))
+            .SetDivider();
+        InsightUiStatRow stat = InsightUi.StatRow("prompt2-stat", "Stored power", "620 / 1000 Wd")
+            .SetSecondary("Workshop reserve")
+            .SetIcon(InsightUiIcon.FromText("P"))
+            .SetValueColor(promptTheme.Positive)
+            .SetTooltip("Stored workshop reserve");
+        Assert(section.Divider && FindElement(section, "prompt2-section.icon") != null &&
+            FindElement(section, "prompt2-section-action") != null && stat.Secondary == "Workshop reserve" &&
+            stat.Icon != null && stat.ValueColor.Equals(promptTheme.Positive),
+            "section header optional fields or stat row composition were not retained");
+
+        InsightUiElement[] composites = { callout, section, stat,
+            InsightUi.Meter("meter-layout", 620f, 1000f).SetLabel("Stored power").SetValueText("620 / 1000 Wd") };
+        for (int i = 0; i < composites.Length; i++)
+        {
+            RenderAtWidth(composites[i], 620f, 220f, promptTheme, InsightUiDensity.Comfortable, new TestPainter());
+            AssertFiniteTree(composites[i], "wide composite " + i);
+            RenderAtWidth(composites[i], 260f, 320f, promptTheme, InsightUiDensity.Compact, new TestPainter());
+            AssertFiniteTree(composites[i], "narrow composite " + i);
+        }
+
+        Assert(section.Children.Count == 1 && stat.Children.Count == 1,
+            "composites did not expose one stable public root child");
+
         float linear = InsightMotion.Eased(0.5f, InsightMotionEasing.Linear);
         float smooth = InsightMotion.Eased(0.5f, InsightMotionEasing.Smooth);
         float easeOut = InsightMotion.Eased(0.5f, InsightMotionEasing.EaseOut);
@@ -877,9 +927,163 @@ internal static class Program
         Assert(!toasts.IsVisible, "toast service did not expire transient feedback");
     }
 
+    private static void Prompt3Foundations()
+    {
+        InsightUiSlideFade outer = InsightUi.SlideFade("prompt3-outer", true,
+            InsightUi.SlideFade("prompt3-inner", true, InsightUi.Label("prompt3-slide-label", "Inspector details"),
+                InsightUiSlideDirection.Right), InsightUiSlideDirection.Down);
+        TestPainter painter = new TestPainter();
+        InsightUiStateStore state = new InsightUiStateStore();
+        InsightUiEffects effects = new InsightUiEffects();
+        InsightUiDiagnostics diagnostics = new InsightUiDiagnostics();
+        InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            state, diagnostics, 1f / 60f, effects: effects, hostBounds: new InsightRect(0f, 0f, 640f, 360f));
+        diagnostics.BeginFrame();
+        outer.Measure(new InsightUiConstraints(0f, 640f, 0f, 360f), frame);
+        outer.Arrange(new InsightRect(0f, 0f, 640f, 360f), frame);
+        InsightRect finalBounds = outer.LayoutRect;
+        outer.Paint(painter, frame);
+        outer.VisibleTarget = false;
+        ((InsightUiSlideFade)outer.Content).VisibleTarget = false;
+        diagnostics.BeginFrame();
+        outer.Measure(new InsightUiConstraints(0f, 640f, 0f, 360f), frame);
+        outer.Arrange(new InsightRect(0f, 0f, 640f, 360f), frame);
+        outer.Paint(painter, frame);
+        Assert(outer.LayoutRect.Equals(finalBounds), "SlideFade changed layout bounds during animation");
+        Assert(painter.TranslationDepth == 0, "SlideFade leaked translation state after nested painting");
+        Assert(painter.MaximumTranslationDepth >= 2, "SlideFade did not compose nested translation scopes");
+        Assert(Math.Abs(painter.LastTranslation.X) > 0f || Math.Abs(painter.LastTranslation.Y) > 0f,
+            "SlideFade did not apply restrained cardinal movement");
+
+        InsightUiEffects interrupted = new InsightUiEffects();
+        interrupted.Transition("interrupt", 0f, 0.016f, 0.16f, false);
+        float entering = interrupted.Transition("interrupt", 1f, 0.016f, 0.16f, false, InsightMotionEasing.EaseOut);
+        float leaving = interrupted.Transition("interrupt", 0f, 0.016f, 0.16f, false, InsightMotionEasing.EaseOut);
+        Assert(entering > 0f && entering < 1f && leaving < entering && leaving > 0f,
+            "SlideFade transition interruption did not reverse from its current value");
+
+        InsightUiSlideFade reduced = InsightUi.SlideFade("prompt3-reduced", false,
+            InsightUi.Label("prompt3-reduced-label", "Reduced motion"), InsightUiSlideDirection.Left);
+        TestPainter reducedPainter = new TestPainter();
+        InsightUiFrame reducedFrame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, true,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f,
+            effects: new InsightUiEffects(), hostBounds: new InsightRect(0f, 0f, 300f, 120f));
+        reducedFrame.Diagnostics.BeginFrame();
+        reduced.Measure(new InsightUiConstraints(0f, 300f, 0f, 120f), reducedFrame);
+        reduced.Arrange(new InsightRect(0f, 0f, 300f, 120f), reducedFrame);
+        reduced.Paint(reducedPainter, reducedFrame);
+        reduced.VisibleTarget = true;
+        reducedFrame.Diagnostics.BeginFrame();
+        reduced.Measure(new InsightUiConstraints(0f, 300f, 0f, 120f), reducedFrame);
+        reduced.Arrange(new InsightRect(0f, 0f, 300f, 120f), reducedFrame);
+        reduced.Paint(reducedPainter, reducedFrame);
+        Assert(reducedPainter.TranslationDepth == 0 && reducedPainter.LastTranslation.Equals(new InsightPoint(0f, 0f)),
+            "reduced motion did not eliminate SlideFade movement");
+
+        InsightUiHoverCard hoverCard = InsightUi.HoverCard("prompt3-hover", InsightUi.Button("prompt3-hover-trigger", "Power"),
+            InsightUi.Label("prompt3-hover-content", "Stored power and reserve details."));
+        InsightUiStateStore hoverState = new InsightUiStateStore();
+        InsightUiDiagnostics hoverDiagnostics = new InsightUiDiagnostics();
+        TestPainter hoverPainter = new TestPainter { PointerOver = true };
+        InsightUiFrame hoverFrame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            hoverState, hoverDiagnostics, 0.1f, effects: new InsightUiEffects(),
+            hostBounds: new InsightRect(0f, 0f, 200f, 100f));
+        hoverDiagnostics.BeginFrame();
+        hoverCard.Measure(new InsightUiConstraints(0f, 40f, 0f, 30f), hoverFrame);
+        hoverCard.Arrange(new InsightRect(160f, 70f, 40f, 30f), hoverFrame);
+        hoverCard.Paint(hoverPainter, hoverFrame);
+        Assert(!hoverCard.IsOpen, "hover card opened before its delay elapsed");
+        hoverDiagnostics.BeginFrame();
+        hoverCard.Measure(new InsightUiConstraints(0f, 40f, 0f, 30f), hoverFrame);
+        hoverCard.Arrange(new InsightRect(160f, 70f, 40f, 30f), hoverFrame);
+        hoverCard.Paint(hoverPainter, hoverFrame);
+        Assert(hoverCard.IsOpen && hoverCard.CardRect.X >= 0f && hoverCard.CardRect.Right <= 200f &&
+            hoverCard.CardRect.Y >= 0f && hoverCard.CardRect.Bottom <= 100f,
+            "hover card did not open after delay or clamp to host edges");
+        hoverPainter.PointerOver = false;
+        hoverFrame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            hoverState, hoverDiagnostics, 0.13f, effects: hoverFrame.Effects,
+            hostBounds: new InsightRect(0f, 0f, 200f, 100f));
+        hoverDiagnostics.BeginFrame();
+        hoverCard.Measure(new InsightUiConstraints(0f, 40f, 0f, 30f), hoverFrame);
+        hoverCard.Arrange(new InsightRect(160f, 70f, 40f, 30f), hoverFrame);
+        hoverCard.Paint(hoverPainter, hoverFrame);
+        Assert(!hoverCard.IsOpen, "hover card did not close after leaving its trigger and grace period");
+
+        hoverPainter.PointerOver = true;
+        hoverFrame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            hoverState, hoverDiagnostics, 0.2f, effects: new InsightUiEffects(),
+            hostBounds: new InsightRect(0f, 0f, 200f, 100f));
+        hoverDiagnostics.BeginFrame();
+        hoverCard.Measure(new InsightUiConstraints(0f, 40f, 0f, 30f), hoverFrame);
+        hoverCard.Arrange(new InsightRect(160f, 0f, 40f, 30f), hoverFrame);
+        hoverCard.Paint(hoverPainter, hoverFrame);
+        Assert(hoverCard.IsOpen, "hover card did not reopen for cleanup test");
+        InsightUiDocument document = new InsightUiDocument("prompt3-document", hoverCard);
+        document.State.SetBool("prompt3-hover.hover.open", true);
+        document.Root = InsightUi.Empty("replacement", "Replacement");
+        Assert(!document.State.GetBool("prompt3-hover.hover.open", false),
+            "replacing a document root left stale hover state behind");
+    }
+
     private static void Assert(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private static void RenderAtWidth(InsightUiElement root, float width, float height, InsightTheme theme,
+        InsightUiDensity density, TestPainter painter)
+    {
+        InsightUiDiagnostics diagnostics = new InsightUiDiagnostics();
+        InsightUiFrame frame = new InsightUiFrame(theme, density, false, false,
+            new InsightUiStateStore(), diagnostics, 1f / 60f);
+        diagnostics.BeginFrame();
+        root.Measure(new InsightUiConstraints(0f, width, 0f, height), frame);
+        root.Arrange(new InsightRect(0f, 0f, width, height), frame);
+        root.Paint(painter, frame);
+    }
+
+    private static InsightUiElement FindElement(InsightUiElement root, string id)
+    {
+        if (root == null) return null;
+        if (root.Id == id) return root;
+        IReadOnlyList<InsightUiElement> children = root.Children;
+        for (int i = 0; i < children.Count; i++)
+        {
+            InsightUiElement match = FindElement(children[i], id);
+            if (match != null) return match;
+        }
+        return null;
+    }
+
+    private static void AssertFiniteTree(InsightUiElement root, string name)
+    {
+        InsightRect rect = root.LayoutRect;
+        Assert(!float.IsNaN(rect.X) && !float.IsNaN(rect.Y) && !float.IsNaN(rect.Width) &&
+            !float.IsNaN(rect.Height) && !float.IsInfinity(rect.X) && !float.IsInfinity(rect.Y) &&
+            !float.IsInfinity(rect.Width) && !float.IsInfinity(rect.Height) && rect.Width >= 0f && rect.Height >= 0f,
+            name + " produced invalid geometry");
+        InsightUiStack stack = root as InsightUiStack;
+        if (stack != null)
+        {
+            for (int i = 0; i < stack.Children.Count; i++)
+            {
+                InsightUiElement first = stack.Children[i];
+                if (!first.Visible) continue;
+                for (int j = i + 1; j < stack.Children.Count; j++)
+                {
+                    InsightUiElement second = stack.Children[j];
+                    if (!second.Visible) continue;
+                    bool overlap = first.LayoutRect.X < second.LayoutRect.Right - 0.01f &&
+                        second.LayoutRect.X < first.LayoutRect.Right - 0.01f &&
+                        first.LayoutRect.Y < second.LayoutRect.Bottom - 0.01f &&
+                        second.LayoutRect.Y < first.LayoutRect.Bottom - 0.01f;
+                    Assert(!overlap, name + " has overlapping stack children");
+                }
+            }
+        }
+        for (int i = 0; i < root.Children.Count; i++)
+            AssertFiniteTree(root.Children[i], name);
     }
 
     private static bool Contains(IReadOnlyList<string> messages, string text)
@@ -890,7 +1094,7 @@ internal static class Program
     }
 
     private sealed class TestPainter : IInsightUiPainter, IInsightUiCustomPainter, IInsightUiIconPainter,
-        IInsightUiDragPainter
+        IInsightUiDragPainter, IInsightUiTranslationPainter, IInsightUiHoverPainter
     {
         public int ToggleChanges;
         public float SliderValue = float.NaN;
@@ -905,6 +1109,10 @@ internal static class Program
         public bool LastTextWrap;
         public readonly HashSet<string> ClickLabels = new HashSet<string>(StringComparer.Ordinal);
         public float DragRatio = float.NaN;
+        public int TranslationDepth;
+        public int MaximumTranslationDepth;
+        public InsightPoint LastTranslation;
+        public bool PointerOver;
 
         public InsightUiSize MeasureText(string text, InsightUiTextStyle style, float maxWidth, InsightUiFrame frame)
         {
@@ -961,6 +1169,17 @@ internal static class Program
         public void BeginClip(InsightRect rect) { }
         public void EndClip() { }
         public float ScrollOffset(InsightRect viewport, float contentHeight, float offset, string stateKey, InsightUiFrame frame) => offset;
+
+        public void PushTranslation(InsightPoint offset)
+        {
+            TranslationDepth++;
+            MaximumTranslationDepth = Math.Max(MaximumTranslationDepth, TranslationDepth);
+            LastTranslation = offset;
+        }
+
+        public void PopTranslation() { TranslationDepth = Math.Max(0, TranslationDepth - 1); }
+
+        public bool IsPointerOver(InsightRect rect, InsightUiFrame frame) => PointerOver;
 
         public void FillRect(InsightRect rect, InsightColor color, InsightUiFrame frame) { FillRectCalls++; }
         public void Outline(InsightRect rect, InsightColor color, float width, InsightUiFrame frame) { }

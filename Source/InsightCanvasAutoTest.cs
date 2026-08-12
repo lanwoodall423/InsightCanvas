@@ -79,7 +79,9 @@ namespace InsightCanvas
                 RunCase("responsive-layout", CheckResponsiveLayout);
                 RunCase("virtualization-bounds", CheckVirtualizationBounds);
                 RunCase("document-state-isolation", CheckDocumentStateIsolation);
+                RunCase("composite-responsive-layout", CheckCompositeResponsiveLayout);
                 RunCase("map-action-available", CheckMapActionAvailable);
+                RunCase("unity-input-adapters", CheckUnityInputAdapters);
                 RunCase("window-created", CreateShowcaseWindow);
                 RunCase("window-added", AddShowcaseWindow);
                 stage = InitialFrame;
@@ -115,6 +117,7 @@ namespace InsightCanvas
                 {
                     RunCase("window-rendered-overview", () => AssertRenderedState("overview"));
                     RunCase("overview-typography-and-badges", CheckOverviewTypography);
+                    RunCase("overview-composites-rendered", CheckOverviewComposites);
                     RunCase("overview-interactions-applied", ExerciseOverview);
                     stage = OverviewInteractionFrame;
                     window.Document.Invalidate();
@@ -133,8 +136,12 @@ namespace InsightCanvas
                 {
                     string pageId = showcaseNavigation.Pages[currentPageIndex].Id;
                     RunCase("page-" + pageId + "-rendered", () => AssertRenderedState(pageId));
-                    if (pageId == "foundations")
-                        RunCase("foundations-typography-rendered", CheckFoundationsTypography);
+                     if (pageId == "foundations")
+                         RunCase("foundations-typography-rendered", CheckFoundationsTypography);
+                     if (pageId == "controls")
+                         RunCase("controls-hover-card-rendered", CheckHoverCardDogfood);
+                     if (pageId == "motion")
+                         RunCase("motion-slide-fade-rendered", CheckSlideFadeDogfood);
                     if (pageId == "data")
                     {
                         RunCase("data-filter-applied", ExerciseDataFilter);
@@ -237,7 +244,26 @@ namespace InsightCanvas
                 "overview badge allocation was smaller than its measured caption content");
         }
 
-        private void CheckFoundationsTypography()
+        private void CheckOverviewComposites()
+        {
+            InsightUiSectionHeader header = FindElement(window.Document.Root, "overview-composite-header") as InsightUiSectionHeader;
+            InsightUiCallout callout = FindElement(window.Document.Root, "overview-power-callout") as InsightUiCallout;
+            InsightUiMeter meter = FindElement(window.Document.Root, "overview-reserve-meter") as InsightUiMeter;
+            InsightUiStatRow stat = FindElement(window.Document.Root, "overview-power-stat") as InsightUiStatRow;
+            InsightUiSurface accent = FindElement(window.Document.Root, "overview-power-callout.accent") as InsightUiSurface;
+            Require(header != null && callout != null && meter != null && stat != null && accent != null,
+                "overview did not compose all four Prompt 2 components through the public API");
+            Require(header.LayoutRect.Width > 0f && callout.LayoutRect.Height > 0f && meter.LayoutRect.Height > 0f &&
+                stat.LayoutRect.Height > 0f && meter.NormalizedValue > 0f && stat.Secondary == "Workshop reserve" &&
+                accent.Style.Background.Equals(window.Document.Theme.Warning),
+                "overview composite geometry or runtime theme resolution was invalid");
+            AssertFiniteGeometry(header);
+            AssertFiniteGeometry(callout);
+            AssertFiniteGeometry(meter);
+            AssertFiniteGeometry(stat);
+        }
+
+         private void CheckFoundationsTypography()
         {
             InsightUiLabel title = FindElement(window.Document.Root, "foundation-title") as InsightUiLabel;
             InsightUiLabel body = FindElement(window.Document.Root, "foundation-body") as InsightUiLabel;
@@ -251,10 +277,51 @@ namespace InsightCanvas
             Require(title.MeasuredSize.Height > body.MeasuredSize.Height && badge.MeasuredSize.Height >= 22f &&
                 badge.LayoutRect.Width + 0.01f >= badge.MeasuredSize.Width,
                 "foundations typography hierarchy or badge geometry was inconsistent");
-            Require(themeRadius.Style.CornerRadius < 0f && roundedRadius.Style.CornerRadius == 8f &&
-                squareRadius.Style.CornerRadius == 0f,
-                "foundations surface radius precedence examples were not configured");
-        }
+             Require(themeRadius.Style.CornerRadius < 0f && roundedRadius.Style.CornerRadius == 8f &&
+                 squareRadius.Style.CornerRadius == 0f,
+                 "foundations surface radius precedence examples were not configured");
+         }
+
+         private void CheckHoverCardDogfood()
+         {
+             InsightUiHoverCard hover = FindElement(window.Document.Root, "controls-hover-card") as InsightUiHoverCard;
+             Require(hover != null && hover.Trigger != null && hover.Content != null,
+                 "controls did not compose the public display-only HoverCard");
+             Require(hover.HoverDelay > 0f && hover.HoverDelay <= 0.25f && hover.CloseDelay > 0f &&
+                 hover.CloseDelay <= 0.2f && hover.CardRect.Width >= 0f && hover.CardRect.Height >= 0f,
+                 "HoverCard timing or arranged bounds were outside the restrained contract");
+             AssertFiniteGeometry(hover);
+             AssertFiniteGeometry(hover.Trigger);
+             AssertFiniteGeometry(hover.Content);
+         }
+
+         private void CheckUnityInputAdapters()
+         {
+             RimWorldInsightUiPainter painter = new RimWorldInsightUiPainter();
+             IInsightUiTranslationPainter translation = painter as IInsightUiTranslationPainter;
+             IInsightUiHoverPainter hover = painter as IInsightUiHoverPainter;
+             Require(translation != null && hover != null,
+                 "RimWorld painter did not expose the optional SlideFade and HoverCard capabilities");
+             translation.PushTranslation(new InsightPoint(6f, -4f));
+             translation.PopTranslation();
+             InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+                 new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f,
+                 hostBounds: new InsightRect(0f, 0f, 320f, 180f));
+             bool pointerResult = hover.IsPointerOver(new InsightRect(0f, 0f, 20f, 20f), frame);
+             if (Event.current == null)
+                 Require(!pointerResult, "RimWorld painter reported pointer input outside a Unity GUI event");
+         }
+
+         private void CheckSlideFadeDogfood()
+         {
+             InsightUiSlideFade slide = FindElement(window.Document.Root, "motion-slide-fade") as InsightUiSlideFade;
+             Require(slide != null && slide.Direction == InsightUiSlideDirection.Down &&
+                 slide.Duration >= 0.1f && slide.Duration <= 0.2f && slide.Travel >= 4f && slide.Travel <= 8f,
+                 "Motion page did not dogfood the restrained public SlideFade component");
+             AssertFiniteGeometry(slide);
+             slide.SetVisible(true);
+             window.Document.Invalidate();
+         }
 
         private void CheckThemeTypographyState()
         {
@@ -318,16 +385,18 @@ namespace InsightCanvas
                 return;
             }
 
-            if (pageId == "motion")
-            {
+             if (pageId == "motion")
+             {
                 InsightUiButton advance = FindElement(window.Document.Root, "motion-advance") as InsightUiButton;
                 InsightUiToggle reduced = FindElement(window.Document.Root, "motion-reduced-toggle") as InsightUiToggle;
-                InsightUiExpander reveal = FindElement(window.Document.Root, "motion-reveal") as InsightUiExpander;
-                Require(advance?.OnClick != null && reduced?.Changed != null && reveal != null,
-                    "motion page did not expose its feedback controls");
-                advance.OnClick();
-                reduced.Changed(true);
-                reveal.SetExpanded(true);
+                 InsightUiExpander reveal = FindElement(window.Document.Root, "motion-reveal") as InsightUiExpander;
+                 InsightUiSlideFade slide = FindElement(window.Document.Root, "motion-slide-fade") as InsightUiSlideFade;
+                 Require(advance?.OnClick != null && reduced?.Changed != null && reveal != null && slide != null,
+                     "motion page did not expose its feedback controls");
+                 advance.OnClick();
+                 reduced.Changed(true);
+                 reveal.SetExpanded(true);
+                 slide.SetVisible(true);
                 window.Document.State.SetBool("motion-reduced-toggle.value", true);
                 window.Document.State.SetBool("motion-reveal.expanded", true);
                 return;
@@ -475,6 +544,38 @@ namespace InsightCanvas
             navigation.Arrange(new InsightRect(0f, 0f, 420f, 640f), frame);
             Require(navigation.IsCompact && navigation.MeasuredSize.Height > 0f,
                 "narrow navigation did not arrange a compact top bar");
+        }
+
+        private static void CheckCompositeResponsiveLayout()
+        {
+            InsightUiSectionHeader header = InsightUi.SectionHeader("autotest-section", "Storage", "Configure stockpile behavior",
+                InsightUiIcon.FromText("S"), InsightUi.Button("autotest-section-action", "Reset"), true);
+            InsightUiElement[] elements =
+            {
+                InsightUi.Callout("autotest-callout", InsightUiCalloutSeverity.Warning, "Power reserve", "Stored energy is low.")
+                    .SetIcon(InsightUiIcon.FromText("!")),
+                header,
+                InsightUi.Meter("autotest-meter", 620f, 1000f).SetLabel("Stored power").SetValueText("620 / 1000 Wd"),
+                InsightUi.StatRow("autotest-stat", "Stored power", "620 / 1000 Wd").SetSecondary("Workshop reserve")
+                    .SetIcon(InsightUiIcon.FromText("P"))
+            };
+            float[] widths = { 640f, 260f };
+            for (int widthIndex = 0; widthIndex < widths.Length; widthIndex++)
+            {
+                float width = widths[widthIndex];
+                InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default,
+                    width < 420f ? InsightUiDensity.Compact : InsightUiDensity.Comfortable, false, false,
+                    new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+                for (int elementIndex = 0; elementIndex < elements.Length; elementIndex++)
+                {
+                    InsightUiElement element = elements[elementIndex];
+                    element.Measure(new InsightUiConstraints(0f, width, 0f, 320f), frame);
+                    element.Arrange(new InsightRect(0f, 0f, width, 320f), frame);
+                    AssertFiniteGeometry(element);
+                }
+                Require((width < 420f) == (FindElement(header, "autotest-section.narrow-root") != null),
+                    "section header did not select its responsive composition");
+            }
         }
 
         private static void CheckVirtualizationBounds()

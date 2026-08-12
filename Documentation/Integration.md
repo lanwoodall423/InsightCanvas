@@ -50,6 +50,22 @@ public sealed class ResearchPanel
 
 The host owns the document lifecycle. Call `PostClose()` from the consumer's close path so owner-scoped map overlays are cleared.
 
+For a compact information surface, compose the same public primitives inside the caller-owned panel:
+
+```csharp
+InsightUiStatRow reserve = InsightUi.StatRow("reserve", "Stored power", "620 / 1000 Wd")
+    .SetSecondary("Workshop reserve");
+InsightUiElement root = InsightUi.Column("storage-summary",
+    InsightUi.SectionHeader("storage-header", "Storage", "Configure stockpile behavior"),
+    InsightUi.Callout("power-warning", InsightUiCalloutSeverity.Warning,
+        "Insufficient power", "This workbench will stop when stored energy is exhausted.")
+        .SetContent(reserve),
+    InsightUi.Meter("power-meter", 620f, 1000f).SetLabel("Stored power")
+).SetGap(8f);
+```
+
+These are small layout composites, not a notification manager, table model, or chart system. The values can be replaced by a consumer's own state without creating an `InsightModel`.
+
 ## Window shell
 
 Use the same document in a complete resizable RimWorld window:
@@ -77,7 +93,7 @@ Find.WindowStack.Add(new InsightUiWindow("Settings", document));
 
 Use `Row`, `Column`, `Wrap`, `Grid`, `Split`, `Scroll`, `Navigation`, and `VirtualList` for responsive composition. `Navigation` renders a side rail above its breakpoint and a wrapped top bar below it. `VirtualList` renders only its bounded visible range for fixed-height rows; set `CacheLimit` for a predictable retained-row bound and use `InsightVirtualization.Range` for custom variable-height adapters. Set `InsightUiSplit.Draggable = true` when the active painter supports `IInsightUiDragPainter`; the ratio is persisted in document state. Leave it false for a static split.
 
-Visual and interactive primitives include `Surface`, `Label`, `Divider`, `Badge`, `Progress`, `Spacer`, `Button`, `IconButton`, `Toggle`, `Slider`, `TextField`, `Select`, `Expander`, `Tabs`, and `Breadcrumbs`. The everyday additions are `Dropdown`, `Popover`, `SearchField`, `Segmented`, `Image`, and document-local `Toast`. Controls use ordinary callbacks, and stateful controls also support small getter/setter bindings when the consumer's model is authoritative:
+Visual and interactive primitives include `Surface`, `Label`, `Divider`, `Badge`, `Progress`, `Spacer`, `Button`, `IconButton`, `Toggle`, `Slider`, `TextField`, `Select`, `Expander`, `Tabs`, and `Breadcrumbs`. Small compositional summaries include `Callout`, `SectionHeader`, `Meter`, and `StatRow`; they do not require a semantic model. The everyday additions are `Dropdown`, `Popover`, `SearchField`, `Segmented`, `Image`, and document-local `Toast`. Controls use ordinary callbacks, and stateful controls also support small getter/setter bindings when the consumer's model is authoritative:
 
 ```csharp
 InsightUiToggle autoAssign = InsightUi.Toggle("auto-assign", "Auto assign")
@@ -118,21 +134,21 @@ InsightUiElement preview = InsightUi.Custom("research-preview", context =>
 
 Use `InsightUiIcon.FromText("!")` for a glyph fallback or `InsightUiIcon.FromTexture(texture, "!")` for a consumer-resolved RimWorld texture. Both `InsightUi.Icon` and the overloaded `InsightUi.IconButton` accept the same model; string-based `IconButton` calls remain source-compatible. Tooltips and accessible descriptions are optional icon metadata.
 
-The optional `IInsightUiIconPainter`, `IInsightUiCustomPainter`, and `IInsightUiFocusPainter` capabilities do not change the existing `IInsightUiPainter` contract, so existing portable or consumer test painters continue to compile. Unity/GUI state remains protected by the renderer's existing outer scope.
+The optional `IInsightUiIconPainter`, `IInsightUiCustomPainter`, `IInsightUiFocusPainter`, `IInsightUiTranslationPainter`, and `IInsightUiHoverPainter` capabilities do not change the existing `IInsightUiPainter` contract, so existing portable or consumer test painters continue to compile. The stock RimWorld painter scopes temporary translation and pointer hit testing; Unity/GUI state remains protected by the renderer's existing outer scope.
 
 ## Effects and feedback
 
 Effects are keyed by stable IDs and advance from the document's delta time. They do not change layout unless the consumer changes visibility or sizing explicitly:
 
 ```csharp
-InsightUiElement details = InsightUi.Fade("details", settings.ShowDetails,
+InsightUiElement details = InsightUi.SlideFade("details", settings.ShowDetails,
     InsightUi.Surface("details-card", InsightUi.Label("copy", "Additional settings")));
 
 document.Effects.Flash("save-feedback");
 document.Toasts.Show("Saved", InsightToastSeverity.Success);
 ```
 
-`InsightMotionEasing` offers only linear, smooth, ease-out, and approach behavior. A changed target interrupts the current value naturally; reduced motion settles transitions and flashes immediately. `Highlight` is useful for a short success/error emphasis without moving content. Effects, toasts, popovers, and their state are document-owned and are cleared by `InsightUiHost.PostClose()`/`InsightUiWindow.PostClose()`.
+`InsightMotionEasing` offers only linear, smooth, ease-out, and approach behavior. A changed target interrupts the current value naturally; reduced motion settles transitions and flashes immediately. `SlideFade` is a paint-only 4–8 px cardinal reveal that preserves final layout geometry. `Highlight` is useful for a short success/error emphasis without moving content. `HoverCard` is a display-only, host-clamped context card with a brief hover delay and trigger-to-card grace period; its content is ordinary composition and it does not participate in focus. Effects, toasts, popovers, hover cards, and their state are document-owned and are cleared by `InsightUiHost.PostClose()`/`InsightUiWindow.PostClose()`.
 
 ## Focus and keyboard input
 
