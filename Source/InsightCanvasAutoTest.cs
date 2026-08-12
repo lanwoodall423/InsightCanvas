@@ -307,9 +307,14 @@ namespace InsightCanvas
                      "rounded showcase surface '" + ids[i] + "' was not rendered with positive geometry");
                  AssertFiniteGeometry(element);
              }
-             InsightUiBadge badge = FindElement(window.Document.Root, "overview-layout-badge") as InsightUiBadge;
-             Require(badge != null && badge.LayoutRect.Height >= 22f && badge.LayoutRect.Width >= badge.MeasuredSize.Width,
-                 "short rounded badge geometry was not preserved");
+             for (int i = 0; i < 3; i++)
+             {
+                 InsightUiBadge badge = FindElement(window.Document.Root, ids[i]) as InsightUiBadge;
+                 Require(badge != null && badge.LayoutRect.Height >= 22f &&
+                     Math.Abs(badge.LayoutRect.Width - badge.MeasuredSize.Width) < 0.01f &&
+                     badge.Style.HorizontalAlignment == InsightAlignment.Start,
+                     "Overview Badge did not preserve compact intrinsic geometry");
+             }
          }
 
          private void CheckHoverCardDogfood()

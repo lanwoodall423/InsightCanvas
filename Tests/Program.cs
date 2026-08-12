@@ -14,6 +14,8 @@ internal static class Program
             LayoutMath();
             TypographyGeometry();
             SurfaceRadiusPolicy();
+            RoundedMaskGeometry();
+            BadgeIntrinsicLayout();
             ComposableLayout();
             UiStateIsolation();
             ConsumerApiFoundations();
@@ -238,6 +240,11 @@ internal static class Program
             InsightUiSurfaceMath.InnerCornerRadius(2f, 5f) == 0f &&
             InsightUiSurfaceMath.InnerCornerRadius(4f, -1f) == 4f,
             "border inset did not preserve the true inner radius relationship");
+        Assert(InsightUiSurfaceMath.EffectiveInnerCornerRadius(4f, 1f, 200f, 100f) == 3f &&
+            InsightUiSurfaceMath.EffectiveInnerCornerRadius(8f, 2f, 200f, 100f) == 6f &&
+            InsightUiSurfaceMath.EffectiveInnerCornerRadius(2f, 4f, 200f, 100f) == 0f &&
+            InsightUiSurfaceMath.EffectiveInnerCornerRadius(8f, 1f, 8f, 8f) == 3f,
+            "effective border radius math did not account for target-size clamping");
         Assert(InsightUiSurfaceMath.RadiusBucket(0f) == 0 &&
             InsightUiSurfaceMath.RadiusBucket(0.25f) == 1 &&
             InsightUiSurfaceMath.RadiusBucket(1f) == 1 &&
@@ -245,6 +252,101 @@ internal static class Program
             InsightUiSurfaceMath.RadiusBucket(7f) == 7 &&
             InsightUiSurfaceMath.RadiusBucket(99f) == 8,
             "internal rounded-mask buckets were not deterministic or bounded");
+    }
+
+    private static void RoundedMaskGeometry()
+    {
+        Assert(InsightUiSurfaceMath.RoundedRadiusBucketCount == 9 &&
+            InsightUiRoundedMaskGenerator.TextureSize == 32,
+            "rounded-mask cache or source geometry is not fixed and bounded");
+
+        float[,] targets =
+        {
+            { 8f, 8f }, { 12f, 18f }, { 22f, 60f },
+            { 22f, 260f }, { 28f, 100f }, { 200f, 100f }
+        };
+        for (int i = 0; i < targets.GetLength(0); i++)
+        {
+            float effective = InsightUiSurfaceMath.ClampCornerRadius(8f, targets[i, 0], targets[i, 1]);
+            Assert(effective >= 0f && effective <= Math.Min(targets[i, 0], targets[i, 1]) * 0.5f,
+                "rounded target geometry exceeded half of its shortest dimension");
+        }
+
+        InsightUiRoundedMaskData square = InsightUiRoundedMaskGenerator.Create(0);
+        Assert(square.SourceCorner == 0 && square.AlphaAt(0, 0) == 255,
+            "square geometry did not remain fully opaque");
+
+        for (int radius = 1; radius <= 8; radius++)
+        {
+            InsightUiRoundedMaskData mask = InsightUiRoundedMaskGenerator.Create(radius);
+            int size = mask.Size;
+            int corner = mask.SourceCorner;
+            Assert(size == InsightUiRoundedMaskGenerator.TextureSize && corner > 0 &&
+                size - corner * 2 >= InsightUiRoundedMaskGenerator.MinimumOpaqueCenter,
+                "rounded mask lacks a substantial isolated opaque center");
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    byte alpha = mask.AlphaAt(x, y);
+                    Assert(alpha == mask.AlphaAt(size - 1 - x, y) &&
+                        alpha == mask.AlphaAt(x, size - 1 - y),
+                        "rounded mask is not horizontally and vertically symmetrical");
+                }
+            }
+
+            for (int scan = 0; scan < corner; scan++)
+            {
+                int previousHorizontal = 0;
+                int previousVertical = 0;
+                for (int position = 0; position <= corner; position++)
+                {
+                    int horizontal = mask.AlphaAt(position, scan);
+                    int vertical = mask.AlphaAt(scan, position);
+                    Assert(horizontal >= previousHorizontal && vertical >= previousVertical,
+                        "rounded corner contains a concave notch or secondary transparency transition");
+                    previousHorizontal = horizontal;
+                    previousVertical = vertical;
+                }
+            }
+
+            for (int position = corner; position < size - corner; position++)
+            {
+                for (int edge = 0; edge < size; edge++)
+                {
+                    Assert(mask.AlphaAt(position, edge) == 255 && mask.AlphaAt(edge, position) == 255,
+                        "nine-slice straight-edge source region contains corner transparency");
+                }
+            }
+        }
+    }
+
+    private static void BadgeIntrinsicLayout()
+    {
+        InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+        InsightUiBadge badge = InsightUi.Badge("badge-layout", "status");
+        InsightUiStack column = InsightUi.Column("badge-column",
+            InsightUi.Label("badge-copy", "A multiline label\nthat establishes a wide column."), badge);
+        column.Measure(new InsightUiConstraints(0f, 360f, 0f, float.PositiveInfinity), frame);
+        column.Arrange(new InsightRect(0f, 0f, 360f, column.MeasuredSize.Height), frame);
+        Assert(badge.Style.HorizontalAlignment == InsightAlignment.Start &&
+            badge.Style.VerticalAlignment == InsightAlignment.Center,
+            "Badge component defaults are not Start/Center");
+        Assert(Math.Abs(badge.LayoutRect.Width - badge.MeasuredSize.Width) < 0.01f &&
+            badge.LayoutRect.Width < 360f,
+            "default Badge stretched to its Column width instead of using its intrinsic width");
+
+        InsightUiBadge stretched = InsightUi.Badge("badge-stretched", "status");
+        stretched.SetAlignment(InsightAlignment.Stretch, InsightAlignment.Center);
+        InsightUiStack stretchColumn = InsightUi.Column("badge-stretch-column",
+            InsightUi.Label("badge-stretch-copy", "A multiline label\nthat establishes a wide column."), stretched);
+        stretchColumn.Measure(new InsightUiConstraints(0f, 360f, 0f, float.PositiveInfinity), frame);
+        stretchColumn.Arrange(new InsightRect(0f, 0f, 360f, stretchColumn.MeasuredSize.Height), frame);
+        Assert(Math.Abs(stretched.LayoutRect.Width - 360f) < 0.01f &&
+            stretched.LayoutRect.Width > stretched.MeasuredSize.Width,
+            "an explicitly stretched Badge did not occupy the available Column width");
     }
 
     private static void ModelClear()

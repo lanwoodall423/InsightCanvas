@@ -431,6 +431,15 @@ namespace InsightCanvas
             return Math.Max(0f, outerRadius - Math.Max(0f, borderWidth));
         }
 
+        internal static float EffectiveInnerCornerRadius(float outerRadius, float borderWidth, float width, float height)
+        {
+            float effectiveOuter = ClampCornerRadius(outerRadius, width, height);
+            float minimumDimension = Math.Min(Math.Max(0f, width), Math.Max(0f, height));
+            float inset = Math.Min(Math.Max(0f, float.IsNaN(borderWidth) ? 0f : borderWidth), minimumDimension * 0.5f);
+            return ClampCornerRadius(InnerCornerRadius(effectiveOuter, inset),
+                Math.Max(0f, width - inset * 2f), Math.Max(0f, height - inset * 2f));
+        }
+
         internal static int RadiusBucket(float radius)
         {
             if (float.IsNaN(radius) || radius <= 0f) return 0;
@@ -439,6 +448,76 @@ namespace InsightCanvas
             if (radius < 1f) return 1;
             return Math.Max(0, Math.Min((int)MaximumRoundedRadius,
                 (int)Math.Round(radius, MidpointRounding.AwayFromZero)));
+        }
+    }
+
+    /// <summary>Portable alpha geometry used to create one cached Unity texture per integer radius.</summary>
+    internal sealed class InsightUiRoundedMaskData
+    {
+        private readonly byte[] alpha;
+
+        internal InsightUiRoundedMaskData(int size, int sourceCorner, byte[] alpha)
+        {
+            Size = size;
+            SourceCorner = sourceCorner;
+            this.alpha = alpha;
+        }
+
+        internal int Size { get; private set; }
+        internal int SourceCorner { get; private set; }
+        internal byte AlphaAt(int x, int y) => alpha[y * Size + x];
+    }
+
+    /// <summary>Fixed-size, supersampled rounded-rectangle mask generator.</summary>
+    internal static class InsightUiRoundedMaskGenerator
+    {
+        internal const int TextureSize = 32;
+        internal const int Supersampling = 4;
+        internal const int MinimumOpaqueCenter = 8;
+
+        internal static int SourceCornerForRadius(int geometryRadius)
+        {
+            geometryRadius = Math.Max(0, Math.Min((int)InsightUiSurfaceMath.MaximumRoundedRadius, geometryRadius));
+            return geometryRadius == 0 ? 0 : geometryRadius + 4;
+        }
+
+        internal static InsightUiRoundedMaskData Create(int geometryRadius)
+        {
+            geometryRadius = Math.Max(0, Math.Min((int)InsightUiSurfaceMath.MaximumRoundedRadius, geometryRadius));
+            int sourceCorner = SourceCornerForRadius(geometryRadius);
+            byte[] alpha = new byte[TextureSize * TextureSize];
+            if (sourceCorner == 0)
+            {
+                for (int i = 0; i < alpha.Length; i++) alpha[i] = 255;
+                return new InsightUiRoundedMaskData(TextureSize, 0, alpha);
+            }
+
+            int sampleCount = Supersampling * Supersampling;
+            double radiusSquared = sourceCorner * sourceCorner;
+            for (int y = 0; y < TextureSize; y++)
+            {
+                for (int x = 0; x < TextureSize; x++)
+                {
+                    int inside = 0;
+                    for (int sampleY = 0; sampleY < Supersampling; sampleY++)
+                    {
+                        double pointY = y + (sampleY + 0.5) / Supersampling;
+                        double nearestY = pointY < sourceCorner ? sourceCorner :
+                            pointY > TextureSize - sourceCorner ? TextureSize - sourceCorner : pointY;
+                        for (int sampleX = 0; sampleX < Supersampling; sampleX++)
+                        {
+                            double pointX = x + (sampleX + 0.5) / Supersampling;
+                            double nearestX = pointX < sourceCorner ? sourceCorner :
+                                pointX > TextureSize - sourceCorner ? TextureSize - sourceCorner : pointX;
+                            double deltaX = pointX - nearestX;
+                            double deltaY = pointY - nearestY;
+                            if (deltaX * deltaX + deltaY * deltaY <= radiusSquared) inside++;
+                        }
+                    }
+                    alpha[y * TextureSize + x] = (byte)((inside * 255 + sampleCount / 2) / sampleCount);
+                }
+            }
+            return new InsightUiRoundedMaskData(TextureSize, sourceCorner, alpha);
         }
     }
 

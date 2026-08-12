@@ -1234,6 +1234,8 @@ namespace InsightCanvas
             Color = color;
             Style.Padding = InsightUiPadding.Symmetric(7f, 3f);
             Style.MinimumHeight = 22f;
+            Style.HorizontalAlignment = InsightAlignment.Start;
+            Style.VerticalAlignment = InsightAlignment.Center;
         }
 
         public string Text { get; set; }
