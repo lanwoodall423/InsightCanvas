@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0 - 2026-08-12
+
+This is the breaking v2 redesign. Insight Canvas is now a general-purpose, opt-in UI toolkit and design system; ordinary consumers no longer need to construct an `InsightModel`.
+
+- Added `InsightUiDocument`, `InsightUiHost`, and `InsightUiWindow` for document-local state, embedding, and complete RimWorld windows.
+- Added composable rows, columns, wrapping, grids, split panes, scroll regions, responsive navigation, controls, bindings, focus, themes, accessibility settings, custom drawing capabilities, and bounded virtualization.
+- Added document-owned effects, highlights, reveal/fade transitions, toasts, popovers, and transient cleanup.
+- Replaced the primary demonstration with the Feature Showcase, covering the public API across responsive pages and diagnostics.
+- Retained graph, timeline, explanation, map bridge, serialization, constellation, and event components as optional advanced extensions.
+- Improved stack composition ergonomics: stack factories now preserve `InsightUiStack` through fluent style setters, so consumers can call `Add` without casts or compatibility extensions.
+- Added adoption documentation, focused public examples, dependency metadata guidance, and a release checklist.
+
+The current package targets RimWorld 1.6 and uses package ID `lan.insightcanvas`. The assembly version is `2.0.0.0`. Owner license selection required; no license is granted by this repository until the owner selects one.
+
 ## 1.0.1
 
 - Added `InsightCanvasHost` for embedding retained views in host windows such as main tabs.

@@ -36,6 +36,201 @@ namespace InsightCanvas
         Label
     }
 
+    /// <summary>Direction used by document-level focus traversal.</summary>
+    public enum InsightUiFocusDirection
+    {
+        Forward = 1,
+        Backward = -1
+    }
+
+    /// <summary>Small, renderer-neutral icon description used by icon elements and buttons.</summary>
+    public sealed class InsightUiIcon
+    {
+        private InsightUiIcon(string fallback, object texture)
+        {
+            Fallback = fallback ?? string.Empty;
+            Texture = texture;
+        }
+
+        /// <summary>Text or glyph shown when no texture is available.</summary>
+        public string Fallback { get; private set; }
+
+        /// <summary>Consumer-supplied texture/image object, usually a Unity Texture in RimWorld.</summary>
+        public object Texture { get; private set; }
+
+        /// <summary>Optional tooltip shown when the icon is hovered.</summary>
+        public string Tooltip { get; private set; }
+
+        /// <summary>Optional accessible description for consumers that provide an accessibility layer.</summary>
+        public string AccessibleDescription { get; private set; }
+
+        /// <summary>Gets whether the icon carries a texture/image payload.</summary>
+        public bool HasTexture => Texture != null;
+
+        /// <summary>Creates an icon that renders a text or glyph fallback.</summary>
+        public static InsightUiIcon FromText(string fallback) => new InsightUiIcon(fallback, null);
+
+        /// <summary>Creates an icon backed by a consumer-supplied texture/image with an optional fallback.</summary>
+        public static InsightUiIcon FromTexture(object texture, string fallback = "") =>
+            new InsightUiIcon(fallback, texture);
+
+        /// <summary>Sets the optional hover tooltip and returns this icon for fluent composition.</summary>
+        public InsightUiIcon WithTooltip(string tooltip)
+        {
+            Tooltip = tooltip;
+            return this;
+        }
+
+        /// <summary>Sets the optional accessible description and returns this icon for fluent composition.</summary>
+        public InsightUiIcon WithAccessibleDescription(string description)
+        {
+            AccessibleDescription = description;
+            return this;
+        }
+    }
+
+    /// <summary>Minimal input snapshot consumed by focus-aware stock controls.</summary>
+    public interface IInsightUiInput
+    {
+        /// <summary>Gets whether the currently focused control owns text editing.</summary>
+        bool IsTextEditing { get; }
+        /// <summary>Gets whether Tab was pressed during this input frame.</summary>
+        bool TabPressed { get; }
+        /// <summary>Gets whether Shift+Tab was pressed during this input frame.</summary>
+        bool ShiftTabPressed { get; }
+        /// <summary>Gets whether Enter, keypad Enter, or Space was pressed.</summary>
+        bool ActivatePressed { get; }
+        /// <summary>Marks the Tab input as handled.</summary>
+        void ConsumeTab();
+        /// <summary>Marks the activation input as handled.</summary>
+        void ConsumeActivation();
+    }
+
+    /// <summary>Document-owned focus order and keyboard activation state.</summary>
+    public sealed class InsightUiFocusState
+    {
+        private readonly List<string> focusableIds = new List<string>();
+        private readonly List<string> previousFocusableIds = new List<string>();
+        private readonly Dictionary<string, object> owners = new Dictionary<string, object>(StringComparer.Ordinal);
+        private readonly HashSet<string> textInputIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> previousTextInputIds = new HashSet<string>(StringComparer.Ordinal);
+        private string activationId;
+
+        /// <summary>Gets the effective ID that currently owns keyboard focus.</summary>
+        public string FocusedId { get; private set; }
+        /// <summary>Gets the focus order registered during the latest paint pass.</summary>
+        public IReadOnlyList<string> FocusableIds => focusableIds;
+        /// <summary>Gets whether the focused ID was a text input in the previous frame.</summary>
+        public bool IsTextEditing => !string.IsNullOrEmpty(FocusedId) && previousTextInputIds.Contains(FocusedId);
+
+        /// <summary>Starts a new registration frame while retaining focus across stable IDs.</summary>
+        public void BeginFrame()
+        {
+            previousFocusableIds.Clear();
+            previousFocusableIds.AddRange(focusableIds);
+            previousTextInputIds.Clear();
+            foreach (string id in textInputIds) previousTextInputIds.Add(id);
+            focusableIds.Clear();
+            owners.Clear();
+            textInputIds.Clear();
+            activationId = null;
+        }
+
+        /// <summary>Returns whether the supplied effective ID currently has focus.</summary>
+        public bool IsFocused(string id) => !string.IsNullOrEmpty(id) &&
+            string.Equals(FocusedId, id, StringComparison.Ordinal);
+
+        /// <summary>Requests focus for an effective ID.</summary>
+        public bool RequestFocus(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            FocusedId = id;
+            return true;
+        }
+
+        /// <summary>Clears focus and any pending keyboard activation.</summary>
+        public void ClearFocus()
+        {
+            FocusedId = null;
+            activationId = null;
+        }
+
+        /// <summary>Moves focus through the last or current registration order.</summary>
+        public bool Move(InsightUiFocusDirection direction)
+        {
+            IReadOnlyList<string> order = focusableIds.Count == 0 ? previousFocusableIds : focusableIds;
+            if (order.Count == 0)
+            {
+                FocusedId = null;
+                return false;
+            }
+
+            int current = FocusedId == null ? -1 : IndexOf(order, FocusedId);
+            int next;
+            if (current < 0)
+                next = direction == InsightUiFocusDirection.Backward ? order.Count - 1 : 0;
+            else
+                next = (current + (int)direction + order.Count) % order.Count;
+            FocusedId = order[next];
+            return true;
+        }
+
+        /// <summary>Consumes document-level Tab and activation input when text editing does not own it.</summary>
+        public void ProcessKeyboard(IInsightUiInput input)
+        {
+            if (input == null || input.IsTextEditing) return;
+            if (input.TabPressed)
+            {
+                Move(input.ShiftTabPressed ? InsightUiFocusDirection.Backward : InsightUiFocusDirection.Forward);
+                input.ConsumeTab();
+            }
+            if (input.ActivatePressed && !string.IsNullOrEmpty(FocusedId))
+            {
+                activationId = FocusedId;
+                input.ConsumeActivation();
+            }
+        }
+
+        /// <summary>Consumes a pending activation for the supplied effective ID.</summary>
+        public bool ConsumeActivation(string id)
+        {
+            if (!string.Equals(activationId, id, StringComparison.Ordinal)) return false;
+            activationId = null;
+            return true;
+        }
+
+        internal void Register(string id, object owner, InsightUiDiagnostics diagnostics, bool focusable, bool textInput)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            object existing;
+            if (owners.TryGetValue(id, out existing))
+            {
+                diagnostics?.RecordDuplicateId(id);
+                return;
+            }
+            owners[id] = owner;
+            if (focusable)
+            {
+                focusableIds.Add(id);
+                if (textInput) textInputIds.Add(id);
+            }
+        }
+
+        internal void PruneFocus()
+        {
+            if (!string.IsNullOrEmpty(FocusedId) && !focusableIds.Contains(FocusedId) &&
+                !previousFocusableIds.Contains(FocusedId))
+                FocusedId = null;
+        }
+
+        private static int IndexOf(IReadOnlyList<string> values, string value)
+        {
+            for (int i = 0; i < values.Count; i++)
+                if (string.Equals(values[i], value, StringComparison.Ordinal)) return i;
+            return -1;
+        }
+    }
+
     /// <summary>Engine-independent size used during measure and arrange.</summary>
     public struct InsightUiSize : IEquatable<InsightUiSize>
     {
@@ -247,6 +442,9 @@ namespace InsightCanvas
     /// <summary>Engine-independent diagnostics for a composable document.</summary>
     public sealed class InsightUiDiagnostics
     {
+        private readonly HashSet<string> duplicateIdSet = new HashSet<string>(StringComparer.Ordinal);
+        private readonly List<string> duplicateIdPaths = new List<string>();
+
         public int Frame { get; private set; }
         public int MeasurePasses { get; private set; }
         public int ArrangePasses { get; private set; }
@@ -254,12 +452,30 @@ namespace InsightCanvas
         public int Invalidations { get; private set; }
         public int RenderErrors { get; private set; }
         public int LastMeasuredElementCount { get; private set; }
+        /// <summary>Gets the number of elements in the most recent virtualized viewport.</summary>
+        public int VirtualizedVisibleElements { get; private set; }
+        /// <summary>Gets the number of cached elements retained by the most recent virtualized list.</summary>
+        public int VirtualizedCachedElements { get; private set; }
+        /// <summary>Gets the number of active document effects observed by the renderer.</summary>
+        public int ActiveEffects { get; private set; }
+        /// <summary>Enables duplicate effective-ID tracking for development diagnostics.</summary>
+        public bool TrackDuplicateIds { get; set; }
+        /// <summary>Gets the number of distinct duplicate effective IDs in the current frame.</summary>
+        public int DuplicateIds { get; private set; }
+        /// <summary>Gets the duplicate effective-ID paths in deterministic discovery order.</summary>
+        public IReadOnlyList<string> DuplicateIdPaths => duplicateIdPaths;
 
         public void BeginFrame()
         {
             Frame++;
             VisibleElements = 0;
             LastMeasuredElementCount = 0;
+            VirtualizedVisibleElements = 0;
+            VirtualizedCachedElements = 0;
+            ActiveEffects = 0;
+            DuplicateIds = 0;
+            duplicateIdSet.Clear();
+            duplicateIdPaths.Clear();
         }
 
         public void RecordMeasure() { MeasurePasses++; LastMeasuredElementCount++; }
@@ -267,28 +483,57 @@ namespace InsightCanvas
         public void RecordVisible() { VisibleElements++; }
         public void RecordInvalidation() { Invalidations++; }
         public void RecordRenderError() { RenderErrors++; }
+        internal void RecordVirtualization(int visible, int cached)
+        {
+            VirtualizedVisibleElements = Math.Max(0, visible);
+            VirtualizedCachedElements = Math.Max(0, cached);
+        }
+        internal void RecordEffects(int activeEffects) { ActiveEffects = Math.Max(0, activeEffects); }
+
+        internal void RecordDuplicateId(string id)
+        {
+            if (!TrackDuplicateIds || string.IsNullOrEmpty(id) || !duplicateIdSet.Add(id)) return;
+            DuplicateIds++;
+            duplicateIdPaths.Add(id);
+        }
 
         public string Summary()
         {
             return "frame " + Frame + " | measure " + MeasurePasses + " | arrange " + ArrangePasses +
-                " | visible " + VisibleElements + " | invalidations " + Invalidations + " | errors " + RenderErrors;
+                " | visible " + VisibleElements + " | invalidations " + Invalidations +
+                " | virtualized " + VirtualizedVisibleElements + "/" + VirtualizedCachedElements +
+                " | effects " + ActiveEffects + " | errors " + RenderErrors;
         }
     }
 
     /// <summary>State and services passed through one measure, arrange, and paint cycle.</summary>
     public sealed class InsightUiFrame
     {
+        private readonly List<string> scopeStack = new List<string>();
+        private readonly Dictionary<string, string> keyCache = new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly List<float> opacityStack = new List<float>();
+        private string scopePath = string.Empty;
+
         public InsightTheme Theme { get; private set; }
         public InsightUiDensity Density { get; private set; }
         public bool HighContrast { get; private set; }
         public bool ReducedMotion { get; private set; }
         public InsightUiStateStore State { get; private set; }
         public InsightUiDiagnostics Diagnostics { get; private set; }
+        /// <summary>Gets the document-owned focus state.</summary>
+        public InsightUiFocusState Focus { get; private set; }
+        /// <summary>Gets the document-owned keyed transitions and feedback effects.</summary>
+        public InsightUiEffects Effects { get; private set; }
+        /// <summary>Gets the document-owned transient toast service.</summary>
+        public InsightUiToastService Toasts { get; private set; }
+        /// <summary>Gets the current nested visual opacity, used by fade/reveal elements.</summary>
+        public float Opacity { get; private set; } = 1f;
         public float DeltaTime { get; private set; }
         public Func<string, InsightUiTextStyle, float, InsightUiSize> TextMeasurer { get; set; }
 
         public InsightUiFrame(InsightTheme theme, InsightUiDensity density, bool highContrast, bool reducedMotion,
-            InsightUiStateStore state, InsightUiDiagnostics diagnostics, float deltaTime)
+            InsightUiStateStore state, InsightUiDiagnostics diagnostics, float deltaTime,
+            InsightUiFocusState focus = null, InsightUiEffects effects = null, InsightUiToastService toasts = null)
         {
             Theme = theme ?? InsightTheme.Default;
             Density = density;
@@ -296,7 +541,70 @@ namespace InsightCanvas
             ReducedMotion = reducedMotion;
             State = state ?? new InsightUiStateStore();
             Diagnostics = diagnostics ?? new InsightUiDiagnostics();
+            Focus = focus ?? new InsightUiFocusState();
+            Effects = effects ?? new InsightUiEffects();
+            Toasts = toasts ?? new InsightUiToastService();
             DeltaTime = deltaTime < 0f ? 0f : deltaTime;
+        }
+
+        /// <summary>Current reusable-component scope, or an empty string for ordinary documents.</summary>
+        public string ScopePath => scopePath;
+
+        /// <summary>Returns a stable effective identity for a local element ID.</summary>
+        public string EffectiveId(string localId)
+        {
+            localId = localId ?? string.Empty;
+            return string.IsNullOrEmpty(scopePath) ? localId : JoinScope(localId);
+        }
+
+        /// <summary>Returns a document-owned state key for a local control key.</summary>
+        public string StateKey(string localKey)
+        {
+            localKey = localKey ?? string.Empty;
+            if (string.IsNullOrEmpty(scopePath)) return localKey;
+            string cacheKey = scopePath + "|" + localKey;
+            string effective;
+            if (!keyCache.TryGetValue(cacheKey, out effective))
+            {
+                effective = JoinScope(localKey);
+                keyCache[cacheKey] = effective;
+            }
+            return effective;
+        }
+
+        internal void PushScope(string localScope)
+        {
+            localScope = localScope ?? string.Empty;
+            scopeStack.Add(localScope);
+            scopePath = string.IsNullOrEmpty(scopePath) ? localScope : scopePath + "/" + localScope;
+        }
+
+        internal void PopScope()
+        {
+            if (scopeStack.Count == 0) return;
+            scopeStack.RemoveAt(scopeStack.Count - 1);
+            scopePath = string.Empty;
+            for (int i = 0; i < scopeStack.Count; i++)
+            {
+                if (i > 0) scopePath += "/";
+                scopePath += scopeStack[i];
+            }
+        }
+
+        internal void RegisterElement(InsightUiElement element, bool focusable, bool textInput)
+        {
+            string effectiveId = EffectiveId(element?.Id);
+            Focus.Register(effectiveId, element, Diagnostics, focusable, textInput);
+        }
+
+        internal void RegisterInteractive(string localId, object owner, bool textInput = false)
+        {
+            Focus.Register(EffectiveId(localId), owner, Diagnostics, true, textInput);
+        }
+
+        private string JoinScope(string localId)
+        {
+            return string.IsNullOrEmpty(localId) ? scopePath : scopePath + "/" + localId;
         }
 
         public float Spacing(float value)
@@ -309,8 +617,7 @@ namespace InsightCanvas
         public InsightUiSize MeasureText(string text, InsightUiTextStyle style, float maxWidth)
         {
             if (TextMeasurer != null) return TextMeasurer(text ?? string.Empty, style, maxWidth);
-            float fontSize = style == InsightUiTextStyle.Title ? 24f : style == InsightUiTextStyle.Heading ? 19f :
-                style == InsightUiTextStyle.Caption ? 12f : 15f;
+            float fontSize = BaseTextSize(style) * TextScale(style);
             float width = (text ?? string.Empty).Length * fontSize * 0.52f;
             if (!float.IsPositiveInfinity(maxWidth) && maxWidth > 1f && width > maxWidth)
             {
@@ -318,6 +625,50 @@ namespace InsightCanvas
                 return new InsightUiSize(maxWidth, lines * fontSize * 1.25f);
             }
             return new InsightUiSize(width, fontSize * 1.25f);
+        }
+
+        private static float BaseTextSize(InsightUiTextStyle style)
+        {
+            switch (style)
+            {
+                case InsightUiTextStyle.Title: return 24f;
+                case InsightUiTextStyle.Heading: return 19f;
+                case InsightUiTextStyle.Caption: return 12f;
+                default: return 15f;
+            }
+        }
+
+        /// <summary>Returns the theme typography multiplier for a semantic text role.</summary>
+        public float TextScale(InsightUiTextStyle style)
+        {
+            switch (style)
+            {
+                case InsightUiTextStyle.Title: return Math.Max(0.5f, Theme.TitleSize);
+                case InsightUiTextStyle.Caption: return Math.Max(0.5f, Theme.CaptionSize);
+                case InsightUiTextStyle.Heading: return Math.Max(0.5f, (Theme.TitleSize + Theme.BodySize) * 0.5f);
+                case InsightUiTextStyle.Body: return Math.Max(0.5f, Theme.BodySize);
+                default: return Math.Max(0.5f, Theme.BodySize);
+            }
+        }
+
+        /// <summary>Applies the current nested opacity to a renderer-neutral color.</summary>
+        public InsightColor ApplyOpacity(InsightColor color) => color.WithAlpha(color.A * Opacity);
+
+        internal void PushOpacity(float opacity)
+        {
+            opacityStack.Add(Opacity);
+            Opacity = Math.Max(0f, Math.Min(1f, Opacity * opacity));
+        }
+
+        internal void PopOpacity()
+        {
+            if (opacityStack.Count == 0)
+            {
+                Opacity = 1f;
+                return;
+            }
+            Opacity = opacityStack[opacityStack.Count - 1];
+            opacityStack.RemoveAt(opacityStack.Count - 1);
         }
     }
 
@@ -339,35 +690,141 @@ namespace InsightCanvas
         float ScrollOffset(InsightRect viewport, float contentHeight, float offset, string stateKey, InsightUiFrame frame);
     }
 
+    /// <summary>Optional drawing capabilities used by custom elements without expanding the core painter contract.</summary>
+    public interface IInsightUiCustomPainter
+    {
+        /// <summary>Fills a rectangle with a renderer-neutral color.</summary>
+        void FillRect(InsightRect rect, InsightColor color, InsightUiFrame frame);
+        /// <summary>Draws a rectangle outline.</summary>
+        void Outline(InsightRect rect, InsightColor color, float width, InsightUiFrame frame);
+        /// <summary>Draws a line segment.</summary>
+        void Line(float x1, float y1, float x2, float y2, InsightColor color, float width, InsightUiFrame frame);
+        /// <summary>Draws a consumer-supplied texture when supported.</summary>
+        void Texture(InsightRect rect, object texture, InsightColor? tint, InsightUiFrame frame);
+    }
+
+    /// <summary>Optional icon capability implemented by renderers that understand consumer-supplied textures.</summary>
+    public interface IInsightUiIconPainter
+    {
+        /// <summary>Draws an icon using texture support or its fallback.</summary>
+        void Icon(InsightRect rect, InsightUiIcon icon, InsightUiFrame frame);
+        /// <summary>Draws an icon button and returns whether it was activated.</summary>
+        bool IconButton(InsightRect rect, InsightUiIcon icon, bool enabled, bool selected, InsightUiFrame frame);
+    }
+
+    /// <summary>Optional focus visualization capability for stock controls.</summary>
+    public interface IInsightUiFocusPainter
+    {
+        /// <summary>Draws the focus indication for a focused control.</summary>
+        void FocusRing(InsightRect rect, InsightUiFrame frame);
+    }
+
+    /// <summary>Optional renderer capability for draggable split dividers.</summary>
+    public interface IInsightUiDragPainter
+    {
+        /// <summary>Draws and optionally updates a divider ratio. Returns NaN when unchanged.</summary>
+        float DragDivider(InsightRect divider, InsightRect bounds, InsightUiOrientation orientation, float ratio,
+            string stateKey, InsightUiFrame frame);
+    }
+
+    /// <summary>Context passed to a consumer-owned custom drawing callback.</summary>
+    public sealed class InsightUiCustomDrawContext
+    {
+        public InsightUiCustomDrawContext(InsightRect bounds, IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            Bounds = bounds;
+            Painter = painter;
+            Frame = frame;
+        }
+
+        /// <summary>Gets the arranged bounds of the custom element.</summary>
+        public InsightRect Bounds { get; private set; }
+        /// <summary>Gets the active renderer contract.</summary>
+        public IInsightUiPainter Painter { get; private set; }
+        /// <summary>Gets the current measure/arrange/paint frame.</summary>
+        public InsightUiFrame Frame { get; private set; }
+    }
+
     /// <summary>Reusable document that can be embedded in a host Rect or placed in a Window.</summary>
     public sealed class InsightUiDocument
     {
+        private InsightTheme theme;
+        private InsightTheme accessibleTheme;
+        private InsightTheme accessibleThemeSource;
+        private bool accessibleThemeHighContrast;
+        private InsightColorBlindMode accessibleThemeColorBlindMode;
+        private int accessibleThemeRevision = -1;
+
         public InsightUiDocument(string id, InsightUiElement root)
         {
             Id = string.IsNullOrWhiteSpace(id) ? "Insight Canvas" : id;
             Root = root ?? InsightUi.Empty("root");
-            Theme = InsightTheme.Default;
+            theme = InsightTheme.Default;
             State = new InsightUiStateStore();
             Diagnostics = new InsightUiDiagnostics();
+            Focus = new InsightUiFocusState();
+            Effects = new InsightUiEffects();
+            Toasts = new InsightUiToastService();
             Density = InsightUiDensity.Normal;
         }
 
         public string Id { get; private set; }
         public InsightUiElement Root { get; set; }
-        public InsightTheme Theme { get; set; }
+        public InsightTheme Theme
+        {
+            get => theme;
+            set
+            {
+                theme = value ?? InsightTheme.Default;
+                accessibleTheme = null;
+                accessibleThemeSource = null;
+                accessibleThemeRevision = -1;
+            }
+        }
         public InsightUiDensity Density { get; set; }
         public bool HighContrast { get; set; }
         public bool ReducedMotion { get; set; }
         public bool DrawBackground { get; set; } = true;
         public InsightUiStateStore State { get; private set; }
         public InsightUiDiagnostics Diagnostics { get; private set; }
+        public InsightUiFocusState Focus { get; private set; }
+        /// <summary>Gets keyed transitions and feedback effects scoped to this document.</summary>
+        public InsightUiEffects Effects { get; private set; }
+        /// <summary>Gets transient toast feedback scoped to this document.</summary>
+        public InsightUiToastService Toasts { get; private set; }
+        /// <summary>Enables duplicate effective-ID diagnostics for this document.</summary>
+        public bool TrackDuplicateIds { get; set; }
         public int Revision { get; private set; }
 
         public void Invalidate()
         {
             Revision++;
+            accessibleTheme = null;
+            accessibleThemeRevision = -1;
             Diagnostics.RecordInvalidation();
             Root?.Invalidate();
+        }
+
+        internal InsightTheme ResolveTheme(bool highContrast, InsightColorBlindMode colorBlindMode)
+        {
+            if (!highContrast && colorBlindMode == InsightColorBlindMode.None) return Theme;
+            if (accessibleTheme != null && accessibleThemeSource == Theme &&
+                accessibleThemeHighContrast == highContrast && accessibleThemeColorBlindMode == colorBlindMode &&
+                accessibleThemeRevision == Revision)
+                return accessibleTheme;
+            accessibleTheme = Theme.WithAccessibility(highContrast, colorBlindMode);
+            accessibleThemeSource = Theme;
+            accessibleThemeHighContrast = highContrast;
+            accessibleThemeColorBlindMode = colorBlindMode;
+            accessibleThemeRevision = Revision;
+            return accessibleTheme;
+        }
+
+        internal void CloseTransientOverlays()
+        {
+            Effects.Clear();
+            Toasts.Clear();
+            Root?.CloseTransient(State);
         }
     }
 }

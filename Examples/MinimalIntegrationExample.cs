@@ -10,17 +10,21 @@ namespace InsightCanvasExample
     {
         private readonly InsightUiDocument document;
         private readonly InsightUiHost host;
+        private bool showHints = true;
+        private float confidence = 0.68f;
 
         public MinimalIntegrationPanel()
         {
-            InsightUiStack root = InsightUi.Column("example-root").SetGap(8f) as InsightUiStack;
+            InsightUiStack root = InsightUi.Column("example-root").SetGap(8f);
             root.Add(InsightUi.Label("example-title", "Colony signals", InsightUiTextStyle.Heading),
                 InsightUi.Surface("example-card", InsightUi.Column("example-card-body").SetGap(6f).Add(
                     InsightUi.Label("example-copy", "This panel does not require InsightModel or a fixed semantic dashboard.", InsightUiTextStyle.Body),
-                    InsightUi.Progress("example-progress", 0.68f, InsightTheme.Default.Selected),
+                    InsightUi.Toggle("example-hints", "Show hints")
+                        .Bind(() => showHints, value => showHints = value),
+                    InsightUi.Progress("example-progress", confidence, InsightTheme.Default.Selected),
                     InsightUi.Row("example-actions").SetGap(6f).Add(
                         InsightUi.Button("example-refresh", "Refresh", Refresh),
-                        InsightUi.IconButton("example-help", "?", ShowHelp))));
+                        InsightUi.IconButton("example-help", InsightUiIcon.FromText("?").WithTooltip("Show help"), ShowHelp)))));
             document = new InsightUiDocument("Example embedded panel", root);
             host = new InsightUiHost(document);
         }

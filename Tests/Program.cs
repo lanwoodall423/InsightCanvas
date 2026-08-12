@@ -14,6 +14,7 @@ internal static class Program
             LayoutMath();
             ComposableLayout();
             UiStateIsolation();
+            ConsumerApiFoundations();
             ResponsiveGridAndVirtualization();
             UiThemeScope();
             ShowcaseNavigationAndResponsiveLayout();
@@ -30,6 +31,7 @@ internal static class Program
             Serialization();
             SerializationOrdering();
             MotionSettings();
+            Prompt2Foundations();
             Console.WriteLine("Insight Canvas core tests passed.");
             return 0;
         }
@@ -132,7 +134,7 @@ internal static class Program
             .SetWidth(InsightLength.Fixed(120f));
         InsightUiElement flexiblePanel = InsightUi.Surface("flex", InsightUi.Label("flex-label", "Flexible"))
             .SetFlex(1f);
-        InsightUiStack row = InsightUi.Row("row", fixedPanel, flexiblePanel).SetGap(8f) as InsightUiStack;
+        InsightUiStack row = InsightUi.Row("row", fixedPanel, flexiblePanel).SetGap(8f);
         InsightUiSize measured = row.Measure(new InsightUiConstraints(0f, 400f, 0f, 120f), frame);
         row.Arrange(new InsightRect(0f, 0f, 400f, 120f), frame);
         Assert(measured.Width > 0f && row.Children[0].LayoutRect.Width >= 119f &&
@@ -161,6 +163,170 @@ internal static class Program
         int revision = first.Revision;
         first.Invalidate();
         Assert(first.Revision > revision && first.Diagnostics.Invalidations == 1, "document invalidation was not scoped");
+    }
+
+    private static void ConsumerApiFoundations()
+    {
+        bool externalToggle = false;
+        InsightUiToggle toggle = InsightUi.Toggle("auto-work", "Auto work")
+            .Bind(() => externalToggle, value => externalToggle = value);
+        TestPainter painter = new TestPainter { ToggleChanges = 1 };
+        Render(toggle, painter);
+        Assert(externalToggle && toggle.Value, "controlled toggle did not write through its binding");
+
+        externalToggle = false;
+        Render(toggle, painter);
+        Assert(!toggle.Value, "controlled toggle did not reflect an external model change");
+
+        InsightUiToggle local = InsightUi.Toggle("local", "Local");
+        painter.ToggleChanges = 1;
+        Render(local, painter);
+        Assert(local.Value, "uncontrolled toggle did not retain document-local state");
+
+        float externalSlider = 0.25f;
+        InsightUiSlider slider = InsightUi.Slider("volume", 0f, 0f, 1f)
+            .Bind(() => externalSlider, value => externalSlider = value);
+        painter.SliderValue = 0.75f;
+        Render(slider, painter);
+        Assert(Math.Abs(externalSlider - 0.75f) < 0.001f, "controlled slider did not write through its binding");
+
+        string externalText = "old";
+        InsightUiTextField field = InsightUi.TextField("name")
+            .Bind(() => externalText, value => externalText = value);
+        painter.TextValue = "new";
+        Render(field, painter);
+        Assert(externalText == "new", "controlled text field did not write through its binding");
+
+        int externalSelection = 0;
+        InsightUiSelect select = InsightUi.Select("mode", "Mode", new[] { "One", "Two", "Three" })
+            .Bind(() => externalSelection, value => externalSelection = value);
+        painter.ButtonClicks = 1;
+        Render(select, painter);
+        Assert(externalSelection == 1 && select.Current == "Two", "controlled select did not write through its binding");
+
+        bool expanded = false;
+        InsightUiExpander expander = InsightUi.Expander("details", "Details", InsightUi.Label("details-body", "Body"))
+            .Bind(() => expanded, value => expanded = value);
+        painter.ButtonClicks = 1;
+        Render(expander, painter);
+        Assert(expanded && expander.Expanded, "controlled expander did not write through its binding");
+
+        string activeTab = "first";
+        InsightUiTabs tabs = InsightUi.Tabs("tabs")
+            .Add("first", "First", InsightUi.Label("first-content", "First content"))
+            .Add("second", "Second", InsightUi.Label("second-content", "Second content"))
+            .Bind(() => activeTab, value => activeTab = value);
+        painter.ButtonClicks = 2;
+        Render(tabs, painter);
+        Assert(activeTab == "second" && tabs.ActiveTabId == "second", "controlled tabs did not write through their binding");
+
+        string activePage = "first";
+        InsightUiNavigation navigation = InsightUi.Navigation("navigation", 700f)
+            .Add("first", "First", InsightUi.Label("page-first", "First page"))
+            .Add("second", "Second", InsightUi.Label("page-second", "Second page"))
+            .Bind(() => activePage, value => activePage = value);
+        painter.ButtonClicks = 2;
+        Render(navigation, painter);
+        Assert(activePage == "second" && navigation.ActivePageId == "second",
+            "controlled navigation did not write through its binding");
+
+        InsightUiToggle audio = InsightUi.Toggle("volume", "Audio");
+        InsightUiToggle gameplay = InsightUi.Toggle("volume", "Gameplay");
+        InsightUiElement scoped = InsightUi.Column("scoped-root",
+            InsightUi.Scope("audio", audio), InsightUi.Scope("gameplay", gameplay));
+        painter.ToggleChanges = 1;
+        InsightUiStateStore scopedState = new InsightUiStateStore();
+        Render(scoped, painter, null, null, scopedState);
+        Assert(audio.Value && !gameplay.Value && scopedState.GetBool("audio/volume.value") &&
+            !scopedState.GetBool("gameplay/volume.value"), "scoped reusable controls were not isolated");
+
+        InsightUiDiagnostics duplicateDiagnostics = new InsightUiDiagnostics { TrackDuplicateIds = true };
+        InsightUiElement duplicate = InsightUi.Column("duplicate-root",
+            InsightUi.Toggle("same", "First"), InsightUi.Toggle("same", "Second"));
+        Render(duplicate, painter, duplicateDiagnostics);
+        Assert(duplicateDiagnostics.DuplicateIds == 1 && duplicateDiagnostics.DuplicateIdPaths[0] == "same",
+            "duplicate effective IDs were not reported");
+
+        bool customPainted = false;
+        InsightUiCustom custom = InsightUi.Custom("custom", context =>
+        {
+            customPainted = true;
+            (context.Painter as IInsightUiCustomPainter)?.FillRect(context.Bounds,
+                InsightTheme.Default.Selected, context.Frame);
+        }, (constraints, frame) => new InsightUiSize(64f, 32f));
+        painter.CustomDrawSupported = true;
+        Render(custom, painter);
+        Assert(customPainted && painter.FillRectCalls == 1, "custom drawing element did not use the painter escape hatch");
+
+        InsightUiIcon icon = InsightUiIcon.FromTexture(new object(), "!")
+            .WithTooltip("Warning")
+            .WithAccessibleDescription("Warning icon");
+        InsightUiIconElement iconElement = InsightUi.Icon("icon", icon);
+        Render(iconElement, painter);
+        Assert(icon.HasTexture && icon.Tooltip == "Warning" && painter.IconCalls == 1,
+            "icon abstraction did not reach the renderer capability");
+        InsightUiIconButton iconButton = InsightUi.IconButton("icon-button", icon);
+        painter.ButtonClicks = 1;
+        Render(iconButton, painter);
+        Assert(painter.IconCalls == 2, "texture-backed icon button did not reach the renderer capability");
+
+        InsightUiDocument focusDocument = new InsightUiDocument("focus", InsightUi.Column("focus-root",
+            InsightUi.Button("first", "First"), InsightUi.Toggle("second", "Second"),
+            InsightUi.TextField("third", "Third")));
+        Render(focusDocument.Root, painter, focusDocument.Diagnostics, focusDocument.Focus);
+        Assert(focusDocument.Focus.FocusableIds.Count == 3, "stock controls did not register focus order");
+        focusDocument.Focus.RequestFocus("first");
+        focusDocument.Focus.BeginFrame();
+        Assert(focusDocument.Focus.Move(InsightUiFocusDirection.Forward) &&
+            focusDocument.Focus.FocusedId == "second", "forward focus traversal changed");
+        Assert(focusDocument.Focus.Move(InsightUiFocusDirection.Backward) &&
+            focusDocument.Focus.FocusedId == "first", "backward focus traversal changed");
+        TestInput tabInput = new TestInput { TabPressed = true };
+        focusDocument.Focus.ProcessKeyboard(tabInput);
+        Assert(tabInput.TabConsumed && focusDocument.Focus.FocusedId == "second",
+            "Tab input did not advance document focus");
+        TestInput activationInput = new TestInput { ActivatePressed = true };
+        focusDocument.Focus.ProcessKeyboard(activationInput);
+        Assert(activationInput.ActivationConsumed && focusDocument.Focus.ConsumeActivation("second"),
+            "activation input was not routed to the focused control");
+        TestInput textInput = new TestInput { IsTextEditing = true, TabPressed = true, ActivatePressed = true };
+        focusDocument.Focus.ProcessKeyboard(textInput);
+        Assert(!textInput.TabConsumed && !textInput.ActivationConsumed && focusDocument.Focus.FocusedId == "second",
+            "text editing did not retain keyboard ownership");
+
+        InsightUiToggle disabledToggle = InsightUi.Toggle("disabled-toggle", "Disabled");
+        disabledToggle.Enabled = false;
+        InsightUiButton disabledButton = InsightUi.Button("disabled-button", "Disabled");
+        disabledButton.Enabled = false;
+        InsightUiDocument disabledDocument = new InsightUiDocument("disabled-focus",
+            InsightUi.Column("disabled-root", disabledToggle, disabledButton));
+        painter.ToggleChanges = 1;
+        painter.ButtonClicks = 1;
+        Render(disabledDocument.Root, painter, disabledDocument.Diagnostics, disabledDocument.Focus,
+            disabledDocument.State);
+        Assert(!disabledToggle.Value && disabledDocument.Focus.FocusableIds.Count == 0,
+            "disabled controls changed state or entered focus traversal");
+    }
+
+    private static void Render(InsightUiElement root, TestPainter painter,
+        InsightUiDiagnostics diagnostics = null, InsightUiFocusState focus = null)
+    {
+        InsightUiStateStore state = new InsightUiStateStore();
+        Render(root, painter, diagnostics, focus, state);
+    }
+
+    private static void Render(InsightUiElement root, TestPainter painter, InsightUiDiagnostics diagnostics,
+        InsightUiFocusState focus, InsightUiStateStore state)
+    {
+        diagnostics = diagnostics ?? new InsightUiDiagnostics();
+        focus = focus ?? new InsightUiFocusState();
+        focus.BeginFrame();
+        InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Normal, false, false,
+            state, diagnostics, 1f / 60f, focus);
+        root.Measure(new InsightUiConstraints(0f, 480f, 0f, 240f), frame);
+        root.Arrange(new InsightRect(0f, 0f, 480f, 240f), frame);
+        root.Paint(painter, frame);
+        focus.PruneFocus();
     }
 
     private static void ResponsiveGridAndVirtualization()
@@ -516,6 +682,110 @@ internal static class Program
         Assert(value > 0f && value < 10f, "delta-time motion changed");
     }
 
+    private static void Prompt2Foundations()
+    {
+        float linear = InsightMotion.Eased(0.5f, InsightMotionEasing.Linear);
+        float smooth = InsightMotion.Eased(0.5f, InsightMotionEasing.Smooth);
+        float easeOut = InsightMotion.Eased(0.5f, InsightMotionEasing.EaseOut);
+        Assert(Math.Abs(linear - 0.5f) < 0.001f && smooth > 0.49f && smooth < 0.51f &&
+            easeOut > smooth && easeOut < 1f, "compact easing math changed");
+
+        InsightUiEffects effects = new InsightUiEffects();
+        effects.Transition("fade", 0f, 0.016f, 0.16f, false);
+        float moving = effects.Transition("fade", 1f, 0.016f, 0.16f, false, InsightMotionEasing.EaseOut);
+        Assert(moving > 0f && moving < 1f, "keyed transition did not progress incrementally");
+        Assert(Math.Abs(effects.Transition("fade", 0f, 0.016f, 0.16f, true) - 0f) < 0.001f,
+            "reduced motion did not settle keyed transitions");
+        effects.Flash("save", 0.2f);
+        Assert(effects.FlashProgress("save", 0.016f, false) > 0f &&
+            effects.FlashProgress("save", 0.016f, true) > 0f, "keyed flash did not honor progression or reduced motion");
+        effects.Flash("long", 1f);
+        float longFlash = effects.FlashProgress("long", 0.25f, false);
+        Assert(longFlash > 0.74f && longFlash < 0.76f, "flash intensity ignored its configured duration");
+
+        InsightUiStateStore state = new InsightUiStateStore();
+        InsightUiDiagnostics diagnostics = new InsightUiDiagnostics();
+        TestPainter painter = new TestPainter();
+        InsightUiVirtualList list = InsightUi.VirtualList("bounded-list", 10000, 24f,
+            index => InsightUi.Label("row-" + index, "Row " + index));
+        list.Overscan = 2;
+        list.CacheLimit = 12;
+        state.SetFloat("bounded-list.scrollY", 0f);
+        Render(list, painter, diagnostics, null, state);
+        int firstCache = list.CachedItemCount;
+        state.SetFloat("bounded-list.scrollY", 9000f);
+        Render(list, painter, diagnostics, null, state);
+        Assert(firstCache > 0 && list.CachedItemCount <= 12 &&
+            diagnostics.VirtualizedVisibleElements > 0 && diagnostics.VirtualizedCachedElements <= 12,
+            "virtualized cache was not bounded relative to the viewport");
+        list.Refresh();
+        Assert(list.CachedItemCount == 0, "virtualized refresh did not clear the bounded cache");
+
+        bool customPainted = false;
+        InsightUiFade fade = InsightUi.Fade("prompt2-fade", true, InsightUi.Custom("prompt2-custom",
+            context => customPainted = context.Frame.Opacity > 0.99f,
+            (constraints, frame) => new InsightUiSize(40f, 24f)));
+        Render(fade, painter, null, null, new InsightUiStateStore());
+        Assert(customPainted, "fade effect did not render its content");
+
+        InsightUiSurface styled = InsightUi.Surface("styled", InsightUi.Label("styled-label", "Scaled"));
+        styled.SetBorder(new InsightColor(1f, 1f, 1f), 3f);
+        Render(styled, painter);
+        Assert(painter.LastSurfaceStyle != null && Math.Abs(painter.LastSurfaceStyle.BorderWidth - 3f) < 0.001f,
+            "surface border token was not passed to the painter");
+
+        int dropdownSelection = 1;
+        InsightUiDropdown dropdown = InsightUi.Dropdown("prompt2-dropdown", "Priority",
+            new[] { "Low", "Normal", "Urgent" }, 1, (index, value) => dropdownSelection = index);
+        InsightUiStateStore widgetState = new InsightUiStateStore();
+        widgetState.SetBool("prompt2-dropdown.open", true);
+        painter.ClickLabels.Add("Urgent");
+        Render(dropdown, painter, null, null, widgetState);
+        Assert(dropdown.Selected == 2 && dropdownSelection == 2 && !widgetState.GetBool("prompt2-dropdown.open", true),
+            "dropdown did not select an option and close");
+
+        string searchValue = string.Empty;
+        InsightUiSearchField search = InsightUi.SearchField("prompt2-search", string.Empty, "Filter",
+            value => searchValue = value);
+        painter.TextValue = "colonist";
+        Render(search, painter);
+        Assert(search.Value == "colonist" && searchValue == "colonist", "search field did not propagate text");
+        painter.ClickLabels.Add("×");
+        Render(search, painter);
+        Assert(search.Value == string.Empty, "search field clear action did not reset text");
+
+        InsightUiSegmented segmented = InsightUi.Segmented("prompt2-segmented",
+            new[] { "Draft", "Review", "Live" }, 0);
+        painter.ClickLabels.Add("Live");
+        Render(segmented, painter);
+        Assert(segmented.Selected == 2, "segmented selection did not choose the clicked option");
+
+        InsightUiPopover popover = InsightUi.Popover("prompt2-popover",
+            InsightUi.Button("prompt2-trigger", "More"), InsightUi.Label("prompt2-content", "Actions"));
+        InsightUiStateStore popoverState = new InsightUiStateStore();
+        popover.SetOpen(true);
+        Render(popover, painter, null, null, popoverState);
+        Assert(popoverState.GetBool("prompt2-popover.open", false), "popover did not open through document state");
+        popover.SetOpen(false);
+        Render(popover, painter, null, null, popoverState);
+        Assert(!popoverState.GetBool("prompt2-popover.open", true), "popover did not close through document state");
+
+        InsightUiSplit draggable = InsightUi.Split("prompt2-split", InsightUi.Label("left", "Left"),
+            InsightUi.Label("right", "Right"), 0.4f);
+        draggable.Draggable = true;
+        InsightUiStateStore splitState = new InsightUiStateStore();
+        painter.DragRatio = 0.7f;
+        Render(draggable, painter, null, null, splitState);
+        Assert(Math.Abs(splitState.GetFloat("prompt2-split.ratio", 0f) - 0.7f) < 0.001f,
+            "draggable split did not persist its ratio");
+
+        InsightUiToastService toasts = new InsightUiToastService();
+        toasts.Show("Saved", InsightToastSeverity.Success, 0.2f);
+        Assert(toasts.IsVisible && toasts.Severity == InsightToastSeverity.Success, "toast service did not show feedback");
+        toasts.Advance(0.3f, false);
+        Assert(!toasts.IsVisible, "toast service did not expire transient feedback");
+    }
+
     private static void Assert(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
@@ -526,6 +796,100 @@ internal static class Program
         for (int i = 0; i < messages.Count; i++)
             if (messages[i].IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0) return true;
         return false;
+    }
+
+    private sealed class TestPainter : IInsightUiPainter, IInsightUiCustomPainter, IInsightUiIconPainter,
+        IInsightUiDragPainter
+    {
+        public int ToggleChanges;
+        public float SliderValue = float.NaN;
+        public string TextValue;
+        public int ButtonClicks;
+        public bool CustomDrawSupported;
+        public int FillRectCalls;
+        public int IconCalls;
+        public InsightUiStyle LastSurfaceStyle;
+        public readonly HashSet<string> ClickLabels = new HashSet<string>(StringComparer.Ordinal);
+        public float DragRatio = float.NaN;
+
+        public InsightUiSize MeasureText(string text, InsightUiTextStyle style, float maxWidth, InsightUiFrame frame)
+        {
+            float width = (text ?? string.Empty).Length * 7f;
+            return new InsightUiSize(Math.Min(float.IsPositiveInfinity(maxWidth) ? width : maxWidth, width), 18f);
+        }
+
+        public void Surface(InsightRect rect, InsightUiStyle style, InsightUiFrame frame) { LastSurfaceStyle = style; }
+        public void Text(InsightRect rect, string text, InsightUiTextStyle style, InsightColor? color, bool wrap, InsightUiFrame frame) { }
+        public void Progress(InsightRect rect, float value, InsightColor fill, InsightUiFrame frame) { }
+
+        public bool Button(InsightRect rect, string label, bool enabled, bool selected, InsightUiFrame frame)
+        {
+            if (!enabled) return false;
+            if (ClickLabels.Remove(label)) return true;
+            if (ButtonClicks <= 0) return false;
+            ButtonClicks--;
+            return true;
+        }
+
+        public bool Toggle(InsightRect rect, string label, bool value, bool enabled, InsightUiFrame frame)
+        {
+            if (enabled && ToggleChanges > 0)
+            {
+                ToggleChanges--;
+                return !value;
+            }
+            return value;
+        }
+
+        public float Slider(InsightRect rect, float value, float minimum, float maximum, bool enabled, InsightUiFrame frame)
+        {
+            return enabled && !float.IsNaN(SliderValue) ? Math.Max(minimum, Math.Min(maximum, SliderValue)) : value;
+        }
+
+        public string TextField(InsightRect rect, string value, bool enabled, InsightUiFrame frame)
+        {
+            if (enabled && TextValue != null)
+            {
+                string result = TextValue;
+                TextValue = null;
+                return result;
+            }
+            return value;
+        }
+
+        public void Divider(InsightRect rect, InsightColor color, InsightUiFrame frame) { }
+        public void Tooltip(InsightRect rect, string text, InsightUiFrame frame) { }
+        public void BeginClip(InsightRect rect) { }
+        public void EndClip() { }
+        public float ScrollOffset(InsightRect viewport, float contentHeight, float offset, string stateKey, InsightUiFrame frame) => offset;
+
+        public void FillRect(InsightRect rect, InsightColor color, InsightUiFrame frame) { FillRectCalls++; }
+        public void Outline(InsightRect rect, InsightColor color, float width, InsightUiFrame frame) { }
+        public void Line(float x1, float y1, float x2, float y2, InsightColor color, float width, InsightUiFrame frame) { }
+        public void Texture(InsightRect rect, object texture, InsightColor? tint, InsightUiFrame frame) { }
+
+        public void Icon(InsightRect rect, InsightUiIcon icon, InsightUiFrame frame) { IconCalls++; }
+        public bool IconButton(InsightRect rect, InsightUiIcon icon, bool enabled, bool selected, InsightUiFrame frame)
+        {
+            IconCalls++;
+            return Button(rect, icon?.Fallback, enabled, selected, frame);
+        }
+
+        public float DragDivider(InsightRect divider, InsightRect bounds, InsightUiOrientation orientation, float ratio,
+            string stateKey, InsightUiFrame frame) => DragRatio;
+    }
+
+    private sealed class TestInput : IInsightUiInput
+    {
+        public bool IsTextEditing { get; set; }
+        public bool TabPressed { get; set; }
+        public bool ShiftTabPressed { get; set; }
+        public bool ActivatePressed { get; set; }
+        public bool TabConsumed { get; private set; }
+        public bool ActivationConsumed { get; private set; }
+
+        public void ConsumeTab() { TabConsumed = true; TabPressed = false; }
+        public void ConsumeActivation() { ActivationConsumed = true; ActivatePressed = false; }
     }
 
     private sealed class OverlayTestEntry

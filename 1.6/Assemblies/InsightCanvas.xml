@@ -339,8 +339,44 @@
         <member name="T:InsightCanvas.InsightIds">
             <summary>Stable FNV-1a ids for integrations that do not already own a persistent id.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightMotionEasing">
+            <summary>Small deterministic easing set used by document-owned effects.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightMotion">
             <summary>Delta-time based, interruptible motion helpers for custom components.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightMotion.Eased(System.Single,InsightCanvas.InsightMotionEasing)">
+            <summary>Evaluates one of the compact, deterministic easing modes.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiEffects">
+            <summary>Document-owned keyed transitions and short-lived feedback flashes.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiEffects.ActiveCount">
+            <summary>Gets the number of currently active transitions or flashes.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiEffects.Transition(System.String,System.Single,System.Single,System.Single,System.Boolean,InsightCanvas.InsightMotionEasing)">
+            <summary>Moves a keyed value toward a target; changing the target naturally interrupts the prior motion.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiEffects.Flash(System.String,System.Single)">
+            <summary>Starts or refreshes a keyed highlight flash.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiEffects.FlashProgress(System.String,System.Single,System.Boolean)">
+            <summary>Advances a flash and returns its remaining normalized intensity.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiEffects.Clear">
+            <summary>Stops all document-owned transitions and feedback.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightToastSeverity">
+            <summary>Severity for a document/window-local toast.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiToastService">
+            <summary>Small replacement-style toast service owned by one document.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiToastService.Show(System.String,InsightCanvas.InsightToastSeverity,System.Single)">
+            <summary>Shows a new toast, replacing any previous toast in this document.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiToastService.Clear">
+            <summary>Clears the current toast immediately.</summary>
         </member>
         <member name="T:InsightCanvas.InsightOverlayOwnership">
             <summary>Portable owner bookkeeping shared by map overlays and the core harness.</summary>
@@ -460,6 +496,93 @@
         <member name="T:InsightCanvas.InsightUiTextStyle">
             <summary>Semantic text roles understood by a renderer.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiFocusDirection">
+            <summary>Direction used by document-level focus traversal.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiIcon">
+            <summary>Small, renderer-neutral icon description used by icon elements and buttons.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiIcon.Fallback">
+            <summary>Text or glyph shown when no texture is available.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiIcon.Texture">
+            <summary>Consumer-supplied texture/image object, usually a Unity Texture in RimWorld.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiIcon.Tooltip">
+            <summary>Optional tooltip shown when the icon is hovered.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiIcon.AccessibleDescription">
+            <summary>Optional accessible description for consumers that provide an accessibility layer.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiIcon.HasTexture">
+            <summary>Gets whether the icon carries a texture/image payload.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiIcon.FromText(System.String)">
+            <summary>Creates an icon that renders a text or glyph fallback.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiIcon.FromTexture(System.Object,System.String)">
+            <summary>Creates an icon backed by a consumer-supplied texture/image with an optional fallback.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiIcon.WithTooltip(System.String)">
+            <summary>Sets the optional hover tooltip and returns this icon for fluent composition.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiIcon.WithAccessibleDescription(System.String)">
+            <summary>Sets the optional accessible description and returns this icon for fluent composition.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiInput">
+            <summary>Minimal input snapshot consumed by focus-aware stock controls.</summary>
+        </member>
+        <member name="P:InsightCanvas.IInsightUiInput.IsTextEditing">
+            <summary>Gets whether the currently focused control owns text editing.</summary>
+        </member>
+        <member name="P:InsightCanvas.IInsightUiInput.TabPressed">
+            <summary>Gets whether Tab was pressed during this input frame.</summary>
+        </member>
+        <member name="P:InsightCanvas.IInsightUiInput.ShiftTabPressed">
+            <summary>Gets whether Shift+Tab was pressed during this input frame.</summary>
+        </member>
+        <member name="P:InsightCanvas.IInsightUiInput.ActivatePressed">
+            <summary>Gets whether Enter, keypad Enter, or Space was pressed.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiInput.ConsumeTab">
+            <summary>Marks the Tab input as handled.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiInput.ConsumeActivation">
+            <summary>Marks the activation input as handled.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiFocusState">
+            <summary>Document-owned focus order and keyboard activation state.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFocusState.FocusedId">
+            <summary>Gets the effective ID that currently owns keyboard focus.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFocusState.FocusableIds">
+            <summary>Gets the focus order registered during the latest paint pass.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFocusState.IsTextEditing">
+            <summary>Gets whether the focused ID was a text input in the previous frame.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.BeginFrame">
+            <summary>Starts a new registration frame while retaining focus across stable IDs.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.IsFocused(System.String)">
+            <summary>Returns whether the supplied effective ID currently has focus.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.RequestFocus(System.String)">
+            <summary>Requests focus for an effective ID.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.ClearFocus">
+            <summary>Clears focus and any pending keyboard activation.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.Move(InsightCanvas.InsightUiFocusDirection)">
+            <summary>Moves focus through the last or current registration order.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.ProcessKeyboard(InsightCanvas.IInsightUiInput)">
+            <summary>Consumes document-level Tab and activation input when text editing does not own it.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFocusState.ConsumeActivation(System.String)">
+            <summary>Consumes a pending activation for the supplied effective ID.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiSize">
             <summary>Engine-independent size used during measure and arrange.</summary>
         </member>
@@ -478,17 +601,116 @@
         <member name="T:InsightCanvas.InsightUiDiagnostics">
             <summary>Engine-independent diagnostics for a composable document.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.VirtualizedVisibleElements">
+            <summary>Gets the number of elements in the most recent virtualized viewport.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.VirtualizedCachedElements">
+            <summary>Gets the number of cached elements retained by the most recent virtualized list.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.ActiveEffects">
+            <summary>Gets the number of active document effects observed by the renderer.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.TrackDuplicateIds">
+            <summary>Enables duplicate effective-ID tracking for development diagnostics.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.DuplicateIds">
+            <summary>Gets the number of distinct duplicate effective IDs in the current frame.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.DuplicateIdPaths">
+            <summary>Gets the duplicate effective-ID paths in deterministic discovery order.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiFrame">
             <summary>State and services passed through one measure, arrange, and paint cycle.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFrame.Focus">
+            <summary>Gets the document-owned focus state.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFrame.Effects">
+            <summary>Gets the document-owned keyed transitions and feedback effects.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFrame.Toasts">
+            <summary>Gets the document-owned transient toast service.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFrame.Opacity">
+            <summary>Gets the current nested visual opacity, used by fade/reveal elements.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFrame.ScopePath">
+            <summary>Current reusable-component scope, or an empty string for ordinary documents.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFrame.EffectiveId(System.String)">
+            <summary>Returns a stable effective identity for a local element ID.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFrame.StateKey(System.String)">
+            <summary>Returns a document-owned state key for a local control key.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFrame.TextScale(InsightCanvas.InsightUiTextStyle)">
+            <summary>Returns the theme typography multiplier for a semantic text role.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFrame.ApplyOpacity(InsightCanvas.InsightColor)">
+            <summary>Applies the current nested opacity to a renderer-neutral color.</summary>
         </member>
         <member name="T:InsightCanvas.IInsightUiPainter">
             <summary>Renderer contract implemented by the RimWorld/Unity adapter and portable test doubles.</summary>
         </member>
+        <member name="T:InsightCanvas.IInsightUiCustomPainter">
+            <summary>Optional drawing capabilities used by custom elements without expanding the core painter contract.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiCustomPainter.FillRect(InsightCanvas.InsightRect,InsightCanvas.InsightColor,InsightCanvas.InsightUiFrame)">
+            <summary>Fills a rectangle with a renderer-neutral color.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiCustomPainter.Outline(InsightCanvas.InsightRect,InsightCanvas.InsightColor,System.Single,InsightCanvas.InsightUiFrame)">
+            <summary>Draws a rectangle outline.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiCustomPainter.Line(System.Single,System.Single,System.Single,System.Single,InsightCanvas.InsightColor,System.Single,InsightCanvas.InsightUiFrame)">
+            <summary>Draws a line segment.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiCustomPainter.Texture(InsightCanvas.InsightRect,System.Object,System.Nullable{InsightCanvas.InsightColor},InsightCanvas.InsightUiFrame)">
+            <summary>Draws a consumer-supplied texture when supported.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiIconPainter">
+            <summary>Optional icon capability implemented by renderers that understand consumer-supplied textures.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiIconPainter.Icon(InsightCanvas.InsightRect,InsightCanvas.InsightUiIcon,InsightCanvas.InsightUiFrame)">
+            <summary>Draws an icon using texture support or its fallback.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiIconPainter.IconButton(InsightCanvas.InsightRect,InsightCanvas.InsightUiIcon,System.Boolean,System.Boolean,InsightCanvas.InsightUiFrame)">
+            <summary>Draws an icon button and returns whether it was activated.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiFocusPainter">
+            <summary>Optional focus visualization capability for stock controls.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiFocusPainter.FocusRing(InsightCanvas.InsightRect,InsightCanvas.InsightUiFrame)">
+            <summary>Draws the focus indication for a focused control.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiDragPainter">
+            <summary>Optional renderer capability for draggable split dividers.</summary>
+        </member>
+        <member name="M:InsightCanvas.IInsightUiDragPainter.DragDivider(InsightCanvas.InsightRect,InsightCanvas.InsightRect,InsightCanvas.InsightUiOrientation,System.Single,System.String,InsightCanvas.InsightUiFrame)">
+            <summary>Draws and optionally updates a divider ratio. Returns NaN when unchanged.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiCustomDrawContext">
+            <summary>Context passed to a consumer-owned custom drawing callback.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCustomDrawContext.Bounds">
+            <summary>Gets the arranged bounds of the custom element.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCustomDrawContext.Painter">
+            <summary>Gets the active renderer contract.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiCustomDrawContext.Frame">
+            <summary>Gets the current measure/arrange/paint frame.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiDocument">
             <summary>Reusable document that can be embedded in a host Rect or placed in a Window.</summary>
         </member>
-        <member name="T:InsightCanvas.InsightUiElementExtensions">
-            <summary>Fluent composition helpers that keep base-style setters chainable.</summary>
+        <member name="P:InsightCanvas.InsightUiDocument.Effects">
+            <summary>Gets keyed transitions and feedback effects scoped to this document.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDocument.Toasts">
+            <summary>Gets transient toast feedback scoped to this document.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDocument.TrackDuplicateIds">
+            <summary>Enables duplicate effective-ID diagnostics for this document.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiElement">
             <summary>Base class for composable, measure/arrange/paint UI elements.</summary>
@@ -502,8 +724,14 @@
         <member name="T:InsightCanvas.InsightUiSurface">
             <summary>Surface/card element that scopes padding, background, border, and elevation.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiScope">
+            <summary>Reusable-component scope that prefixes descendant state and focus identities.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiLabel">
             <summary>Text element with renderer-provided measurement.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiCustom">
+            <summary>Consumer-owned element that participates in the normal layout and paint phases.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiButton">
             <summary>Action button or selectable row.</summary>
@@ -514,8 +742,14 @@
         <member name="T:InsightCanvas.InsightUiProgress">
             <summary>Compact progress indicator with a themed track and fill.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiIconElement">
+            <summary>Renderer-neutral icon display with a text/glyph fallback.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiIconButton">
             <summary>Small icon/text action that shares button interaction and theme behavior.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiIconButton.Icon">
+            <summary>Original fallback text, retained for source compatibility.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiBreadcrumbs">
             <summary>Non-interactive breadcrumb trail for nested screens and inspectors.</summary>
@@ -523,17 +757,32 @@
         <member name="T:InsightCanvas.InsightUiToggle">
             <summary>Stateful checkbox/toggle control.</summary>
         </member>
+        <member name="M:InsightCanvas.InsightUiToggle.Bind(System.Func{System.Boolean},System.Action{System.Boolean})">
+            <summary>Binds the toggle to an external model; the getter remains authoritative on every frame.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiSlider">
             <summary>Stateful scalar slider.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSlider.Bind(System.Func{System.Single},System.Action{System.Single})">
+            <summary>Binds the slider to an external model; the getter remains authoritative on every frame.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiTextField">
             <summary>Stateful text field.</summary>
         </member>
+        <member name="M:InsightCanvas.InsightUiTextField.Bind(System.Func{System.String},System.Action{System.String})">
+            <summary>Binds the field to an external model; the getter remains authoritative on every frame.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiSelect">
             <summary>Compact cycling selector for small deterministic option sets.</summary>
         </member>
+        <member name="M:InsightCanvas.InsightUiSelect.Bind(System.Func{System.Int32},System.Action{System.Int32})">
+            <summary>Binds selection to an external model; the getter remains authoritative on every frame.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiExpander">
             <summary>Stateful disclosure section backed by the document state store.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiExpander.Bind(System.Func{System.Boolean},System.Action{System.Boolean})">
+            <summary>Binds expansion to an external model; the getter remains authoritative on every frame.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiDivider">
             <summary>One-pixel visual separator.</summary>
@@ -547,6 +796,12 @@
         <member name="T:InsightCanvas.InsightUiSplit">
             <summary>Two-pane container with a stable, clamped split ratio.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiSplit.Draggable">
+            <summary>Enables document-owned divider dragging when the renderer supports it.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSplit.DividerWidth">
+            <summary>Width of the interactive divider in draggable mode.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiScroll">
             <summary>Scrollable content whose offset is stored by this document, not globally.</summary>
         </member>
@@ -556,8 +811,14 @@
         <member name="T:InsightCanvas.InsightUiTabs">
             <summary>Stateful tab strip whose content remains an ordinary composable element.</summary>
         </member>
+        <member name="M:InsightCanvas.InsightUiTabs.Bind(System.Func{System.String},System.Action{System.String})">
+            <summary>Binds the active tab to an external model; the getter remains authoritative on every frame.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiNavigation">
             <summary>Responsive page navigation: side rail when wide, wrapped compact bar when narrow.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiNavigation.Bind(System.Func{System.String},System.Action{System.String})">
+            <summary>Binds the active page to an external model; the getter remains authoritative on every frame.</summary>
         </member>
         <member name="T:InsightCanvas.InsightVirtualizedRange">
             <summary>Visible item range used by virtualized list implementations.</summary>
@@ -567,6 +828,51 @@
         </member>
         <member name="T:InsightCanvas.InsightUiVirtualList">
             <summary>Fixed-height virtualized list. Only the visible range is measured, arranged, and painted.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiVirtualList.CacheLimit">
+            <summary>Maximum number of item elements retained outside the current visible range.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiVirtualList.CachedItemCount">
+            <summary>Gets the number of item elements currently retained.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiFade">
+            <summary>Layout-preserving fade/reveal wrapper driven by a keyed document effect.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiHighlight">
+            <summary>Subtle keyed highlight flash for save, copy, or validation feedback.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiPopover">
+            <summary>Anchored transient panel that reuses ordinary content and document-owned open state.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiPopover.Bind(System.Func{System.Boolean},System.Action{System.Boolean})">
+            <summary>Binds the transient open state to consumer-owned state.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiDropdown">
+            <summary>Conventional dropdown menu with a compact header and transient option list.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiDropdown.Bind(System.Func{System.Int32},System.Action{System.Int32})">
+            <summary>Binds the selected option to consumer-owned state.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSearchField">
+            <summary>Text field variant with placeholder and an optional clear affordance.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSearchField.Bind(System.Func{System.String},System.Action{System.String})">
+            <summary>Binds the search text to consumer-owned state.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSearchField.SetText(System.String)">
+            <summary>Sets the current search text and invokes the normal change callback.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSegmented">
+            <summary>Compact mutually-exclusive radio/segmented selection.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSegmented.Bind(System.Func{System.Int32},System.Action{System.Int32})">
+            <summary>Binds the selected segment to consumer-owned state.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiImage">
+            <summary>Renderer-neutral image/texture element with a text fallback.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiToast">
+            <summary>Document-owned toast slot for transient success, warning, or error feedback.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiHost">
             <summary>Embeds a general-purpose Insight UI document in a caller-owned Rect.</summary>
@@ -582,6 +888,9 @@
         </member>
         <member name="T:InsightCanvas.InsightUiRenderer">
             <summary>Static entry point for embedding a document in a caller-owned Rect.</summary>
+        </member>
+        <member name="T:InsightCanvas.RimWorldInsightUiInput">
+            <summary>Small Unity IMGUI adapter used only at the renderer boundary.</summary>
         </member>
         <member name="T:InsightCanvas.InsightWindow">
             <summary>Coordinates a model snapshot, shared interaction state, and retained components in a RimWorld Window.</summary>

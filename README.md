@@ -1,105 +1,174 @@
 # Insight Canvas
 
-Insight Canvas is a RimWorld 1.6 opt-in UI framework and design system for mod authors. It provides composable rows, columns, adaptive grids, split panes, scroll regions, stateful controls, scoped themes, virtualization, and a conventional Window shell without globally changing vanilla or third-party UI.
+Insight Canvas 2.0.0 is an opt-in composable UI toolkit and design system for RimWorld 1.6 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
 
-The installed mod is useful on its own. Open **Mod settings > Insight Canvas > Open Feature Showcase**, or use the development-mode **Insight Canvas > Open Feature Showcase** action. The showcase demonstrates ten public-API pages: Overview, Foundations, Layout, Controls, Navigation and Workspaces, Data Display, Motion and Feedback, Themes and Accessibility, Advanced Widgets, and Diagnostics. Graph, explanation, event, and map-link capabilities remain optional advanced extensions.
+Use it when a screen needs more than a pile of `Widgets.*` calls but should still feel native to RimWorld. Build an element tree once, provide stable IDs, and choose either a normal RimWorld `Window` or a caller-owned `Rect`. The document owns state and effects for that screen, so two windows do not leak selection, expansion, focus, scroll, theme, or transient feedback into one another.
 
-The assembly has no Harmony dependency and never mutates the global GUI skin. It uses ordinary RimWorld windows, `WindowStack`, debug actions, and a caller-owned `Rect` embedding entry point. Code-drawn visuals are the default so the framework remains usable without external art; optional theme texture paths remain available to advanced extensions.
+The installed mod includes **Feature Showcase**, a dogfooded demonstration application. Open it from **Mod settings > Insight Canvas > Open Feature Showcase** or from the development-mode **Insight Canvas > Open Feature Showcase** action. It covers overview, foundations, layout, controls, workspaces, data display, motion, accessibility, advanced widgets, and diagnostics.
 
-See [`Documentation/Integration.md`](Documentation/Integration.md) for the public API and architectural constraints.
+## Why mod authors use it
 
-## Composable UI v2
+- Compose rows, columns, wrapping, adaptive grids, split panes, scrolling, responsive navigation, and virtualized lists without hand-written layout arithmetic.
+- Use stable-ID controls with either document-local state or getter/setter bindings to an existing mod settings/model object.
+- Adopt the RimWorld+ default theme, density modes, high contrast, reduced motion, focus traversal, tooltips, badges, cards, and restrained transitions.
+- Embed into an existing window or open the same document in an `InsightUiWindow`.
+- Draw icons, custom previews, and small charts through renderer-neutral capability interfaces while keeping the normal measure/arrange/paint phases.
+- Add graph, timeline, explanation, event, constellation, serialization, and map-link features only when a consumer actually needs them.
 
-Ordinary UI does not require an `InsightModel`. Build an element tree, give it a document-owned state store and theme, then either embed it or open it as a Window:
+## Minimal Window
+
+This is the smallest complete public-API path. It does not create a semantic model or a manual state dictionary.
 
 ```csharp
-InsightUiElement root = InsightUi.Column("settings",
-    InsightUi.Label("title", "Colony settings", InsightUiTextStyle.Title),
-    InsightUi.Surface("general", InsightUi.Column("general-content",
-        InsightUi.Toggle("show-hints", "Show hints"),
-        InsightUi.Button("apply", "Apply", ApplySettings))),
-    InsightUi.Grid("cards", 220f)
-        .Add(InsightUi.Badge("status", "Ready"), InsightUi.Progress("progress", 0.72f)))
-    .SetGap(10f)
-    .SetPadding(12f);
+using InsightCanvas;
+using Verse;
 
-InsightUiDocument document = new InsightUiDocument("Settings", root);
-Find.WindowStack.Add(new InsightUiWindow(document));
+public static class MinimalWindowExample
+{
+    public static void Open()
+    {
+        InsightUiStack root = InsightUi.Column("settings-root",
+            InsightUi.Label("title", "Colony settings", InsightUiTextStyle.Title),
+            InsightUi.Surface("settings-card", InsightUi.Column("settings-body",
+                InsightUi.Toggle("show-hints", "Show hints"),
+                InsightUi.Button("apply", "Apply")))
+        ).SetGap(10f).SetPadding(12f);
+
+        InsightUiDocument document = new InsightUiDocument("Colony settings", root);
+        Find.WindowStack.Add(new InsightUiWindow(document));
+    }
+}
 ```
 
-For an existing host window, keep the `InsightUiDocument` and `InsightUiHost`, then call `host.Draw(rect, deltaTime)` from `DoWindowContents`. The document owns selection, tab, expansion, focus, and scroll state; themes and accessibility options are scoped to that document. `InsightUiRenderer.Draw(rect, document)` is also available as a direct embedding entry point.
+## Embedded panel
 
-## Supported version and prerequisites
+When another mod owns the window, keep an `InsightUiHost` with the document and give it the rectangle from `DoWindowContents`. Call `PostClose()` from the owner’s close path so document effects, transient menus, focus, and map overlays are released.
 
-- Supported game version: RimWorld 1.6 only. The package metadata, source description, and mod folder all target `1.6`.
-- Portable checks require the .NET 8 SDK.
-- The real mod build additionally requires a local RimWorld 1.6 installation, its managed DLLs, and a .NET SDK/targeting setup that can build `net472`.
-- RimWorld assemblies are proprietary game files. They are not committed to this repository, downloaded by CI, or copied into the package.
+```csharp
+public sealed class EmbeddedPanelExample
+{
+    private readonly InsightUiHost host;
 
-## Portable checks
+    public EmbeddedPanelExample()
+    {
+        InsightUiStack root = InsightUi.Column("panel-root",
+            InsightUi.Label("title", "Research brief", InsightUiTextStyle.Heading),
+            InsightUi.Progress("confidence", 0.72f, InsightTheme.Default.Selected),
+            InsightUi.Button("refresh", "Refresh"))
+            .SetGap(8f).SetPadding(12f);
+        host = new InsightUiHost(new InsightUiDocument("Research panel", root));
+    }
 
-From the repository root, this single command restores dependencies, builds, and runs every non-RimWorld regression check:
+    public void Draw(UnityEngine.Rect rect)
+    {
+        host.Draw(rect, UnityEngine.Time.deltaTime);
+    }
+
+    public void Close()
+    {
+        host.PostClose();
+    }
+}
+```
+
+The same `InsightUiDocument` can be passed to `InsightUiWindow`, used with `InsightUiHost`, or rendered through `InsightUiRenderer.Draw(rect, document)` when a consumer already manages host ownership.
+
+## The public toolkit in three layers
+
+### Core UI
+
+Documents, hosts, windows, rows, columns, wrapping, grids, split panes, scroll regions, surfaces, cards, labels, badges, dividers, progress, buttons, icon buttons, toggles, sliders, text fields, selectors, expanders, tabs, navigation, breadcrumbs, searchable fields, popovers, toolbars, scoped state, bindings, focus, themes, accessibility, icons, custom drawing, and virtualization.
+
+### Effects and polish
+
+`InsightUi.Fade`, `Reveal`, and `Highlight` provide keyed transitions. `document.Effects` provides short-lived flashes and `document.Toasts` provides document-local feedback. Motion is subtle, interruptible, and settles immediately when `ReducedMotion` is enabled; it does not silently change layout.
+
+### Advanced extensions
+
+`InsightModel`, graph layout, timeline clustering, explanations, event/constellation widgets, serialization, and the map bridge remain available as optional adapters. They are not prerequisites for an ordinary settings screen or embedded panel.
+
+## Bindings, themes, and custom visuals
+
+Stateful controls can bind directly to consumer-owned state:
+
+```csharp
+InsightUiToggle hints = InsightUi.Toggle("hints", "Show hints")
+    .Bind(() => settings.ShowHints, value => settings.ShowHints = value);
+InsightUiSlider volume = InsightUi.Slider("volume", 0.8f, 0f, 1f)
+    .Bind(() => settings.Volume, value => settings.Volume = value);
+InsightUiSelect density = InsightUi.Select("density", "Density",
+    new[] { "Comfortable", "Normal", "Compact" })
+    .Bind(() => settings.Density, value => settings.Density = value);
+```
+
+The getter is authoritative on later frames, so external changes are reflected without a second synchronized copy. Use `InsightUi.Scope("audio", child)` when a reusable component needs an identity prefix.
+
+Themes are document-scoped. Clone a token set, change only what the screen needs, and assign it to that document:
+
+```csharp
+InsightTheme theme = InsightTheme.Default.Clone();
+theme.Selected = new InsightColor(0.78f, 0.55f, 0.24f);
+document.Theme = theme;
+document.Density = InsightUiDensity.Compact;
+document.HighContrast = true;
+document.ReducedMotion = true;
+document.Invalidate();
+```
+
+`InsightUi.Custom` is the supported escape hatch for code-drawn previews. Use `IInsightUiCustomPainter`, `IInsightUiIconPainter`, and the supplied `InsightUiFrame`; do not mutate `GUI.skin` globally. The RimWorld renderer restores Unity GUI/Text state after each draw.
+
+## Installation and dependency behavior
+
+Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanvas`, targeting RimWorld 1.6. A consuming mod should install Insight Canvas as a separate mod and declare it explicitly in its own `About/About.xml`:
+
+```xml
+<modDependencies>
+  <li>
+    <packageId>lan.insightcanvas</packageId>
+    <displayName>Insight Canvas</displayName>
+  </li>
+</modDependencies>
+<loadAfter>
+  <li>lan.insightcanvas</li>
+</loadAfter>
+```
+
+The dependency declares the required load relationship; the explicit `loadAfter` is useful when a consuming mod also has optional integration code. Reference `InsightCanvas.dll` from the installed mod’s `1.6/Assemblies` directory at compile time, but do not copy or bundle a second `InsightCanvas.dll` in the consumer package. RimWorld’s proprietary assemblies are local build inputs and must not be redistributed.
+
+## Versioning
+
+Insight Canvas follows semantic versioning for its documented public API:
+
+- `MAJOR` changes may remove or break public API and require migration notes.
+- `MINOR` adds public API and compatible components.
+- `PATCH` fixes behavior, documentation, tests, and packaging without intentional API breaks.
+
+The current v2 release is `2.0.0` (`AssemblyVersion`/`AssemblyFileVersion` `2.0.0.0`). See [`CHANGELOG.md`](CHANGELOG.md) for the v1-to-v2 migration boundary. The assembly, README, changelog, and release checklist are kept in sync for each release; RimWorld’s `About.xml` has no portable version field, so the package ID and supported game version remain the authoritative mod metadata.
+
+## Build and validation
+
+- [`Documentation/Quickstart.md`](Documentation/Quickstart.md) — adoption recipes and lifecycle guidance.
+- [`Documentation/Integration.md`](Documentation/Integration.md) — complete public API reference and optional semantic extensions.
+- [`Documentation/Testing.md`](Documentation/Testing.md) — portable and mod-owned in-game testing.
+- [`Documentation/ReleaseChecklist.md`](Documentation/ReleaseChecklist.md) — release gate.
+- [`Examples/`](Examples/) — focused public-API-only copy/paste examples.
+
+Portable checks run with:
 
 ```sh
 dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release
 ```
 
-The process exits nonzero if restore, compilation, or the harness fails. GitHub Actions runs this same portable command on pushes and pull requests. CI therefore verifies the model, serialization, validation, layout, timeline, and other game-independent behavior; it does not claim to compile or execute the RimWorld-facing assembly.
-
-## Local mod build
-
-Set `RimWorldDir` to the RimWorld installation directory. The project derives the managed directory for the platform and accepts paths containing spaces.
-
-Windows PowerShell:
+The RimWorld assembly is a `net472` Release build and requires a local RimWorld 1.6 installation. Set `RimWorldDir` to that installation and run:
 
 ```powershell
-$env:RimWorldDir = 'C:\Program Files (x86)\Steam\steamapps\common\RimWorld'
 dotnet build Source/InsightCanvas.csproj --configuration Release --nologo
 ```
 
-Linux:
-
-```sh
-export RimWorldDir="$HOME/.local/share/Steam/steamapps/common/RimWorld"
-dotnet build Source/InsightCanvas.csproj --configuration Release --nologo
-```
-
-macOS:
-
-```sh
-export RimWorldDir="$HOME/Library/Application Support/Steam/steamapps/common/RimWorld"
-dotnet build Source/InsightCanvas.csproj --configuration Release --nologo
-```
-
-The equivalent explicit property is `/p:RimWorldDir=<path>`. If it is unset or does not contain the expected 1.6 managed DLL layout, the build stops with an actionable error. A successful Release build writes `1.6/Assemblies/InsightCanvas.dll` and `1.6/Assemblies/InsightCanvas.xml`; those paths are part of the mod package alongside `About/` and `1.6/Languages/`.
-
-Quote the property argument when the installation path contains spaces, for example PowerShell `dotnet build Source/InsightCanvas.csproj --configuration Release "/p:RimWorldDir=C:\Program Files (x86)\Steam\steamapps\common\RimWorld"` or POSIX shells `dotnet build Source/InsightCanvas.csproj --configuration Release '/p:RimWorldDir=/opt/My Games/RimWorld'`.
-
-## Pre-release checklist
-
-- Run the portable command above from a clean checkout.
-- Require a visible green GitHub Actions run for the exact commit under release review.
-- Set `RimWorldDir` and build the Release mod assembly locally.
-- Confirm `1.6/Assemblies/InsightCanvas.dll` and `.xml` are present and no proprietary DLLs were added to the package.
-- Install the package in RimWorld 1.6 and complete an in-game smoke test covering the Feature Showcase, embedding/window lifecycle, and preserved semantic extensions such as map overlays, timeline, graph, and serialization integrations.
-- Run `git diff --check` and review the package metadata before distribution.
-
-## Serialization boundary
-
-`InsightModelSerialization` writes deterministic XML schema version 2. Entities and manual positions are sorted by ordinal entity ID; owner-keyed dictionaries and unordered relations are canonically ordered; event, badge, metric, action, history, and explanation-operation list order is preserved because those sequences can affect display or interpretation. Runtime delegates, live source objects, textures, map references, and callbacks are not serialized. Loaded actions are deliberately disabled and non-invokable; use the diagnostics report to rebind runtime behavior in the consuming mod.
-
-The reader also accepts the prior unversioned XML format. `InsightModel.Validate()` accumulates errors and warnings with collection, ID, and reason context instead of stopping at the first invalid reference.
-
-Configured action intent is separate from runtime executability. `ConfiguredEnabled` is the integration’s saved enabled/disabled choice. `Enabled` is true only when that choice is true and a callback is currently bound. Deserialization preserves `ConfiguredEnabled` but leaves `Callback` null and `Enabled` false. Rebind safely through the public API rather than reflection:
-
-```csharp
-InsightModelSerializationReport loaded = InsightModelSerialization.DeserializeWithDiagnostics(xml);
-InsightModel restored = loaded.Model;
-restored.RebindAction("species:trout", "inspect", () => Log.Message("Inspect trout"));
-```
-
-`RebindAction` replaces the matching action while preserving its configured intent. `InsightAction.Rebind(callback)` is also available when rebuilding an action for a new model; do not add it beside the existing same-ID action. Invocation remains a safe no-op until a callback is present and the configured intent permits it.
+The build writes `1.6/Assemblies/InsightCanvas.dll` and its XML documentation file.
 
 ## License
 
-No license has yet been granted for Insight Canvas. Reuse, modification, or distribution requires the author’s permission. Selecting and adding an SPDX license is an owner decision and has intentionally not been made here.
+Owner license selection required.
+
+No license is added autonomously. The owner can select MIT, Apache-2.0, or MPL-2.0 and add the corresponding notice before distribution. Until then, reuse, modification, and redistribution require the owner’s permission.

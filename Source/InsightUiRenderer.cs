@@ -34,6 +34,7 @@ namespace InsightCanvas
 
         public void PostClose()
         {
+            Document.CloseTransientOverlays();
             InsightMapBridge.ClearOwnerToken(overlayOwnerToken);
         }
     }
@@ -74,10 +75,17 @@ namespace InsightCanvas
     }
 
     /// <summary>RimWorld/Unity implementation of the renderer contract.</summary>
-    public sealed class RimWorldInsightUiPainter : IInsightUiPainter
+    public sealed class RimWorldInsightUiPainter : IInsightUiPainter, IInsightUiCustomPainter,
+        IInsightUiIconPainter, IInsightUiFocusPainter, IInsightUiDragPainter
     {
         private readonly Stack<Vector2> origins = new Stack<Vector2>();
         private Vector2 origin;
+
+        internal void Reset()
+        {
+            origins.Clear();
+            origin = Vector2.zero;
+        }
 
         public InsightUiSize MeasureText(string text, InsightUiTextStyle style, float maxWidth, InsightUiFrame frame)
         {
@@ -90,7 +98,8 @@ namespace InsightCanvas
                 Vector2 size = Verse.Text.CalcSize(text ?? string.Empty);
                 if (!float.IsPositiveInfinity(maxWidth) && maxWidth > 1f && size.x > maxWidth)
                     size.y = Verse.Text.CalcHeight(text ?? string.Empty, maxWidth);
-                return new InsightUiSize(size.x, size.y);
+                float scale = frame == null ? 1f : frame.TextScale(style);
+                return new InsightUiSize(size.x * scale, size.y * scale);
             }
             finally
             {
@@ -102,12 +111,22 @@ namespace InsightCanvas
         public void Surface(InsightRect rect, InsightUiStyle style, InsightUiFrame frame)
         {
             InsightColor fill = style.Background ?? (style.Elevated ? frame.Theme.ElevatedSurface : frame.Theme.Surface);
-            if (frame.Theme.Shadow.A > 0.001f)
-                Widgets.DrawBoxSolid(ToRect(new InsightRect(rect.X + 2f, rect.Y + 3f, rect.Width, rect.Height)), InsightDraw.Color(frame.Theme.Shadow));
-            Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(fill));
+            if (style.Elevated && frame.Theme.Shadow.A > 0.001f)
+                Widgets.DrawBoxSolid(ToRect(new InsightRect(rect.X + 2f, rect.Y + 3f, rect.Width, rect.Height)),
+                    InsightDraw.Color(frame.ApplyOpacity(frame.Theme.Shadow)));
+            Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(frame.ApplyOpacity(fill)));
             InsightColor border = style.Border ?? frame.Theme.SecondaryText.WithAlpha(0.38f);
-            GUI.color = InsightDraw.Color(border);
-            Widgets.DrawBox(ToRect(rect), 1);
+            float width = style.BorderWidth <= 0f ? 0f : Math.Max(1f, style.BorderWidth);
+            if (width > 0f)
+            {
+                Color previous = GUI.color;
+                try
+                {
+                    GUI.color = InsightDraw.Color(frame.ApplyOpacity(border));
+                    Widgets.DrawBox(ToRect(rect), Mathf.Clamp(Mathf.RoundToInt(width), 1, 8));
+                }
+                finally { GUI.color = previous; }
+            }
         }
 
         public void Text(InsightRect rect, string text, InsightUiTextStyle style, InsightColor? color, bool wrap, InsightUiFrame frame)
@@ -120,8 +139,21 @@ namespace InsightCanvas
                 Verse.Text.Font = FontFor(style);
                 Verse.Text.Anchor = TextAnchor.UpperLeft;
                 Verse.Text.WordWrap = wrap;
-                GUI.color = InsightDraw.Color(color ?? frame.Theme.PrimaryText);
-                Widgets.Label(ToRect(rect), text ?? string.Empty);
+                Color previous = GUI.color;
+                Matrix4x4 previousMatrix = GUI.matrix;
+                try
+                {
+                    GUI.color = InsightDraw.Color(frame.ApplyOpacity(color ?? frame.Theme.PrimaryText));
+                    float scale = frame.TextScale(style);
+                    if (Math.Abs(scale - 1f) > 0.001f)
+                        GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), ToRect(rect).center);
+                    Widgets.Label(ToRect(rect), text ?? string.Empty);
+                }
+                finally
+                {
+                    GUI.matrix = previousMatrix;
+                    GUI.color = previous;
+                }
             }
             finally
             {
@@ -134,21 +166,26 @@ namespace InsightCanvas
         public void Progress(InsightRect rect, float value, InsightColor fill, InsightUiFrame frame)
         {
             InsightRect track = new InsightRect(rect.X, rect.Y + Math.Max(0f, (rect.Height - 8f) * 0.5f), rect.Width, 8f);
-            Widgets.DrawBoxSolid(ToRect(track), InsightDraw.Color(frame.Theme.Background));
+            Widgets.DrawBoxSolid(ToRect(track), InsightDraw.Color(frame.ApplyOpacity(frame.Theme.Background)));
             Widgets.DrawBoxSolid(ToRect(new InsightRect(track.X, track.Y, track.Width * Mathf.Clamp01(value), track.Height)),
-                InsightDraw.Color(fill));
+                InsightDraw.Color(frame.ApplyOpacity(fill)));
         }
 
         public bool Button(InsightRect rect, string label, bool enabled, bool selected, InsightUiFrame frame)
         {
-            InsightColor fill = selected ? frame.Theme.Selected.WithAlpha(0.32f) : frame.Theme.Surface;
+            Rect nativeRect = ToRect(rect);
+            bool hovered = Event.current != null && nativeRect.Contains(Event.current.mousePosition);
+            bool pressed = hovered && Event.current != null && Event.current.type == EventType.MouseDown;
+            InsightColor fill = !enabled ? frame.Theme.Locked.WithAlpha(0.28f) :
+                pressed ? frame.Theme.Hover.WithAlpha(0.46f) : selected ? frame.Theme.Selected.WithAlpha(0.32f) :
+                hovered ? frame.Theme.Hover.WithAlpha(0.22f) : frame.Theme.Surface;
             InsightUiStyle style = new InsightUiStyle { Background = fill, Elevated = selected };
             Surface(rect, style, frame);
             bool previousEnabled = GUI.enabled;
             GUI.enabled = enabled;
             try
             {
-                GUI.color = InsightDraw.Color(enabled ? frame.Theme.PrimaryText : frame.Theme.SecondaryText);
+                GUI.color = InsightDraw.Color(frame.ApplyOpacity(enabled ? frame.Theme.PrimaryText : frame.Theme.SecondaryText));
                 return Widgets.ButtonText(ToRect(new InsightRect(rect.X + 1f, rect.Y + 1f,
                     Math.Max(0f, rect.Width - 2f), Math.Max(0f, rect.Height - 2f))), label ?? string.Empty);
             }
@@ -204,8 +241,14 @@ namespace InsightCanvas
 
         public void Divider(InsightRect rect, InsightColor color, InsightUiFrame frame)
         {
-            GUI.color = InsightDraw.Color(color);
-            Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(color));
+            Color previous = GUI.color;
+            try
+            {
+                InsightColor applied = frame.ApplyOpacity(color);
+                GUI.color = InsightDraw.Color(applied);
+                Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(applied));
+            }
+            finally { GUI.color = previous; }
         }
 
         public void Tooltip(InsightRect rect, string text, InsightUiFrame frame)
@@ -248,6 +291,105 @@ namespace InsightCanvas
             return offset;
         }
 
+        public void FillRect(InsightRect rect, InsightColor color, InsightUiFrame frame)
+        {
+            Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(frame.ApplyOpacity(color)));
+        }
+
+        public void Outline(InsightRect rect, InsightColor color, float width, InsightUiFrame frame)
+        {
+            Color previous = GUI.color;
+            try
+            {
+                GUI.color = InsightDraw.Color(frame.ApplyOpacity(color));
+                Widgets.DrawBox(ToRect(rect), Math.Max(1, Mathf.RoundToInt(width)));
+            }
+            finally { GUI.color = previous; }
+        }
+
+        public void Line(float x1, float y1, float x2, float y2, InsightColor color, float width, InsightUiFrame frame)
+        {
+            Widgets.DrawLine(new Vector2(x1 - origin.x, y1 - origin.y),
+                new Vector2(x2 - origin.x, y2 - origin.y), InsightDraw.Color(frame.ApplyOpacity(color)), Math.Max(1f, width));
+        }
+
+        public void Texture(InsightRect rect, object texture, InsightColor? tint, InsightUiFrame frame)
+        {
+            Texture2D image = texture as Texture2D;
+            if (image == null) return;
+            Color previous = GUI.color;
+            GUI.color = InsightDraw.Color(frame.ApplyOpacity(tint ?? new InsightColor(1f, 1f, 1f, 1f)));
+            try { GUI.DrawTexture(ToRect(rect), image, ScaleMode.ScaleToFit, true); }
+            finally { GUI.color = previous; }
+        }
+
+        public void Icon(InsightRect rect, InsightUiIcon icon, InsightUiFrame frame)
+        {
+            if (icon == null) return;
+            if (icon.Texture is Texture2D)
+                Texture(rect, icon.Texture, null, frame);
+            else
+                Text(rect, icon.Fallback, InsightUiTextStyle.Label, frame.Theme.PrimaryText, false, frame);
+        }
+
+        public bool IconButton(InsightRect rect, InsightUiIcon icon, bool enabled, bool selected, InsightUiFrame frame)
+        {
+            Rect nativeRect = ToRect(rect);
+            bool hovered = Event.current != null && nativeRect.Contains(Event.current.mousePosition);
+            bool pressed = hovered && Event.current != null && Event.current.type == EventType.MouseDown;
+            InsightColor fill = !enabled ? frame.Theme.Locked.WithAlpha(0.28f) :
+                pressed ? frame.Theme.Hover.WithAlpha(0.46f) : selected ? frame.Theme.Selected.WithAlpha(0.32f) :
+                hovered ? frame.Theme.Hover.WithAlpha(0.22f) : frame.Theme.Surface;
+            Surface(rect, new InsightUiStyle { Background = fill, Elevated = selected }, frame);
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = enabled;
+            try
+            {
+                Texture2D image = icon?.Texture as Texture2D;
+                GUI.color = InsightDraw.Color(frame.ApplyOpacity(enabled ? frame.Theme.PrimaryText : frame.Theme.SecondaryText));
+                if (image == null)
+                    return Widgets.ButtonText(ToRect(new InsightRect(rect.X + 1f, rect.Y + 1f,
+                        Math.Max(0f, rect.Width - 2f), Math.Max(0f, rect.Height - 2f))), icon?.Fallback ?? string.Empty);
+                return GUI.Button(ToRect(new InsightRect(rect.X + 1f, rect.Y + 1f,
+                    Math.Max(0f, rect.Width - 2f), Math.Max(0f, rect.Height - 2f))), image);
+            }
+            finally { GUI.enabled = previousEnabled; }
+        }
+
+        public void FocusRing(InsightRect rect, InsightUiFrame frame)
+        {
+            GUI.color = InsightDraw.Color(frame.ApplyOpacity(frame.Theme.Focus));
+            Widgets.DrawBox(ToRect(new InsightRect(rect.X - 2f, rect.Y - 2f, rect.Width + 4f, rect.Height + 4f)), 2);
+        }
+
+        public float DragDivider(InsightRect divider, InsightRect bounds, InsightUiOrientation orientation, float ratio,
+            string stateKey, InsightUiFrame frame)
+        {
+            Rect native = ToRect(divider);
+            Event current = Event.current;
+            bool dragging = frame.State.GetBool(stateKey + ".dragging", false);
+            if (current != null && current.type == EventType.MouseDown && native.Contains(current.mousePosition))
+            {
+                dragging = true;
+                frame.State.SetBool(stateKey + ".dragging", true);
+                current.Use();
+            }
+            if (dragging && current != null && (current.type == EventType.MouseDrag || current.type == EventType.MouseMove))
+            {
+                float next = orientation == InsightUiOrientation.Horizontal
+                    ? (current.mousePosition.x - ToRect(bounds).x) / Math.Max(1f, bounds.Width)
+                    : (current.mousePosition.y - ToRect(bounds).y) / Math.Max(1f, bounds.Height);
+                current.Use();
+                return Math.Max(0.1f, Math.Min(0.9f, next));
+            }
+            if (dragging && current != null && (current.type == EventType.MouseUp || current.type == EventType.Ignore))
+            {
+                frame.State.SetBool(stateKey + ".dragging", false);
+                current.Use();
+            }
+            return float.NaN;
+        }
+
         private Rect ToRect(InsightRect rect)
         {
             return new Rect(rect.X - origin.x, rect.Y - origin.y, rect.Width, rect.Height);
@@ -268,23 +410,32 @@ namespace InsightCanvas
     /// <summary>Static entry point for embedding a document in a caller-owned Rect.</summary>
     public static class InsightUiRenderer
     {
+        [ThreadStatic]
+        private static RimWorldInsightUiPainter sharedPainter;
+
         public static void Draw(Rect rect, InsightUiDocument document, float deltaTime = -1f)
         {
             if (document == null || document.Root == null) return;
             using (new InsightGuiStateScope())
             {
                 document.Diagnostics.BeginFrame();
-                RimWorldInsightUiPainter painter = new RimWorldInsightUiPainter();
+                document.Diagnostics.TrackDuplicateIds = document.TrackDuplicateIds;
+                document.Focus.BeginFrame();
+                RimWorldInsightUiPainter painter = sharedPainter ?? (sharedPainter = new RimWorldInsightUiPainter());
+                painter.Reset();
                 bool highContrast = document.HighContrast || InsightCanvasMod.Settings?.HighContrast == true;
                 bool reducedMotion = document.ReducedMotion || InsightCanvasMod.Settings?.ReducedMotion == true;
                 bool colorBlind = InsightCanvasMod.Settings?.ColorBlindFriendly == true;
-                InsightTheme theme = (document.Theme ?? InsightTheme.Default).WithAccessibility(highContrast,
-                    colorBlind ? InsightColorBlindMode.Deuteranopia : InsightColorBlindMode.None);
+                InsightColorBlindMode colorBlindMode = colorBlind ? InsightColorBlindMode.Deuteranopia : InsightColorBlindMode.None;
+                InsightTheme theme = document.ResolveTheme(highContrast, colorBlindMode);
+                float elapsed = deltaTime < 0f ? Time.deltaTime : deltaTime;
+                document.Toasts.Advance(elapsed, reducedMotion);
                 InsightUiFrame frame = new InsightUiFrame(theme, document.Density, highContrast, reducedMotion,
-                    document.State, document.Diagnostics, deltaTime < 0f ? Time.deltaTime : deltaTime);
+                    document.State, document.Diagnostics, elapsed, document.Focus, document.Effects, document.Toasts);
                 frame.TextMeasurer = (text, style, maxWidth) => painter.MeasureText(text, style, maxWidth, frame);
                 try
                 {
+                    frame.Focus.ProcessKeyboard(new RimWorldInsightUiInput(frame.Focus));
                     if (document.DrawBackground)
                         painter.Surface(new InsightRect(rect.x, rect.y, rect.width, rect.height),
                             new InsightUiStyle { Background = theme.Background, Elevated = false }, frame);
@@ -292,6 +443,8 @@ namespace InsightCanvas
                     document.Root.Measure(constraints, frame);
                     document.Root.Arrange(new InsightRect(rect.x, rect.y, rect.width, rect.height), frame);
                     document.Root.Paint(painter, frame);
+                    document.Focus.PruneFocus();
+                    document.Diagnostics.RecordEffects(document.Effects.ActiveCount);
                 }
                 catch (Exception exception)
                 {
@@ -301,7 +454,42 @@ namespace InsightCanvas
                     GUI.color = Color.white;
                     Widgets.Label(rect, "Insight Canvas could not render this document. See the log for details.");
                 }
+                finally
+                {
+                    painter.Reset();
+                }
             }
+        }
+    }
+
+    /// <summary>Small Unity IMGUI adapter used only at the renderer boundary.</summary>
+    internal sealed class RimWorldInsightUiInput : IInsightUiInput
+    {
+        private readonly InsightUiFocusState focus;
+
+        public RimWorldInsightUiInput(InsightUiFocusState focus)
+        {
+            this.focus = focus;
+        }
+
+        public bool IsTextEditing => focus != null && focus.IsTextEditing;
+        public bool TabPressed => IsKey(KeyCode.Tab);
+        public bool ShiftTabPressed => TabPressed && Event.current.shift;
+        public bool ActivatePressed => IsKey(KeyCode.Return) || IsKey(KeyCode.KeypadEnter) || IsKey(KeyCode.Space);
+
+        public void ConsumeTab()
+        {
+            if (Event.current != null) Event.current.Use();
+        }
+
+        public void ConsumeActivation()
+        {
+            if (Event.current != null) Event.current.Use();
+        }
+
+        private static bool IsKey(KeyCode key)
+        {
+            return Event.current != null && Event.current.type == EventType.KeyDown && Event.current.keyCode == key;
         }
     }
 }

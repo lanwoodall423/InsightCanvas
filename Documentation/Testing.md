@@ -8,7 +8,7 @@ Run the game-independent harness from the repository root:
 dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release --nologo
 ```
 
-The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds, motion helpers, showcase navigation breakpoints, scoped showcase settings, and deterministic showcase records.
+The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, and pure focus traversal.
 
 ## RimWorld build
 
@@ -33,7 +33,7 @@ DevBridge.cmd test begin
 DevBridge.cmd test end <lease-id printed by test begin>
 ```
 
-Never add test execution logic to DevBridge2 and never launch or stop RimWorld directly for this workflow.
+Never add test execution logic to DevBridge2 and never launch or stop RimWorld directly for this workflow. The automatic suite intentionally does not synthesize Unity `Event.current`; it verifies rendered frames and renderer diagnostics. Manually smoke-test Tab/Shift+Tab, Enter/Space activation, focus rings, a real consumer `Texture2D`, and a custom painter callback in RimWorld when changing those adapter paths. Text editing must retain input ownership, and Escape remains RimWorld Window behavior.
 
 ## Feature Showcase checklist
 

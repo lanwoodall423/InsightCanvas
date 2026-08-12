@@ -316,11 +316,9 @@ namespace InsightCanvas
 
         private void ExerciseDataFilter()
         {
-            InsightUiTextField search = FindElement(window.Document.Root, "data-search") as InsightUiTextField;
+            InsightUiSearchField search = FindElement(window.Document.Root, "data-search") as InsightUiSearchField;
             Require(search?.Changed != null, "data search field was not interactive");
-            search.Value = "Research";
-            search.Changed(search.Value);
-            window.Document.State.SetString("data-search.value", search.Value);
+            search.SetText("Research");
         }
 
         private void ExerciseDataSelection()
