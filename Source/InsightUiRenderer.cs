@@ -79,6 +79,11 @@ namespace InsightCanvas
         IInsightUiIconPainter, IInsightUiFocusPainter, IInsightUiDragPainter
     {
         private readonly Stack<Vector2> origins = new Stack<Vector2>();
+        private readonly GUIStyle[] textStyles = new GUIStyle[6];
+        private readonly int[] textStyleSizes = new int[6];
+        private readonly Font[] textStyleFonts = new Font[6];
+        private readonly GUIContent textContent = new GUIContent();
+        private GUISkin textStyleSkin;
         private Vector2 origin;
 
         internal void Reset()
@@ -89,23 +94,33 @@ namespace InsightCanvas
 
         public InsightUiSize MeasureText(string text, InsightUiTextStyle style, float maxWidth, InsightUiFrame frame)
         {
-            GameFont previousFont = Verse.Text.Font;
-            bool previousWrap = Verse.Text.WordWrap;
+            return MeasureTextWithScale(text, style, maxWidth, frame == null ? 1f : frame.TextScale(style), frame);
+        }
+
+        internal InsightUiSize MeasureNativeText(string text, InsightUiTextStyle style, float maxWidth, InsightUiFrame frame)
+        {
+            return MeasureTextWithScale(text, style, maxWidth, 1f, frame);
+        }
+
+        private InsightUiSize MeasureTextWithScale(string text, InsightUiTextStyle style, float maxWidth,
+            float scale, InsightUiFrame frame)
+        {
+            GUIStyle effective = EffectiveTextStyle(style, scale);
+            bool previousWrap = effective.wordWrap;
             try
             {
-                Verse.Text.Font = FontFor(style);
-                Verse.Text.WordWrap = true;
-                Vector2 size = Verse.Text.CalcSize(text ?? string.Empty);
+                effective.wordWrap = true;
+                textContent.text = text ?? string.Empty;
+                GUIContent content = textContent;
+                Vector2 size = effective.CalcSize(content);
                 if (!float.IsPositiveInfinity(maxWidth) && maxWidth > 1f && size.x > maxWidth)
-                    size.y = Verse.Text.CalcHeight(text ?? string.Empty, maxWidth);
-                float scale = frame == null ? 1f : frame.TextScale(style);
-                return new InsightUiSize(size.x * scale, size.y * scale);
+                {
+                    size.x = maxWidth;
+                    size.y = effective.CalcHeight(content, maxWidth);
+                }
+                return new InsightUiSize(Math.Max(0f, size.x), Math.Max(0f, size.y));
             }
-            finally
-            {
-                Verse.Text.Font = previousFont;
-                Verse.Text.WordWrap = previousWrap;
-            }
+            finally { effective.wordWrap = previousWrap; }
         }
 
         public void Surface(InsightRect rect, InsightUiStyle style, InsightUiFrame frame)
@@ -131,36 +146,17 @@ namespace InsightCanvas
 
         public void Text(InsightRect rect, string text, InsightUiTextStyle style, InsightColor? color, bool wrap, InsightUiFrame frame)
         {
-            GameFont previousFont = Verse.Text.Font;
-            TextAnchor previousAnchor = Verse.Text.Anchor;
-            bool previousWrap = Verse.Text.WordWrap;
+            GUIStyle effective = EffectiveTextStyle(style, frame == null ? 1f : frame.TextScale(style));
+            bool previousWrap = effective.wordWrap;
+            Color previous = GUI.color;
             try
             {
-                Verse.Text.Font = FontFor(style);
-                Verse.Text.Anchor = TextAnchor.UpperLeft;
-                Verse.Text.WordWrap = wrap;
-                Color previous = GUI.color;
-                Matrix4x4 previousMatrix = GUI.matrix;
-                try
-                {
-                    GUI.color = InsightDraw.Color(frame.ApplyOpacity(color ?? frame.Theme.PrimaryText));
-                    float scale = frame.TextScale(style);
-                    if (Math.Abs(scale - 1f) > 0.001f)
-                        GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), ToRect(rect).center);
-                    Widgets.Label(ToRect(rect), text ?? string.Empty);
-                }
-                finally
-                {
-                    GUI.matrix = previousMatrix;
-                    GUI.color = previous;
-                }
+                effective.wordWrap = wrap;
+                GUI.color = InsightDraw.Color(frame.ApplyOpacity(color ?? frame.Theme.PrimaryText));
+                textContent.text = text ?? string.Empty;
+                GUI.Label(ToRect(rect), textContent, effective);
             }
-            finally
-            {
-                Verse.Text.Font = previousFont;
-                Verse.Text.Anchor = previousAnchor;
-                Verse.Text.WordWrap = previousWrap;
-            }
+            finally { effective.wordWrap = previousWrap; GUI.color = previous; }
         }
 
         public void Progress(InsightRect rect, float value, InsightColor fill, InsightUiFrame frame)
@@ -182,15 +178,20 @@ namespace InsightCanvas
             InsightUiStyle style = new InsightUiStyle { Background = fill, Elevated = selected };
             Surface(rect, style, frame);
             bool previousEnabled = GUI.enabled;
+            Color previousColor = GUI.color;
+            GameFont previousFont = Verse.Text.Font;
             GUI.enabled = enabled;
             try
             {
+                Verse.Text.Font = FontFor(InsightUiTextStyle.Button);
                 GUI.color = InsightDraw.Color(frame.ApplyOpacity(enabled ? frame.Theme.PrimaryText : frame.Theme.SecondaryText));
                 return Widgets.ButtonText(ToRect(new InsightRect(rect.X + 1f, rect.Y + 1f,
                     Math.Max(0f, rect.Width - 2f), Math.Max(0f, rect.Height - 2f))), label ?? string.Empty);
             }
             finally
             {
+                Verse.Text.Font = previousFont;
+                GUI.color = previousColor;
                 GUI.enabled = previousEnabled;
             }
         }
@@ -198,15 +199,20 @@ namespace InsightCanvas
         public bool Toggle(InsightRect rect, string label, bool value, bool enabled, InsightUiFrame frame)
         {
             bool previousEnabled = GUI.enabled;
+            Color previousColor = GUI.color;
+            GameFont previousFont = Verse.Text.Font;
             GUI.enabled = enabled;
             try
             {
+                Verse.Text.Font = FontFor(InsightUiTextStyle.Body);
                 bool next = value;
                 Widgets.CheckboxLabeled(ToRect(rect), label ?? string.Empty, ref next);
                 return next;
             }
             finally
             {
+                Verse.Text.Font = previousFont;
+                GUI.color = previousColor;
                 GUI.enabled = previousEnabled;
             }
         }
@@ -214,6 +220,7 @@ namespace InsightCanvas
         public float Slider(InsightRect rect, float value, float minimum, float maximum, bool enabled, InsightUiFrame frame)
         {
             bool previousEnabled = GUI.enabled;
+            Color previousColor = GUI.color;
             GUI.enabled = enabled;
             try
             {
@@ -221,6 +228,7 @@ namespace InsightCanvas
             }
             finally
             {
+                GUI.color = previousColor;
                 GUI.enabled = previousEnabled;
             }
         }
@@ -228,13 +236,18 @@ namespace InsightCanvas
         public string TextField(InsightRect rect, string value, bool enabled, InsightUiFrame frame)
         {
             bool previousEnabled = GUI.enabled;
+            Color previousColor = GUI.color;
+            GameFont previousFont = Verse.Text.Font;
             GUI.enabled = enabled;
             try
             {
+                Verse.Text.Font = FontFor(InsightUiTextStyle.Body);
                 return Widgets.TextField(ToRect(rect), value ?? string.Empty);
             }
             finally
             {
+                Verse.Text.Font = previousFont;
+                GUI.color = previousColor;
                 GUI.enabled = previousEnabled;
             }
         }
@@ -342,6 +355,7 @@ namespace InsightCanvas
                 hovered ? frame.Theme.Hover.WithAlpha(0.22f) : frame.Theme.Surface;
             Surface(rect, new InsightUiStyle { Background = fill, Elevated = selected }, frame);
             bool previousEnabled = GUI.enabled;
+            Color previousColor = GUI.color;
             GUI.enabled = enabled;
             try
             {
@@ -353,13 +367,22 @@ namespace InsightCanvas
                 return GUI.Button(ToRect(new InsightRect(rect.X + 1f, rect.Y + 1f,
                     Math.Max(0f, rect.Width - 2f), Math.Max(0f, rect.Height - 2f))), image);
             }
-            finally { GUI.enabled = previousEnabled; }
+            finally
+            {
+                GUI.color = previousColor;
+                GUI.enabled = previousEnabled;
+            }
         }
 
         public void FocusRing(InsightRect rect, InsightUiFrame frame)
         {
-            GUI.color = InsightDraw.Color(frame.ApplyOpacity(frame.Theme.Focus));
-            Widgets.DrawBox(ToRect(new InsightRect(rect.X - 2f, rect.Y - 2f, rect.Width + 4f, rect.Height + 4f)), 2);
+            Color previous = GUI.color;
+            try
+            {
+                GUI.color = InsightDraw.Color(frame.ApplyOpacity(frame.Theme.Focus));
+                Widgets.DrawBox(ToRect(new InsightRect(rect.X - 2f, rect.Y - 2f, rect.Width + 4f, rect.Height + 4f)), 2);
+            }
+            finally { GUI.color = previous; }
         }
 
         public float DragDivider(InsightRect divider, InsightRect bounds, InsightUiOrientation orientation, float ratio,
@@ -393,6 +416,42 @@ namespace InsightCanvas
         private Rect ToRect(InsightRect rect)
         {
             return new Rect(rect.X - origin.x, rect.Y - origin.y, rect.Width, rect.Height);
+        }
+
+        private GUIStyle EffectiveTextStyle(InsightUiTextStyle semanticStyle, float scale)
+        {
+            if (GUI.skin != textStyleSkin)
+            {
+                textStyleSkin = GUI.skin;
+                Array.Clear(textStyles, 0, textStyles.Length);
+                Array.Clear(textStyleSizes, 0, textStyleSizes.Length);
+                Array.Clear(textStyleFonts, 0, textStyleFonts.Length);
+            }
+
+            int index = Math.Max(0, Math.Min(textStyles.Length - 1, (int)semanticStyle));
+            int fontSize = Math.Max(1, Mathf.RoundToInt(InsightUiFrame.BaseTextSize(semanticStyle) * Math.Max(0.5f, scale)));
+            GameFont previousFont = Verse.Text.Font;
+            try
+            {
+                Verse.Text.Font = FontFor(semanticStyle);
+                GUIStyle template = GUI.skin == null ? new GUIStyle() : GUI.skin.label;
+                Font font = template.font;
+                if (textStyles[index] == null || textStyleSizes[index] != fontSize || textStyleFonts[index] != font)
+                {
+                    GUIStyle effective = new GUIStyle(template)
+                    {
+                        fontSize = fontSize,
+                        alignment = TextAnchor.UpperLeft,
+                        clipping = TextClipping.Clip,
+                        wordWrap = true
+                    };
+                    textStyles[index] = effective;
+                    textStyleSizes[index] = fontSize;
+                    textStyleFonts[index] = font;
+                }
+                return textStyles[index];
+            }
+            finally { Verse.Text.Font = previousFont; }
         }
 
         private static GameFont FontFor(InsightUiTextStyle style)
@@ -433,6 +492,7 @@ namespace InsightCanvas
                 InsightUiFrame frame = new InsightUiFrame(theme, document.Density, highContrast, reducedMotion,
                     document.State, document.Diagnostics, elapsed, document.Focus, document.Effects, document.Toasts);
                 frame.TextMeasurer = (text, style, maxWidth) => painter.MeasureText(text, style, maxWidth, frame);
+                frame.NativeTextMeasurer = (text, style, maxWidth) => painter.MeasureNativeText(text, style, maxWidth, frame);
                 try
                 {
                     frame.Focus.ProcessKeyboard(new RimWorldInsightUiInput(frame.Focus));

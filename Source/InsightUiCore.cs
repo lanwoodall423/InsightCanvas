@@ -530,6 +530,8 @@ namespace InsightCanvas
         public float Opacity { get; private set; } = 1f;
         public float DeltaTime { get; private set; }
         public Func<string, InsightUiTextStyle, float, InsightUiSize> TextMeasurer { get; set; }
+        /// <summary>Optional normal RimWorld control measurement, without semantic typography scaling.</summary>
+        public Func<string, InsightUiTextStyle, float, InsightUiSize> NativeTextMeasurer { get; set; }
 
         public InsightUiFrame(InsightTheme theme, InsightUiDensity density, bool highContrast, bool reducedMotion,
             InsightUiStateStore state, InsightUiDiagnostics diagnostics, float deltaTime,
@@ -617,7 +619,19 @@ namespace InsightCanvas
         public InsightUiSize MeasureText(string text, InsightUiTextStyle style, float maxWidth)
         {
             if (TextMeasurer != null) return TextMeasurer(text ?? string.Empty, style, maxWidth);
-            float fontSize = BaseTextSize(style) * TextScale(style);
+            return EstimateText(text, style, maxWidth, TextScale(style));
+        }
+
+        /// <summary>Measures text using the normal control font geometry, without theme typography scaling.</summary>
+        public InsightUiSize MeasureNativeText(string text, InsightUiTextStyle style, float maxWidth)
+        {
+            if (NativeTextMeasurer != null) return NativeTextMeasurer(text ?? string.Empty, style, maxWidth);
+            return EstimateText(text, style, maxWidth, 1f);
+        }
+
+        private static InsightUiSize EstimateText(string text, InsightUiTextStyle style, float maxWidth, float scale)
+        {
+            float fontSize = BaseTextSize(style) * Math.Max(0.5f, scale);
             float width = (text ?? string.Empty).Length * fontSize * 0.52f;
             if (!float.IsPositiveInfinity(maxWidth) && maxWidth > 1f && width > maxWidth)
             {
@@ -627,7 +641,7 @@ namespace InsightCanvas
             return new InsightUiSize(width, fontSize * 1.25f);
         }
 
-        private static float BaseTextSize(InsightUiTextStyle style)
+        internal static float BaseTextSize(InsightUiTextStyle style)
         {
             switch (style)
             {

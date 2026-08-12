@@ -572,7 +572,7 @@ namespace InsightCanvas
 
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
-            return frame.MeasureText(DisplayText, TextStyle, constraints.MaxWidth);
+            return frame.MeasureText(DisplayText, TextStyle, Wrap ? constraints.MaxWidth : float.PositiveInfinity);
         }
 
         protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
@@ -628,7 +628,7 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             InsightUiPadding padding = ScaledPadding(frame);
-            InsightUiSize text = frame.MeasureText(Label, InsightUiTextStyle.Button, constraints.MaxWidth);
+            InsightUiSize text = frame.MeasureNativeText(Label, InsightUiTextStyle.Button, float.PositiveInfinity);
             return new InsightUiSize(text.Width + padding.Horizontal, Math.Max(28f, text.Height + padding.Vertical));
         }
 
@@ -664,7 +664,7 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             InsightUiPadding padding = ScaledPadding(frame);
-            InsightUiSize size = frame.MeasureText(Text, InsightUiTextStyle.Caption, constraints.MaxWidth);
+            InsightUiSize size = frame.MeasureText(Text, InsightUiTextStyle.Caption, float.PositiveInfinity);
             return new InsightUiSize(size.Width + padding.Horizontal, Math.Max(22f, size.Height + padding.Vertical));
         }
 
@@ -674,8 +674,9 @@ namespace InsightCanvas
             style.Background = (Color ?? frame.Theme.Selected).WithAlpha(0.25f);
             style.Border = Color ?? frame.Theme.Selected;
             painter.Surface(LayoutRect, style, frame);
-            painter.Text(new InsightRect(LayoutRect.X + 7f, LayoutRect.Y + 3f,
-                Math.Max(0f, LayoutRect.Width - 14f), Math.Max(0f, LayoutRect.Height - 6f)), Text,
+            InsightUiPadding padding = ScaledPadding(frame);
+            painter.Text(new InsightRect(LayoutRect.X + padding.Left, LayoutRect.Y + padding.Top,
+                Math.Max(0f, LayoutRect.Width - padding.Horizontal), Math.Max(0f, LayoutRect.Height - padding.Vertical)), Text,
                 InsightUiTextStyle.Caption, Color ?? frame.Theme.PrimaryText, false, frame);
         }
     }
@@ -730,7 +731,8 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             string fallback = Icon == null ? string.Empty : Icon.Fallback;
-            InsightUiSize text = frame.MeasureText(fallback, InsightUiTextStyle.Label, constraints.MaxWidth);
+            // The fallback is painted as a single-line icon label, so do not ask layout to reserve wrapped height.
+            InsightUiSize text = frame.MeasureText(fallback, InsightUiTextStyle.Label, float.PositiveInfinity);
             return new InsightUiSize(Math.Max(24f, text.Width), Math.Max(24f, text.Height));
         }
 
@@ -800,12 +802,20 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             float width = 0f;
+            float height = 0f;
             for (int i = 0; i < labels.Count; i++)
             {
-                width += frame.MeasureText(labels[i], InsightUiTextStyle.Caption, constraints.MaxWidth).Width;
-                if (i + 1 < labels.Count) width += frame.MeasureText("/", InsightUiTextStyle.Caption, constraints.MaxWidth).Width + 10f;
+                InsightUiSize label = frame.MeasureText(labels[i], InsightUiTextStyle.Caption, float.PositiveInfinity);
+                width += label.Width;
+                height = Math.Max(height, label.Height);
+                if (i + 1 < labels.Count)
+                {
+                    InsightUiSize separator = frame.MeasureText("/", InsightUiTextStyle.Caption, float.PositiveInfinity);
+                    width += separator.Width + 10f;
+                    height = Math.Max(height, separator.Height);
+                }
             }
-            return new InsightUiSize(width, 20f);
+            return new InsightUiSize(width, Math.Max(1f, height));
         }
 
         protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
@@ -813,14 +823,16 @@ namespace InsightCanvas
             float x = LayoutRect.X;
             for (int i = 0; i < labels.Count; i++)
             {
-                InsightUiSize size = frame.MeasureText(labels[i], InsightUiTextStyle.Caption, LayoutRect.Width);
-                painter.Text(new InsightRect(x, LayoutRect.Y, size.Width, LayoutRect.Height), labels[i],
+                InsightUiSize size = frame.MeasureText(labels[i], InsightUiTextStyle.Caption, float.PositiveInfinity);
+                float available = Math.Max(0f, LayoutRect.Right - x);
+                painter.Text(new InsightRect(x, LayoutRect.Y, Math.Min(size.Width, available), LayoutRect.Height), labels[i],
                     InsightUiTextStyle.Caption, i + 1 == labels.Count ? frame.Theme.PrimaryText : frame.Theme.SecondaryText,
                     false, frame);
                 x += size.Width;
                 if (i + 1 < labels.Count)
                 {
-                    painter.Text(new InsightRect(x + 5f, LayoutRect.Y, 8f, LayoutRect.Height), "/",
+                    painter.Text(new InsightRect(Math.Min(x + 5f, LayoutRect.Right), LayoutRect.Y,
+                        Math.Min(8f, Math.Max(0f, LayoutRect.Right - x - 5f)), LayoutRect.Height), "/",
                         InsightUiTextStyle.Caption, frame.Theme.SecondaryText, false, frame);
                     x += 18f;
                 }
@@ -857,7 +869,8 @@ namespace InsightCanvas
 
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
-            InsightUiSize text = frame.MeasureText(Label, InsightUiTextStyle.Body, constraints.MaxWidth);
+            // CheckboxLabeled uses RimWorld's normal control font; measure through the matching native path.
+            InsightUiSize text = frame.MeasureNativeText(Label, InsightUiTextStyle.Body, float.PositiveInfinity);
             return new InsightUiSize(Math.Max(180f, text.Width + 30f), Math.Max(28f, text.Height));
         }
 
@@ -2040,7 +2053,7 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             Selected = SelectedIndex(frame);
-            InsightUiSize header = frame.MeasureText(Label + ": " + Current, InsightUiTextStyle.Button, constraints.MaxWidth);
+            InsightUiSize header = frame.MeasureNativeText(Label + ": " + Current, InsightUiTextStyle.Button, float.PositiveInfinity);
             float height = Math.Max(30f, header.Height + 12f);
             if (OpenValue(frame)) height += options.Length * (frame.Spacing(26f) + frame.Spacing(2f)) + frame.Spacing(12f);
             return new InsightUiSize(Math.Max(180f, header.Width + frame.Spacing(28f)), height);
@@ -2226,7 +2239,7 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             float width = 0f;
-            for (int i = 0; i < options.Length; i++) width += frame.MeasureText(options[i], InsightUiTextStyle.Button, constraints.MaxWidth).Width + 20f;
+            for (int i = 0; i < options.Length; i++) width += frame.MeasureNativeText(options[i], InsightUiTextStyle.Button, float.PositiveInfinity).Width + 20f;
             return new InsightUiSize(Math.Max(1f, Math.Min(constraints.MaxWidth, width)), 28f);
         }
 
@@ -2305,8 +2318,13 @@ namespace InsightCanvas
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
             if (!frame.Toasts.IsVisible) return new InsightUiSize(0f, 0f);
-            InsightUiSize text = frame.MeasureText(frame.Toasts.Message, InsightUiTextStyle.Body, constraints.MaxWidth);
-            return new InsightUiSize(Math.Min(360f, Math.Max(180f, text.Width + 28f)), Math.Max(36f, text.Height + 14f));
+            InsightUiPadding padding = ScaledPadding(frame);
+            float availableWidth = float.IsPositiveInfinity(constraints.MaxWidth)
+                ? 360f : Math.Max(1f, Math.Min(360f, constraints.MaxWidth));
+            float textWidth = Math.Max(1f, availableWidth - padding.Horizontal);
+            InsightUiSize text = frame.MeasureText(frame.Toasts.Message, InsightUiTextStyle.Body, textWidth);
+            return new InsightUiSize(Math.Min(availableWidth, Math.Max(180f, text.Width + padding.Horizontal)),
+                Math.Max(36f, text.Height + padding.Vertical));
         }
 
         protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
@@ -2323,8 +2341,9 @@ namespace InsightCanvas
                 Elevated = true,
                 Padding = Style.Padding
             }, frame);
-            painter.Text(new InsightRect(LayoutRect.X + 10f, LayoutRect.Y + 7f,
-                Math.Max(0f, LayoutRect.Width - 20f), Math.Max(0f, LayoutRect.Height - 14f)),
+            InsightUiPadding padding = ScaledPadding(frame);
+            painter.Text(new InsightRect(LayoutRect.X + padding.Left, LayoutRect.Y + padding.Top,
+                Math.Max(0f, LayoutRect.Width - padding.Horizontal), Math.Max(0f, LayoutRect.Height - padding.Vertical)),
                 frame.Toasts.Message, InsightUiTextStyle.Body, frame.Theme.PrimaryText, true, frame);
         }
     }

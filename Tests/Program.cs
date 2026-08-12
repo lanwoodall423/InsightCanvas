@@ -12,6 +12,7 @@ internal static class Program
             ValidationCoverage();
             ModelClear();
             LayoutMath();
+            TypographyGeometry();
             ComposableLayout();
             UiStateIsolation();
             ConsumerApiFoundations();
@@ -113,6 +114,67 @@ internal static class Program
         Assert(disclosure.Width >= 329.99f && disclosure.Right <= tools.X - 8f &&
             tools.Right <= reset.X - 8f && reset.Right <= header.Right - 8f,
             "header controls overlap or exceed the window");
+    }
+
+    private static void TypographyGeometry()
+    {
+        InsightTheme theme = InsightTheme.Default.Clone();
+        InsightUiFrame frame = new InsightUiFrame(theme, InsightUiDensity.Normal, false, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+        InsightUiSize body = frame.MeasureText("Readable body copy", InsightUiTextStyle.Body, float.PositiveInfinity);
+        InsightUiSize title = frame.MeasureText("Readable title", InsightUiTextStyle.Title, float.PositiveInfinity);
+        Assert(frame.TextScale(InsightUiTextStyle.Title) > frame.TextScale(InsightUiTextStyle.Body) &&
+            title.Height > body.Height, "semantic typography did not reserve a larger title slot");
+
+        string longCopy = new string('x', 80);
+        InsightUiSize unwrapped = frame.MeasureText(longCopy, InsightUiTextStyle.Body, float.PositiveInfinity);
+        InsightUiSize wrapped = frame.MeasureText(longCopy, InsightUiTextStyle.Body, 120f);
+        Assert(wrapped.Width <= 120.001f && wrapped.Height > unwrapped.Height,
+            "wrapped text measurement did not preserve the effective width or reserve additional lines");
+
+        InsightUiLabel heading = InsightUi.Label("typography-heading", "A heading with enough words to wrap", InsightUiTextStyle.Heading);
+        InsightUiLabel paragraph = InsightUi.Label("typography-paragraph", longCopy, InsightUiTextStyle.Body);
+        InsightUiStack column = InsightUi.Column("typography-column").SetGap(8f).Add(heading, paragraph);
+        column.Measure(new InsightUiConstraints(0f, 180f, 0f, float.PositiveInfinity), frame);
+        column.Arrange(new InsightRect(0f, 0f, 180f, column.MeasuredSize.Height), frame);
+        Assert(heading.LayoutRect.Bottom <= paragraph.LayoutRect.Y + 0.01f,
+            "heading and wrapped body text occupied overlapping arranged slots");
+
+        InsightUiFrame compactFrame = new InsightUiFrame(theme, InsightUiDensity.Compact, false, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+        InsightUiStack normalColumn = InsightUi.Column("normal-spacing").SetGap(8f).Add(
+            InsightUi.Label("normal-first", "First"), InsightUi.Label("normal-second", "Second"));
+        InsightUiStack compactColumn = InsightUi.Column("compact-spacing").SetGap(8f).Add(
+            InsightUi.Label("compact-first", "First"), InsightUi.Label("compact-second", "Second"));
+        normalColumn.Measure(new InsightUiConstraints(0f, 240f, 0f, float.PositiveInfinity), frame);
+        normalColumn.Arrange(new InsightRect(0f, 0f, 240f, normalColumn.MeasuredSize.Height), frame);
+        compactColumn.Measure(new InsightUiConstraints(0f, 240f, 0f, float.PositiveInfinity), compactFrame);
+        compactColumn.Arrange(new InsightRect(0f, 0f, 240f, compactColumn.MeasuredSize.Height), compactFrame);
+        Assert(Math.Abs(normalColumn.Children[0].MeasuredSize.Height - compactColumn.Children[0].MeasuredSize.Height) < 0.01f &&
+            compactColumn.Children[1].LayoutRect.Y < normalColumn.Children[1].LayoutRect.Y,
+            "density changed text geometry instead of only reducing layout spacing");
+
+        InsightTheme largerCaptionTheme = theme.Clone();
+        largerCaptionTheme.CaptionSize = 1.5f;
+        InsightUiFrame largerCaptionFrame = new InsightUiFrame(largerCaptionTheme, InsightUiDensity.Normal, false, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+        InsightUiBadge badge = InsightUi.Badge("typography-badge", "Ready");
+        InsightUiBadge largerBadge = InsightUi.Badge("typography-large-badge", "Ready");
+        badge.Measure(new InsightUiConstraints(0f, 240f, 0f, 100f), frame);
+        largerBadge.Measure(new InsightUiConstraints(0f, 240f, 0f, 100f), largerCaptionFrame);
+        Assert(largerBadge.MeasuredSize.Height > badge.MeasuredSize.Height,
+            "larger caption typography did not increase badge allocation");
+
+        TestPainter painter = new TestPainter();
+        frame.Focus.BeginFrame();
+        badge.Arrange(new InsightRect(0f, 0f, badge.MeasuredSize.Width, badge.MeasuredSize.Height), frame);
+        badge.Paint(painter, frame);
+        Assert(painter.TextCalls == 1 && !painter.LastTextWrap &&
+            painter.LastTextRect.X >= badge.LayoutRect.X - 0.01f &&
+            painter.LastTextRect.Y >= badge.LayoutRect.Y - 0.01f &&
+            painter.LastTextRect.Right <= badge.LayoutRect.Right + 0.01f &&
+            painter.LastTextRect.Bottom <= badge.LayoutRect.Bottom + 0.01f,
+            "badge caption was painted outside its measured content slot");
     }
 
     private static void ModelClear()
@@ -809,6 +871,9 @@ internal static class Program
         public int FillRectCalls;
         public int IconCalls;
         public InsightUiStyle LastSurfaceStyle;
+        public int TextCalls;
+        public InsightRect LastTextRect;
+        public bool LastTextWrap;
         public readonly HashSet<string> ClickLabels = new HashSet<string>(StringComparer.Ordinal);
         public float DragRatio = float.NaN;
 
@@ -819,7 +884,12 @@ internal static class Program
         }
 
         public void Surface(InsightRect rect, InsightUiStyle style, InsightUiFrame frame) { LastSurfaceStyle = style; }
-        public void Text(InsightRect rect, string text, InsightUiTextStyle style, InsightColor? color, bool wrap, InsightUiFrame frame) { }
+        public void Text(InsightRect rect, string text, InsightUiTextStyle style, InsightColor? color, bool wrap, InsightUiFrame frame)
+        {
+            TextCalls++;
+            LastTextRect = rect;
+            LastTextWrap = wrap;
+        }
         public void Progress(InsightRect rect, float value, InsightColor fill, InsightUiFrame frame) { }
 
         public bool Button(InsightRect rect, string label, bool enabled, bool selected, InsightUiFrame frame)

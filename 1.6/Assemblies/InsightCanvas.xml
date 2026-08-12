@@ -634,6 +634,9 @@
         <member name="P:InsightCanvas.InsightUiFrame.Opacity">
             <summary>Gets the current nested visual opacity, used by fade/reveal elements.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiFrame.NativeTextMeasurer">
+            <summary>Optional normal RimWorld control measurement, without semantic typography scaling.</summary>
+        </member>
         <member name="P:InsightCanvas.InsightUiFrame.ScopePath">
             <summary>Current reusable-component scope, or an empty string for ordinary documents.</summary>
         </member>
@@ -642,6 +645,9 @@
         </member>
         <member name="M:InsightCanvas.InsightUiFrame.StateKey(System.String)">
             <summary>Returns a document-owned state key for a local control key.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiFrame.MeasureNativeText(System.String,InsightCanvas.InsightUiTextStyle,System.Single)">
+            <summary>Measures text using the normal control font geometry, without theme typography scaling.</summary>
         </member>
         <member name="M:InsightCanvas.InsightUiFrame.TextScale(InsightCanvas.InsightUiTextStyle)">
             <summary>Returns the theme typography multiplier for a semantic text role.</summary>

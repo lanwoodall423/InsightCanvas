@@ -114,6 +114,7 @@ namespace InsightCanvas
                 if (stage == InitialFrame)
                 {
                     RunCase("window-rendered-overview", () => AssertRenderedState("overview"));
+                    RunCase("overview-typography-and-badges", CheckOverviewTypography);
                     RunCase("overview-interactions-applied", ExerciseOverview);
                     stage = OverviewInteractionFrame;
                     window.Document.Invalidate();
@@ -132,6 +133,8 @@ namespace InsightCanvas
                 {
                     string pageId = showcaseNavigation.Pages[currentPageIndex].Id;
                     RunCase("page-" + pageId + "-rendered", () => AssertRenderedState(pageId));
+                    if (pageId == "foundations")
+                        RunCase("foundations-typography-rendered", CheckFoundationsTypography);
                     if (pageId == "data")
                     {
                         RunCase("data-filter-applied", ExerciseDataFilter);
@@ -167,6 +170,8 @@ namespace InsightCanvas
                     }
 
                     RunCase("page-" + pageId + "-interaction-rendered", () => AssertRenderedState(pageId));
+                    if (pageId == "themes")
+                        RunCase("themes-scoped-typography-rendered", CheckThemeTypographyState);
                     AdvanceToNextPageOrFinish();
                     return;
                 }
@@ -214,6 +219,47 @@ namespace InsightCanvas
                 Require(overlay.EntryCount > mapOverlayBaseline,
                     "map-linked action did not register an owner-scoped overlay");
             }
+        }
+
+        private void CheckOverviewTypography()
+        {
+            InsightUiLabel title = FindElement(window.Document.Root, "showcase-title") as InsightUiLabel;
+            InsightUiLabel subtitle = FindElement(window.Document.Root, "showcase-subtitle") as InsightUiLabel;
+            InsightUiBadge heroBadge = FindElement(window.Document.Root, "overview-badge") as InsightUiBadge;
+            InsightUiBadge layoutBadge = FindElement(window.Document.Root, "overview-layout-badge") as InsightUiBadge;
+            Require(title != null && subtitle != null && heroBadge != null && layoutBadge != null,
+                "overview typography or badge elements were not composed through the public API");
+            Require(title.MeasuredSize.Height > subtitle.MeasuredSize.Height && title.LayoutRect.Height > 0f,
+                "overview title and subtitle did not retain distinct measured typography geometry");
+            Require(heroBadge.MeasuredSize.Height >= 22f && layoutBadge.MeasuredSize.Height >= 22f &&
+                heroBadge.LayoutRect.Width + 0.01f >= heroBadge.MeasuredSize.Width &&
+                layoutBadge.LayoutRect.Width + 0.01f >= layoutBadge.MeasuredSize.Width,
+                "overview badge allocation was smaller than its measured caption content");
+        }
+
+        private void CheckFoundationsTypography()
+        {
+            InsightUiLabel title = FindElement(window.Document.Root, "foundation-title") as InsightUiLabel;
+            InsightUiLabel body = FindElement(window.Document.Root, "foundation-body") as InsightUiLabel;
+            InsightUiBadge badge = FindElement(window.Document.Root, "foundation-ready") as InsightUiBadge;
+            Require(title != null && body != null && badge != null,
+                "foundations typography sample was not rendered through the public API");
+            Require(title.MeasuredSize.Height > body.MeasuredSize.Height && badge.MeasuredSize.Height >= 22f &&
+                badge.LayoutRect.Width + 0.01f >= badge.MeasuredSize.Width,
+                "foundations typography hierarchy or badge geometry was inconsistent");
+        }
+
+        private void CheckThemeTypographyState()
+        {
+            Require(window.Document.Density == InsightUiDensity.Compact && window.Document.HighContrast &&
+                window.Document.ReducedMotion, "theme page did not retain its live accessibility and density state");
+            InsightUiLabel status = FindElement(window.Document.Root, "themes-status") as InsightUiLabel;
+            Require(status != null && status.MeasuredSize.Height > 0f && status.LayoutRect.Height > 0f,
+                "theme variant status text did not receive a rendered layout slot");
+            InsightUiDocument isolated = new InsightUiDocument("autotest-theme-isolation", InsightUi.Empty("root"));
+            Require(isolated.Density == InsightUiDensity.Normal && !isolated.HighContrast && !isolated.ReducedMotion &&
+                isolated.Theme.Selected.Equals(InsightTheme.Default.Selected),
+                "showcase theme or density settings leaked into a second document");
         }
 
         private void ExercisePage(string pageId)
