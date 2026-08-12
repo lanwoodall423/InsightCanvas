@@ -142,7 +142,7 @@ Each `InsightUiDocument` owns an `InsightUiFocusState`. Stock buttons, toggles, 
 
 ## Themes and accessibility
 
-`InsightTheme.Default` is a warm-charcoal RimWorld+ palette with neutral text, muted accents, shallow elevation, and readable spacing. `Surface` honors background, elevation/shadow, border color/width, clipping, and theme typography multipliers. RimWorld's box drawing remains square because rounded corners are not a cheap, portable IMGUI primitive; `CornerRadius` is retained as a theme/style token for capable custom painters rather than silently creating per-frame textures. `PanelTexturePath` and `BorderTexturePath` remain resource hints for custom painters; the default adapter uses code-drawn surfaces and does not allocate textures per repaint. Clone it before changing tokens:
+`InsightTheme.Default` is a warm-charcoal RimWorld+ palette with neutral text, muted accents, shallow elevation, readable spacing, and a restrained 4 px corner radius. `Surface` honors background, elevation/shadow, border color/width, corner radius, clipping, and theme typography multipliers. A style-specific non-negative `CornerRadius` overrides the document theme; zero is square, and negative values inherit the theme. The stock adapter quantizes radii to a fixed 0/2/4/6/8 px mask set, so rounded fills, borders, and elevated shadows share one bounded, repaint-safe geometry cache. `PanelTexturePath` and `BorderTexturePath` remain resource hints for custom painters because routing arbitrary resource loading through the stock adapter would add unnecessary complexity. Clone it before changing tokens:
 
 ```csharp
 InsightTheme scoped = InsightTheme.Default.Clone();

@@ -185,7 +185,24 @@ namespace InsightCanvas
                         InsightUi.Row("foundation-icon-row").SetGap(8f).Add(
                             InsightUi.Icon("foundation-icon", InsightUiIcon.FromText("◈").WithTooltip("Text fallback icon")),
                             InsightUi.Image("foundation-image", null, 28f, 28f, "IMG")))));
-                column.Add(type, InsightUi.Divider("foundation-divider"), colors, primitives);
+                InsightUiSurface themeRadius = InsightUi.Surface("foundation-theme-radius", InsightUi.Column("foundation-theme-radius-body").SetGap(4f).Add(
+                    InsightUi.Label("foundation-theme-radius-title", "Theme radius", InsightUiTextStyle.Heading),
+                    InsightUi.Label("foundation-theme-radius-copy", "Uses the document theme corner radius.", InsightUiTextStyle.Caption)));
+                themeRadius.SetCornerRadius(-1f);
+                themeRadius.Style.Elevated = false;
+                InsightUiSurface rounded = InsightUi.Surface("foundation-rounded-radius", InsightUi.Column("foundation-rounded-radius-body").SetGap(4f).Add(
+                    InsightUi.Label("foundation-rounded-radius-title", "Rounded override", InsightUiTextStyle.Heading),
+                    InsightUi.Label("foundation-rounded-radius-copy", "An explicit 8 px radius.", InsightUiTextStyle.Caption)));
+                rounded.SetCornerRadius(8f);
+                InsightUiSurface square = InsightUi.Surface("foundation-square-radius", InsightUi.Column("foundation-square-radius-body").SetGap(4f).Add(
+                    InsightUi.Label("foundation-square-radius-title", "Square override", InsightUiTextStyle.Heading),
+                    InsightUi.Label("foundation-square-radius-copy", "An explicit zero radius.", InsightUiTextStyle.Caption)));
+                square.SetCornerRadius(0f);
+                square.Style.Elevated = false;
+                InsightUiGrid radiusExamples = InsightUi.Grid("foundation-radius-examples", 190f).Add(themeRadius, rounded, square);
+                column.Add(type, InsightUi.Divider("foundation-divider"), colors, primitives,
+                    InsightUi.Label("foundation-radius-note", "Surfaces share one restrained radius contract: theme fallback, element override, or square.", InsightUiTextStyle.Caption),
+                    radiusExamples);
                 return column;
             }
 
@@ -371,7 +388,8 @@ namespace InsightCanvas
             {
                 InsightUiStack column = InsightUi.Column("themes-content").SetGap(10f);
                 themeStatus = InsightUi.Label("themes-status", string.Empty, InsightUiTextStyle.Caption)
-                    .SetTextProvider(() => themeName + " · " + Document.Density + " density · " + (Document.HighContrast ? "high contrast" : "standard contrast"));
+                    .SetTextProvider(() => themeName + " · radius " + Document.Theme.CornerRadius.ToString("0.#") + " · " +
+                        Document.Density + " density · " + (Document.HighContrast ? "high contrast" : "standard contrast"));
                 InsightUiStack themeButtons = InsightUi.Row("themes-buttons").SetGap(7f);
                 themeButtons.Add(InsightUi.Button("themes-rimworld", "RimWorld+", () => ApplyTheme("RimWorld+")),
                     InsightUi.Button("themes-field", "Field Notes", () => ApplyTheme("Field Notes")),
@@ -542,6 +560,7 @@ namespace InsightCanvas
                     theme.Surface = new InsightColor(0.19f, 0.18f, 0.14f);
                     theme.ElevatedSurface = new InsightColor(0.24f, 0.22f, 0.16f);
                     theme.Selected = new InsightColor(0.72f, 0.52f, 0.22f);
+                    theme.CornerRadius = 6f;
                 }
                 else if (name == "Night Watch")
                 {
@@ -549,6 +568,7 @@ namespace InsightCanvas
                     theme.Surface = new InsightColor(0.10f, 0.13f, 0.17f);
                     theme.ElevatedSurface = new InsightColor(0.14f, 0.18f, 0.23f);
                     theme.Selected = new InsightColor(0.30f, 0.62f, 0.72f);
+                    theme.CornerRadius = 2f;
                 }
                 Document.Theme = theme;
                 themeName = name;

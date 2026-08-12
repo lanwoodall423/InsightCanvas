@@ -103,7 +103,7 @@ InsightUiSelect density = InsightUi.Select("density", "Density",
 
 The getter is authoritative on later frames, so external changes are reflected without a second synchronized copy. Use `InsightUi.Scope("audio", child)` when a reusable component needs an identity prefix.
 
-Themes are document-scoped. Clone a token set, change only what the screen needs, and assign it to that document:
+Themes are document-scoped. Clone a token set, change only what the screen needs, and assign it to that document. Surfaces, cards, buttons, badges, popovers, dropdown panels, toasts, and other stock surface-based components use the theme corner radius automatically; call `SetCornerRadius(0f)` for a square element or a non-negative value for an explicit override. The RimWorld adapter uses a bounded 0/2/4/6/8 px geometry cache for rounded fills, borders, and restrained elevated shadows.
 
 ```csharp
 InsightTheme theme = InsightTheme.Default.Clone();

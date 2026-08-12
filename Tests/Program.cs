@@ -13,6 +13,7 @@ internal static class Program
             ModelClear();
             LayoutMath();
             TypographyGeometry();
+            SurfaceRadiusPolicy();
             ComposableLayout();
             UiStateIsolation();
             ConsumerApiFoundations();
@@ -175,6 +176,34 @@ internal static class Program
             painter.LastTextRect.Right <= badge.LayoutRect.Right + 0.01f &&
             painter.LastTextRect.Bottom <= badge.LayoutRect.Bottom + 0.01f,
             "badge caption was painted outside its measured content slot");
+    }
+
+    private static void SurfaceRadiusPolicy()
+    {
+        InsightTheme theme = InsightTheme.Default.Clone();
+        InsightUiStyle inherited = new InsightUiStyle();
+        Assert(InsightUiSurfaceMath.ResolveCornerRadius(inherited, theme) == 4f,
+            "surface style did not inherit the default theme radius");
+
+        theme.CornerRadius = 6f;
+        Assert(InsightUiSurfaceMath.ResolveCornerRadius(inherited, theme) == 6f,
+            "surface style did not inherit a scoped theme radius");
+
+        inherited.CornerRadius = 8f;
+        Assert(InsightUiSurfaceMath.ResolveCornerRadius(inherited, theme) == 8f,
+            "explicit element radius did not take precedence over the theme");
+
+        inherited.CornerRadius = 0f;
+        Assert(InsightUiSurfaceMath.ResolveCornerRadius(inherited, theme) == 0f,
+            "explicit square radius did not override the theme");
+
+        Assert(InsightUiSurfaceMath.QuantizeCornerRadius(1f) == 0f &&
+            InsightUiSurfaceMath.QuantizeCornerRadius(3f) == 2f &&
+            InsightUiSurfaceMath.QuantizeCornerRadius(5f) == 4f &&
+            InsightUiSurfaceMath.QuantizeCornerRadius(7f) == 6f &&
+            InsightUiSurfaceMath.QuantizeCornerRadius(99f) == 8f &&
+            InsightUiSurfaceMath.RoundedRadiusBucketCount == 5,
+            "surface radius quantization exceeded its fixed cache policy");
     }
 
     private static void ModelClear()

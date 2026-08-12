@@ -242,11 +242,18 @@ namespace InsightCanvas
             InsightUiLabel title = FindElement(window.Document.Root, "foundation-title") as InsightUiLabel;
             InsightUiLabel body = FindElement(window.Document.Root, "foundation-body") as InsightUiLabel;
             InsightUiBadge badge = FindElement(window.Document.Root, "foundation-ready") as InsightUiBadge;
-            Require(title != null && body != null && badge != null,
+            InsightUiSurface themeRadius = FindElement(window.Document.Root, "foundation-theme-radius") as InsightUiSurface;
+            InsightUiSurface roundedRadius = FindElement(window.Document.Root, "foundation-rounded-radius") as InsightUiSurface;
+            InsightUiSurface squareRadius = FindElement(window.Document.Root, "foundation-square-radius") as InsightUiSurface;
+            Require(title != null && body != null && badge != null && themeRadius != null &&
+                roundedRadius != null && squareRadius != null,
                 "foundations typography sample was not rendered through the public API");
             Require(title.MeasuredSize.Height > body.MeasuredSize.Height && badge.MeasuredSize.Height >= 22f &&
                 badge.LayoutRect.Width + 0.01f >= badge.MeasuredSize.Width,
                 "foundations typography hierarchy or badge geometry was inconsistent");
+            Require(themeRadius.Style.CornerRadius < 0f && roundedRadius.Style.CornerRadius == 8f &&
+                squareRadius.Style.CornerRadius == 0f,
+                "foundations surface radius precedence examples were not configured");
         }
 
         private void CheckThemeTypographyState()
@@ -256,6 +263,8 @@ namespace InsightCanvas
             InsightUiLabel status = FindElement(window.Document.Root, "themes-status") as InsightUiLabel;
             Require(status != null && status.MeasuredSize.Height > 0f && status.LayoutRect.Height > 0f,
                 "theme variant status text did not receive a rendered layout slot");
+            Require(window.Document.Theme.CornerRadius == 6f || window.Document.Theme.CornerRadius == 2f,
+                "theme showcase did not apply a distinct corner-radius token");
             InsightUiDocument isolated = new InsightUiDocument("autotest-theme-isolation", InsightUi.Empty("root"));
             Require(isolated.Density == InsightUiDensity.Normal && !isolated.HighContrast && !isolated.ReducedMotion &&
                 isolated.Theme.Selected.Equals(InsightTheme.Default.Selected),

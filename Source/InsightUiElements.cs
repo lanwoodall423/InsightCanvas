@@ -93,6 +93,13 @@ namespace InsightCanvas
             return this;
         }
 
+        /// <summary>Sets an element-specific radius; negative values restore the theme fallback and zero is square.</summary>
+        public InsightUiElement SetCornerRadius(float radius)
+        {
+            Style.CornerRadius = float.IsNaN(radius) ? -1f : radius < 0f ? -1f : radius;
+            return this;
+        }
+
         public InsightUiElement SetClip(bool clip = true)
         {
             Style.Clip = clip;
@@ -334,6 +341,7 @@ namespace InsightCanvas
             base.SetBorder(color, width);
             return this;
         }
+        public new InsightUiStack SetCornerRadius(float radius) { base.SetCornerRadius(radius); return this; }
         public new InsightUiStack SetClip(bool clip = true) { base.SetClip(clip); return this; }
         public new InsightUiStack SetTooltip(string tooltip) { base.SetTooltip(tooltip); return this; }
         public new InsightUiStack SetAlignment(InsightAlignment horizontal, InsightAlignment vertical)

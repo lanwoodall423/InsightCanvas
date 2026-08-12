@@ -595,6 +595,12 @@
         <member name="T:InsightCanvas.InsightUiStyle">
             <summary>Shared layout and visual tokens for one composable element.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiStyle.CornerRadius">
+            <summary>Optional element corner radius in pixels; negative inherits the document theme and zero is square.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSurfaceMath">
+            <summary>Deterministic surface-radius policy shared by portable layout tests and the RimWorld painter.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiStateStore">
             <summary>Per-document state store. It is deliberately instance-owned, never global.</summary>
         </member>
@@ -720,6 +726,9 @@
         </member>
         <member name="T:InsightCanvas.InsightUiElement">
             <summary>Base class for composable, measure/arrange/paint UI elements.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiElement.SetCornerRadius(System.Single)">
+            <summary>Sets an element-specific radius; negative values restore the theme fallback and zero is square.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUi">
             <summary>Convenient factory methods for the public composable API.</summary>

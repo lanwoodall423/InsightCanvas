@@ -333,6 +333,7 @@ namespace InsightCanvas
         public InsightColor? Background { get; set; }
         public InsightColor? Border { get; set; }
         public float BorderWidth { get; set; } = 1f;
+        /// <summary>Optional element corner radius in pixels; negative inherits the document theme and zero is square.</summary>
         public float CornerRadius { get; set; } = -1f;
         public bool Elevated { get; set; }
         public bool Clip { get; set; }
@@ -370,6 +371,29 @@ namespace InsightCanvas
             if (maxWidth < minWidth) maxWidth = minWidth;
             if (maxHeight < minHeight) maxHeight = minHeight;
             return new InsightUiConstraints(minWidth, maxWidth, minHeight, maxHeight).Constrain(size);
+        }
+    }
+
+    /// <summary>Deterministic surface-radius policy shared by portable layout tests and the RimWorld painter.</summary>
+    internal static class InsightUiSurfaceMath
+    {
+        internal const int RoundedRadiusBucketCount = 5;
+        internal const float MaximumRoundedRadius = 8f;
+
+        internal static float ResolveCornerRadius(InsightUiStyle style, InsightTheme theme)
+        {
+            float requested = style != null && style.CornerRadius >= 0f
+                ? style.CornerRadius : theme == null ? 0f : theme.CornerRadius;
+            return QuantizeCornerRadius(requested);
+        }
+
+        internal static float QuantizeCornerRadius(float radius)
+        {
+            if (float.IsNaN(radius) || radius <= 1f) return 0f;
+            if (radius <= 3f) return 2f;
+            if (radius <= 5f) return 4f;
+            if (radius <= 7f) return 6f;
+            return MaximumRoundedRadius;
         }
     }
 

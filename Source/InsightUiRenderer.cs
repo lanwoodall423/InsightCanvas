@@ -78,6 +78,8 @@ namespace InsightCanvas
     public sealed class RimWorldInsightUiPainter : IInsightUiPainter, IInsightUiCustomPainter,
         IInsightUiIconPainter, IInsightUiFocusPainter, IInsightUiDragPainter
     {
+        internal const int RoundedSurfaceCacheCapacity = InsightUiSurfaceMath.RoundedRadiusBucketCount;
+        private static readonly Texture2D[] roundedSurfaceMasks = new Texture2D[RoundedSurfaceCacheCapacity];
         private readonly Stack<Vector2> origins = new Stack<Vector2>();
         private readonly GUIStyle[] textStyles = new GUIStyle[6];
         private readonly int[] textStyleSizes = new int[6];
@@ -126,22 +128,146 @@ namespace InsightCanvas
         public void Surface(InsightRect rect, InsightUiStyle style, InsightUiFrame frame)
         {
             InsightColor fill = style.Background ?? (style.Elevated ? frame.Theme.ElevatedSurface : frame.Theme.Surface);
-            if (style.Elevated && frame.Theme.Shadow.A > 0.001f)
-                Widgets.DrawBoxSolid(ToRect(new InsightRect(rect.X + 2f, rect.Y + 3f, rect.Width, rect.Height)),
-                    InsightDraw.Color(frame.ApplyOpacity(frame.Theme.Shadow)));
-            Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(frame.ApplyOpacity(fill)));
             InsightColor border = style.Border ?? frame.Theme.SecondaryText.WithAlpha(0.38f);
             float width = style.BorderWidth <= 0f ? 0f : Math.Max(1f, style.BorderWidth);
-            if (width > 0f)
+            float radius = InsightUiSurfaceMath.ResolveCornerRadius(style, frame.Theme);
+            Color previous = GUI.color;
+            try
             {
-                Color previous = GUI.color;
-                try
+                if (style.Elevated && frame.Theme.Shadow.A > 0.001f)
                 {
-                    GUI.color = InsightDraw.Color(frame.ApplyOpacity(border));
-                    Widgets.DrawBox(ToRect(rect), Mathf.Clamp(Mathf.RoundToInt(width), 1, 8));
+                    DrawSurfaceShape(new InsightRect(rect.X + 2f, rect.Y + 3f, rect.Width, rect.Height),
+                        radius, frame.ApplyOpacity(frame.Theme.Shadow));
                 }
-                finally { GUI.color = previous; }
+                if (radius <= 0.01f)
+                {
+                    Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(frame.ApplyOpacity(fill)));
+                    if (width > 0f)
+                    {
+                        GUI.color = InsightDraw.Color(frame.ApplyOpacity(border));
+                        Widgets.DrawBox(ToRect(rect), Mathf.Clamp(Mathf.RoundToInt(width), 1, 8));
+                    }
+                    return;
+                }
+
+                if (width > 0f)
+                {
+                    DrawSurfaceShape(rect, radius, frame.ApplyOpacity(border));
+                    float inset = Math.Min(width, Math.Min(rect.Width, rect.Height) * 0.5f);
+                    InsightRect inner = new InsightRect(rect.X + inset, rect.Y + inset,
+                        Math.Max(0f, rect.Width - inset * 2f), Math.Max(0f, rect.Height - inset * 2f));
+                    if (inner.Width > 0.01f && inner.Height > 0.01f)
+                        DrawSurfaceShape(inner, Math.Max(0f, radius - inset), frame.ApplyOpacity(fill));
+                }
+                else DrawSurfaceShape(rect, radius, frame.ApplyOpacity(fill));
             }
+            finally { GUI.color = previous; }
+        }
+
+        private void DrawSurfaceShape(InsightRect rect, float radius, InsightColor color)
+        {
+            radius = InsightUiSurfaceMath.QuantizeCornerRadius(radius);
+            if (radius <= 0.01f)
+            {
+                Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(color));
+                return;
+            }
+
+            Texture2D mask = RoundedSurfaceMask(radius);
+            Color previous = GUI.color;
+            try
+            {
+                GUI.color = InsightDraw.Color(color);
+                DrawNineSlice(ToRect(rect), mask, radius);
+            }
+            finally { GUI.color = previous; }
+        }
+
+        private static Texture2D RoundedSurfaceMask(float radius)
+        {
+            int index = Mathf.Clamp(Mathf.RoundToInt(radius * 0.5f), 0, roundedSurfaceMasks.Length - 1);
+            Texture2D mask = roundedSurfaceMasks[index];
+            if (mask != null) return mask;
+
+            int corner = index * 2;
+            int size = corner * 2 + 1;
+            mask = new Texture2D(size, size, TextureFormat.ARGB32, false)
+            {
+                name = "InsightCanvas Rounded Surface Mask " + corner,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            Color32[] pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    bool onHorizontalCenter = x >= corner && x <= size - 1 - corner;
+                    bool onVerticalCenter = y >= corner && y <= size - 1 - corner;
+                    float alphaValue;
+                    if (onHorizontalCenter || onVerticalCenter)
+                        alphaValue = 1f;
+                    else
+                    {
+                        float nearestX = x < corner ? corner : size - 1 - corner;
+                        float nearestY = y < corner ? corner : size - 1 - corner;
+                        float distance = Mathf.Sqrt((x - nearestX) * (x - nearestX) + (y - nearestY) * (y - nearestY));
+                        alphaValue = Mathf.Clamp01(corner + 0.5f - distance);
+                    }
+                    byte alpha = (byte)Mathf.Clamp(Mathf.RoundToInt(alphaValue * 255f), 0, 255);
+                    pixels[y * size + x] = new Color32(255, 255, 255, alpha);
+                }
+            }
+            mask.SetPixels32(pixels);
+            mask.Apply(false, true);
+            roundedSurfaceMasks[index] = mask;
+            return mask;
+        }
+
+        private static void DrawNineSlice(Rect target, Texture2D texture, float radius)
+        {
+            float corner = Mathf.Min(radius, Mathf.Min(target.width, target.height) * 0.5f);
+            if (corner <= 0.01f)
+            {
+                GUI.DrawTexture(target, texture, ScaleMode.StretchToFill, true);
+                return;
+            }
+
+            float sourceCorner = radius;
+            float sourceSize = sourceCorner * 2f + 1f;
+            float u0 = 0f;
+            float u1 = sourceCorner / sourceSize;
+            float u2 = (sourceCorner + 1f) / sourceSize;
+            float u3 = 1f;
+            float v0 = 0f;
+            float v1 = sourceCorner / sourceSize;
+            float v2 = (sourceCorner + 1f) / sourceSize;
+            float v3 = 1f;
+            float x0 = target.x;
+            float x1 = target.x + corner;
+            float x2 = target.x + target.width - corner;
+            float x3 = target.x + target.width;
+            float y0 = target.y;
+            float y1 = target.y + corner;
+            float y2 = target.y + target.height - corner;
+            float y3 = target.y + target.height;
+
+            DrawTextureSlice(new Rect(x0, y0, corner, corner), texture, new Rect(u0, v0, u1 - u0, v1 - v0));
+            DrawTextureSlice(new Rect(x1, y0, Math.Max(0f, x2 - x1), corner), texture, new Rect(u1, v0, u2 - u1, v1 - v0));
+            DrawTextureSlice(new Rect(x2, y0, corner, corner), texture, new Rect(u2, v0, u3 - u2, v1 - v0));
+            DrawTextureSlice(new Rect(x0, y1, corner, Math.Max(0f, y2 - y1)), texture, new Rect(u0, v1, u1 - u0, v2 - v1));
+            DrawTextureSlice(new Rect(x1, y1, Math.Max(0f, x2 - x1), Math.Max(0f, y2 - y1)), texture, new Rect(u1, v1, u2 - u1, v2 - v1));
+            DrawTextureSlice(new Rect(x2, y1, corner, Math.Max(0f, y2 - y1)), texture, new Rect(u2, v1, u3 - u2, v2 - v1));
+            DrawTextureSlice(new Rect(x0, y2, corner, corner), texture, new Rect(u0, v2, u1 - u0, v3 - v2));
+            DrawTextureSlice(new Rect(x1, y2, Math.Max(0f, x2 - x1), corner), texture, new Rect(u1, v2, u2 - u1, v3 - v2));
+            DrawTextureSlice(new Rect(x2, y2, corner, corner), texture, new Rect(u2, v2, u3 - u2, v3 - v2));
+        }
+
+        private static void DrawTextureSlice(Rect target, Texture2D texture, Rect uv)
+        {
+            if (target.width > 0.01f && target.height > 0.01f)
+                GUI.DrawTextureWithTexCoords(target, texture, uv, true);
         }
 
         public void Text(InsightRect rect, string text, InsightUiTextStyle style, InsightColor? color, bool wrap, InsightUiFrame frame)
