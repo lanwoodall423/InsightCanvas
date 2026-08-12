@@ -16,6 +16,9 @@ internal static class Program
             UiStateIsolation();
             ResponsiveGridAndVirtualization();
             UiThemeScope();
+            ShowcaseNavigationAndResponsiveLayout();
+            ShowcaseSettingsScope();
+            ShowcaseDataDeterminism();
             SelectionPropagation();
             ExplanationCalculation();
             ThemeParsing();
@@ -191,6 +194,58 @@ internal static class Program
         InsightTheme accessible = first.Theme.WithAccessibility(true, InsightColorBlindMode.None);
         Assert(first.Theme.Selected.Equals(new InsightColor(1f, 0f, 0f)) && second.Theme.Selected.Equals(original) &&
             !accessible.PrimaryText.Equals(first.Theme.PrimaryText), "theme overrides were not scoped or transformed");
+    }
+
+    private static void ShowcaseNavigationAndResponsiveLayout()
+    {
+        InsightUiNavigation navigation = InsightUi.Navigation("showcase-navigation", 700f);
+        for (int i = 0; i < 10; i++)
+            navigation.Add("page-" + i, "Page " + i, InsightUi.Surface("page-surface-" + i,
+                InsightUi.Label("page-label-" + i, "Page content " + i)));
+        InsightUiDocument document = new InsightUiDocument("navigation-test", navigation);
+        InsightUiFrame frame = new InsightUiFrame(document.Theme, document.Density, false, false,
+            document.State, document.Diagnostics, 1f / 60f);
+        InsightUiConstraints wide = new InsightUiConstraints(0f, 960f, 0f, 520f);
+        navigation.Measure(wide, frame);
+        navigation.Arrange(new InsightRect(0f, 0f, 960f, 520f), frame);
+        Assert(!navigation.IsCompact && navigation.MeasuredSize.Width > 0f,
+            "showcase navigation did not use its wide side rail");
+
+        navigation.Select("page-7");
+        document.State.SetString("showcase-navigation.active", "page-7");
+        frame = new InsightUiFrame(document.Theme, document.Density, false, false,
+            document.State, document.Diagnostics, 1f / 60f);
+        InsightUiConstraints narrow = new InsightUiConstraints(0f, 480f, 0f, 520f);
+        navigation.Measure(narrow, frame);
+        navigation.Arrange(new InsightRect(0f, 0f, 480f, 520f), frame);
+        Assert(navigation.IsCompact && navigation.ActivePageId == "page-7",
+            "showcase navigation did not switch to compact mode or preserve selection");
+    }
+
+    private static void ShowcaseSettingsScope()
+    {
+        InsightUiDocument first = new InsightUiDocument("showcase-first", InsightUi.Empty("first-root"));
+        InsightUiDocument second = new InsightUiDocument("showcase-second", InsightUi.Empty("second-root"));
+        first.Density = InsightUiDensity.Compact;
+        first.HighContrast = true;
+        first.ReducedMotion = true;
+        first.State.SetString("showcase-navigation.active", "diagnostics");
+        Assert(second.Density == InsightUiDensity.Normal && !second.HighContrast && !second.ReducedMotion &&
+            second.State.GetString("showcase-navigation.active", string.Empty) == string.Empty,
+            "showcase settings leaked between documents");
+    }
+
+    private static void ShowcaseDataDeterminism()
+    {
+        IReadOnlyList<InsightShowcaseRecord> first = InsightFeatureShowcaseData.CreateRecords();
+        IReadOnlyList<InsightShowcaseRecord> second = InsightFeatureShowcaseData.CreateRecords();
+        Assert(first.Count == 64 && second.Count == first.Count, "showcase demo data count changed");
+        for (int i = 0; i < first.Count; i++)
+            Assert(first[i].Id == second[i].Id && first[i].Name == second[i].Name &&
+                first[i].Group == second[i].Group && Math.Abs(first[i].Score - second[i].Score) < 0.0001f,
+                "showcase demo data was not deterministic at record " + i);
+        Assert(first[0].Matches("habitat") && !first[0].Matches("does-not-exist"),
+            "showcase demo record filtering was incorrect");
     }
 
     private static void SelectionPropagation()

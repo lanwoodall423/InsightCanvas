@@ -6,8 +6,8 @@
     <members>
         <member name="T:InsightCanvas.InsightCanvasAutoTestComponent">
             <summary>
-            Runs a small installed-mod smoke test when DevBridge2 launches RimWorld with -quicktest.
-            The component is inert during normal launches because DEVBRIDGE_ROOT is not present.
+            Runs the installed-mod acceptance suite inside RimWorld. It is inert during ordinary launches because all
+            three DevBridge2 quicktest environment values are required before the component can start.
             </summary>
         </member>
         <member name="T:InsightCanvas.InsightCanvasHost">
@@ -30,9 +30,6 @@
         </member>
         <member name="M:InsightCanvas.InsightCanvasMod.OpenFeatureShowcase">
             <summary>Opens the opt-in general-purpose UI feature gallery.</summary>
-        </member>
-        <member name="M:InsightCanvas.InsightCanvasMod.OpenLaboratory">
-            <summary>Opens the independent workbench using its deterministic mock dataset.</summary>
         </member>
         <member name="T:InsightCanvas.InsightCardGrid">
             <summary>Responsive, virtualized entity card overview.</summary>
@@ -116,9 +113,12 @@
         </member>
         <member name="T:InsightCanvas.InsightFeatureShowcase">
             <summary>
-            A small, interactive gallery for the general-purpose UI layer. This is deliberately
-            a consumer of the public composable API rather than a special renderer feature.
+            The installed, public-API-only demonstration application for Insight Canvas.
+            Every page is composed from InsightUi elements so it also serves as an integration reference.
             </summary>
+        </member>
+        <member name="T:InsightCanvas.InsightShowcaseRecord">
+            <summary>Portable deterministic records shared by the showcase and its regression checks.</summary>
         </member>
         <member name="T:InsightCanvas.InsightGraphFit">
             <summary>Viewport transform calculated by the graph's Fit All action.</summary>
@@ -140,18 +140,6 @@
         </member>
         <member name="M:InsightCanvas.InsightGraphLayout.Compute(InsightCanvas.InsightModelSnapshot,System.Single,System.Single,System.Int32,System.Int32,System.Int32)">
             <summary>Computes a layout over only the requested active node and edge budgets.</summary>
-        </member>
-        <member name="T:InsightCanvas.InsightLaboratory">
-            <summary>Deterministic mock application used as the installed mod's first-release workbench.</summary>
-        </member>
-        <member name="M:InsightCanvas.InsightLaboratory.CreateDemoModel">
-            <summary>Builds a stable ecology and lineage dataset without querying a map during repaint.</summary>
-        </member>
-        <member name="M:InsightCanvas.InsightLaboratory.CreateStressModel(System.Int32,System.Int32)">
-            <summary>Creates a bounded deterministic dataset for graph and timeline stress checks.</summary>
-        </member>
-        <member name="T:InsightCanvas.InsightLaboratoryToolsWindow">
-            <summary>Secondary laboratory inspector for theme, layout, accessibility, and stress previews.</summary>
         </member>
         <member name="T:InsightCanvas.InsightRect">
             <summary>Unity-free rectangle used by the retained layout layer.</summary>
@@ -227,6 +215,9 @@
         </member>
         <member name="T:InsightCanvas.InsightMapOverlayComponent">
             <summary>Map-draw extension point used only for temporary Insight Canvas previews.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightMapOverlayComponent.EntryCount">
+            <summary>Number of transient entries currently owned by this map.</summary>
         </member>
         <member name="T:InsightCanvas.InsightPoint">
             <summary>A small, Unity-free point used by layout providers.</summary>
@@ -391,6 +382,15 @@
         <member name="M:InsightCanvas.InsightModelSerialization.DeserializeWithDiagnostics(System.String)">
             <summary>Reads schema 2 or the prior unversioned format without reconstructing runtime objects.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightShowcaseData">
+            <summary>Optional deterministic semantic dataset used by the Feature Showcase advanced-widget page.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightShowcaseData.CreateDemoModel">
+            <summary>Builds a stable ecology and lineage dataset without querying a map during repaint.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightShowcaseData.CreateStressModel(System.Int32,System.Int32)">
+            <summary>Creates a bounded deterministic dataset for graph and timeline stress checks.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightColor">
             <summary>Engine-independent RGBA token used by themes and test fixtures.</summary>
         </member>
@@ -425,7 +425,7 @@
             <summary>Hints used by the stock view to coordinate a responsive component arrangement.</summary>
         </member>
         <member name="T:InsightCanvas.InsightDiagnostics">
-            <summary>Per-frame counters exposed by the laboratory and available to integrations.</summary>
+            <summary>Per-frame counters exposed by the optional semantic views and available to integrations.</summary>
         </member>
         <member name="T:InsightCanvas.InsightRenderContext">
             <summary>Services passed to components without exposing their Unity renderer implementation.</summary>
@@ -487,6 +487,9 @@
         <member name="T:InsightCanvas.InsightUiDocument">
             <summary>Reusable document that can be embedded in a host Rect or placed in a Window.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiElementExtensions">
+            <summary>Fluent composition helpers that keep base-style setters chainable.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiElement">
             <summary>Base class for composable, measure/arrange/paint UI elements.</summary>
         </member>
@@ -526,6 +529,12 @@
         <member name="T:InsightCanvas.InsightUiTextField">
             <summary>Stateful text field.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiSelect">
+            <summary>Compact cycling selector for small deterministic option sets.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiExpander">
+            <summary>Stateful disclosure section backed by the document state store.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiDivider">
             <summary>One-pixel visual separator.</summary>
         </member>
@@ -547,6 +556,9 @@
         <member name="T:InsightCanvas.InsightUiTabs">
             <summary>Stateful tab strip whose content remains an ordinary composable element.</summary>
         </member>
+        <member name="T:InsightCanvas.InsightUiNavigation">
+            <summary>Responsive page navigation: side rail when wide, wrapped compact bar when narrow.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightVirtualizedRange">
             <summary>Visible item range used by virtualized list implementations.</summary>
         </member>
@@ -558,6 +570,9 @@
         </member>
         <member name="T:InsightCanvas.InsightUiHost">
             <summary>Embeds a general-purpose Insight UI document in a caller-owned Rect.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiHost.RunWithOverlayOwnership(System.Action)">
+            <summary>Runs an interaction with the same owner scope used during drawing.</summary>
         </member>
         <member name="T:InsightCanvas.InsightUiWindow">
             <summary>Window shell for documents built from the same composable API as embedded views.</summary>

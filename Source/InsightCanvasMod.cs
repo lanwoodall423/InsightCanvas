@@ -74,17 +74,6 @@ namespace InsightCanvas
             Find.WindowStack.Add(InsightFeatureShowcase.CreateWindow());
         }
 
-        /// <summary>Opens the independent workbench using its deterministic mock dataset.</summary>
-        public static void OpenLaboratory()
-        {
-            if (Find.WindowStack == null) return;
-            Find.WindowStack.Add(InsightLaboratory.CreateWindow());
-        }
-
-        [DebugAction("Insight Canvas", "Open Laboratory", actionType = DebugActionType.Action,
-            allowedGameStates = AllowedGameStates.Playing)]
-        public static void OpenLaboratoryDebugAction() => OpenLaboratory();
-
         [DebugAction("Insight Canvas", "Open Feature Showcase", actionType = DebugActionType.Action,
             allowedGameStates = AllowedGameStates.Playing)]
         public static void OpenFeatureShowcaseDebugAction() => OpenFeatureShowcase();

@@ -21,5 +21,6 @@
     <Compile Include="..\Source\InsightMotion.cs" Link="InsightMotion.cs" />
     <Compile Include="..\Source\InsightUiCore.cs" Link="InsightUiCore.cs" />
     <Compile Include="..\Source\InsightUiElements.cs" Link="InsightUiElements.cs" />
+    <Compile Include="..\Source\InsightFeatureShowcaseData.cs" Link="InsightFeatureShowcaseData.cs" />
   </ItemGroup>
 </Project>

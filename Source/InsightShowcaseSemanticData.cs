@@ -6,33 +6,13 @@ using Verse;
 
 namespace InsightCanvas
 {
-    /// <summary>Deterministic mock application used as the installed mod's first-release workbench.</summary>
-    public static class InsightLaboratory
+    /// <summary>Optional deterministic semantic dataset used by the Feature Showcase advanced-widget page.</summary>
+    public static class InsightShowcaseData
     {
-        public static InsightWindow CreateWindow()
-        {
-            InsightModel model = CreateDemoModel();
-            TieredDisclosureProvider disclosure = new TieredDisclosureProvider(new[]
-            {
-                new InsightDisclosure(0, "Unknown", false, false, false, false, false, 0.05f),
-                new InsightDisclosure(1, "Observed", true, false, false, false, false, 0.45f),
-                new InsightDisclosure(2, "Familiar", true, false, false, true, false, 0.68f),
-                new InsightDisclosure(3, "Studied", true, true, true, true, false, 0.88f),
-                new InsightDisclosure(4, "Mastered", true, true, true, true, true, 0.98f)
-            }, InsightCanvasMod.Settings?.DisclosurePreview ?? 2);
-            InsightContext context = new InsightContext(disclosure);
-            InsightView view = InsightView.Create()
-                .Add(new InsightCardGrid())
-                .Add(new InsightConstellation())
-                .Add(new InsightExplanationPanel())
-                .Add(new InsightEventRiver());
-            return new InsightWindow(model, view, context);
-        }
-
         /// <summary>Builds a stable ecology and lineage dataset without querying a map during repaint.</summary>
         public static InsightModel CreateDemoModel()
         {
-            InsightModel model = InsightModel.Create("Insight Canvas Laboratory");
+            InsightModel model = InsightModel.Create("Feature Showcase Semantic Data");
             InsightEntity river = new InsightEntity("habitat:river", "Ashwater River", "A cold, fast freshwater habitat", "Habitat",
                 badges: new[] { "freshwater", "seasonal" }, manualPosition: new InsightPoint(420f, 160f));
             InsightEntity trout = new InsightEntity("species:trout", "Silver Trout", "Migratory fish", "Species",
@@ -136,8 +116,8 @@ namespace InsightCanvas
             {
                 IntVec3 center = Find.CurrentMap.Center;
                 InsightMapReference reference = InsightMapBridge.ForCell(Find.CurrentMap, center);
-                InsightMapBridge.Focus("laboratory-focus", reference).Invoke();
-                InsightMapBridge.Flash("laboratory-flash", reference).Invoke();
+                InsightMapBridge.Focus("showcase-focus", reference).Invoke();
+                InsightMapBridge.Flash("showcase-flash", reference).Invoke();
                 Messages.Message("Insight Canvas: previewing " + label + " near the current map center.", MessageTypeDefOf.NeutralEvent, false);
             }
             else Messages.Message("Insight Canvas: mock map link for " + label + " (open a map to focus a real target).", MessageTypeDefOf.NeutralEvent, false);

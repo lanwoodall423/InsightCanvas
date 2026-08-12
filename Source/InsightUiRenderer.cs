@@ -25,6 +25,13 @@ namespace InsightCanvas
                 InsightUiRenderer.Draw(rect, Document, deltaTime);
         }
 
+        /// <summary>Runs an interaction with the same owner scope used during drawing.</summary>
+        public void RunWithOverlayOwnership(Action action)
+        {
+            if (action == null) return;
+            using (InsightMapBridge.BeginOwner(overlayOwnerToken)) action();
+        }
+
         public void PostClose()
         {
             InsightMapBridge.ClearOwnerToken(overlayOwnerToken);

@@ -287,6 +287,9 @@ namespace InsightCanvas
 
         public InsightMapOverlayComponent(Map map) : base(map) { }
 
+        /// <summary>Number of transient entries currently owned by this map.</summary>
+        public int EntryCount => entries.Count;
+
         internal void Add(InsightOverlayEntry entry) => entries.Add(entry);
         internal void Clear() => entries.Clear();
         internal void ClearOwner(object ownerToken) => InsightOverlayOwnership.ClearOwner(entries, ownerToken,

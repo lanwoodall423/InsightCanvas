@@ -2,7 +2,7 @@
 
 Insight Canvas is a RimWorld 1.6 opt-in UI framework and design system for mod authors. It provides composable rows, columns, adaptive grids, split panes, scroll regions, stateful controls, scoped themes, virtualization, and a conventional Window shell without globally changing vanilla or third-party UI.
 
-The installed mod is useful on its own. Open **Mod settings > Insight Canvas > Open Feature Showcase**, or use the development-mode **Insight Canvas > Open Feature Showcase** action. The showcase demonstrates responsive layout, stable document state, controls, virtualization, scoped themes, density, and accessibility. The earlier semantic Laboratory remains an optional advanced extension for graph, explanation, event, and map-link consumers.
+The installed mod is useful on its own. Open **Mod settings > Insight Canvas > Open Feature Showcase**, or use the development-mode **Insight Canvas > Open Feature Showcase** action. The showcase demonstrates ten public-API pages: Overview, Foundations, Layout, Controls, Navigation and Workspaces, Data Display, Motion and Feedback, Themes and Accessibility, Advanced Widgets, and Diagnostics. Graph, explanation, event, and map-link capabilities remain optional advanced extensions.
 
 The assembly has no Harmony dependency and never mutates the global GUI skin. It uses ordinary RimWorld windows, `WindowStack`, debug actions, and a caller-owned `Rect` embedding entry point. Code-drawn visuals are the default so the framework remains usable without external art; optional theme texture paths remain available to advanced extensions.
 

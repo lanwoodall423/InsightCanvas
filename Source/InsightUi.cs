@@ -17,7 +17,7 @@ namespace InsightCanvas
         Timeline
     }
 
-    /// <summary>Per-frame counters exposed by the laboratory and available to integrations.</summary>
+    /// <summary>Per-frame counters exposed by the optional semantic views and available to integrations.</summary>
     public sealed class InsightDiagnostics
     {
         private readonly Stopwatch frameTimer = new Stopwatch();

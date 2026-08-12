@@ -105,9 +105,6 @@ namespace InsightCanvas
             float selectionWidth = Mathf.Max(0f, disclosureLayout.X - selectionX - 8f);
             Widgets.Label(new Rect(selectionX, header.y + 8f, selectionWidth, 24f), selection);
             DrawDisclosureControls(new Rect(disclosureLayout.X, disclosureLayout.Y, disclosureLayout.Width, disclosureLayout.Height));
-            InsightRect toolsLayout = InsightHeaderLayout.ToolsButton(headerLayout);
-            if (model.Id == "Insight Canvas Laboratory" && Widgets.ButtonText(new Rect(toolsLayout.X, toolsLayout.Y, toolsLayout.Width, toolsLayout.Height), "InsightCanvas_Tools".Translate()))
-                Find.WindowStack.Add(new InsightLaboratoryToolsWindow(this));
             InsightRect resetLayout = InsightHeaderLayout.ResetButton(headerLayout);
             if (Widgets.ButtonText(new Rect(resetLayout.X, resetLayout.Y, resetLayout.Width, resetLayout.Height), "InsightCanvas_Reset".Translate()))
             {

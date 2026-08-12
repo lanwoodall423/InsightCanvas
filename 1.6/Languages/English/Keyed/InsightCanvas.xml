@@ -8,7 +8,6 @@
   <InsightCanvas_PreserveMapWindow>Keep the window open after map actions</InsightCanvas_PreserveMapWindow>
   <InsightCanvas_NodeBudget>Graph node budget: {0}</InsightCanvas_NodeBudget>
   <InsightCanvas_EdgeBudget>Graph edge budget: {0}</InsightCanvas_EdgeBudget>
-  <InsightCanvas_OpenLaboratory>Open Insight Canvas Laboratory</InsightCanvas_OpenLaboratory>
   <InsightCanvas_OpenFeatureShowcase>Open Feature Showcase</InsightCanvas_OpenFeatureShowcase>
   <InsightCanvas_NoComponents>No visualization components have been added.</InsightCanvas_NoComponents>
   <InsightCanvas_CardOverview>Entity overview</InsightCanvas_CardOverview>
@@ -42,19 +41,6 @@
   <InsightCanvas_NoSelection>No entity selected</InsightCanvas_NoSelection>
   <InsightCanvas_Selected>Selected: {0}</InsightCanvas_Selected>
   <InsightCanvas_Reset>Reset</InsightCanvas_Reset>
-  <InsightCanvas_Tools>Tools</InsightCanvas_Tools>
-  <InsightCanvas_LaboratoryTools>Laboratory tools</InsightCanvas_LaboratoryTools>
-  <InsightCanvas_ToolsSubtitle>Theme, layout, interaction, and stress previews</InsightCanvas_ToolsSubtitle>
-  <InsightCanvas_ThemePreview>Theme preview and XML editor</InsightCanvas_ThemePreview>
-  <InsightCanvas_ApplyTheme>Apply theme</InsightCanvas_ApplyTheme>
-  <InsightCanvas_ResetTheme>Reset theme</InsightCanvas_ResetTheme>
-  <InsightCanvas_AccessibilityPreview>Motion and disclosure preview</InsightCanvas_AccessibilityPreview>
-  <InsightCanvas_DisclosurePreview>Disclosure</InsightCanvas_DisclosurePreview>
-  <InsightCanvas_ResolutionPreview>Resolution and UI-scale simulation</InsightCanvas_ResolutionPreview>
-  <InsightCanvas_InteractionInspector>Interaction and event inspector</InsightCanvas_InteractionInspector>
-  <InsightCanvas_StressDatasets>Stress datasets</InsightCanvas_StressDatasets>
-  <InsightCanvas_OpenGraphStress>Open graph stress view</InsightCanvas_OpenGraphStress>
-  <InsightCanvas_OpenTimelineStress>Open timeline stress view</InsightCanvas_OpenTimelineStress>
   <InsightCanvas_FocusTip>Focus the associated map or world target.</InsightCanvas_FocusTip>
   <InsightCanvas_Select>Select object</InsightCanvas_Select>
   <InsightCanvas_PreviewMap>Preview map link</InsightCanvas_PreviewMap>

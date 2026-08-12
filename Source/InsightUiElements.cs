@@ -3,6 +3,17 @@ using System.Collections.Generic;
 
 namespace InsightCanvas
 {
+    /// <summary>Fluent composition helpers that keep base-style setters chainable.</summary>
+    public static class InsightUiElementExtensions
+    {
+        public static InsightUiElement Add(this InsightUiElement element, params InsightUiElement[] children)
+        {
+            InsightUiStack stack = element as InsightUiStack;
+            stack?.Add(children);
+            return element;
+        }
+    }
+
     /// <summary>Base class for composable, measure/arrange/paint UI elements.</summary>
     public abstract class InsightUiElement
     {
@@ -219,6 +230,10 @@ namespace InsightCanvas
             new InsightUiSlider(id, value, minimum, maximum, changed);
         public static InsightUiTextField TextField(string id, string value = "", Action<string> changed = null) =>
             new InsightUiTextField(id, value, changed);
+        public static InsightUiSelect Select(string id, string label, string[] options, int selected = 0,
+            Action<int, string> changed = null) => new InsightUiSelect(id, label, options, selected, changed);
+        public static InsightUiExpander Expander(string id, string label, InsightUiElement content, bool expanded = false) =>
+            new InsightUiExpander(id, label, content, expanded);
         public static InsightUiBadge Badge(string id, string text, InsightColor? color = null) =>
             new InsightUiBadge(id, text, color);
         public static InsightUiProgress Progress(string id, float value, InsightColor? color = null) =>
@@ -234,6 +249,8 @@ namespace InsightCanvas
             new InsightUiSplit(id, first, second, ratio);
         public static InsightUiScroll Scroll(string id, InsightUiElement child) => new InsightUiScroll(id, child);
         public static InsightUiTabs Tabs(string id) => new InsightUiTabs(id);
+        public static InsightUiNavigation Navigation(string id, float breakpoint = 720f) =>
+            new InsightUiNavigation(id, breakpoint);
         public static InsightUiVirtualList VirtualList(string id, int itemCount, float itemHeight,
             Func<int, InsightUiElement> itemFactory) => new InsightUiVirtualList(id, itemCount, itemHeight, itemFactory);
         public static InsightUiElement Empty(string id, string message = null) => new InsightUiLabel(id, message ?? string.Empty);
@@ -432,18 +449,27 @@ namespace InsightCanvas
         }
 
         public string Text { get; set; }
+        public Func<string> TextProvider { get; private set; }
         public InsightUiTextStyle TextStyle { get; set; }
         public bool Wrap { get; set; }
         public InsightColor? Color { get; set; }
 
+        public InsightUiLabel SetTextProvider(Func<string> provider)
+        {
+            TextProvider = provider;
+            return this;
+        }
+
+        public string DisplayText => TextProvider == null ? (Text ?? string.Empty) : (TextProvider() ?? string.Empty);
+
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
-            return frame.MeasureText(Text, TextStyle, constraints.MaxWidth);
+            return frame.MeasureText(DisplayText, TextStyle, constraints.MaxWidth);
         }
 
         protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
         {
-            painter.Text(LayoutRect, Text, TextStyle, Color, Wrap, frame);
+            painter.Text(LayoutRect, DisplayText, TextStyle, Color, Wrap, frame);
         }
     }
 
@@ -462,6 +488,7 @@ namespace InsightCanvas
         public Action OnClick { get; set; }
         public bool Enabled { get; set; } = true;
         public bool Selected { get; set; }
+        public Func<bool> SelectedProvider { get; set; }
 
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
@@ -472,7 +499,8 @@ namespace InsightCanvas
 
         protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
         {
-            if (painter.Button(LayoutRect, Label, Enabled, Selected, frame)) OnClick?.Invoke();
+            bool selected = SelectedProvider == null ? Selected : SelectedProvider();
+            if (painter.Button(LayoutRect, Label, Enabled, selected, frame)) OnClick?.Invoke();
         }
     }
 
@@ -521,12 +549,24 @@ namespace InsightCanvas
 
         public float Value { get; set; }
         public InsightColor? Color { get; set; }
+        public bool Animated { get; set; } = true;
+        public float TransitionSpeed { get; set; } = 10f;
 
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame) =>
             new InsightUiSize(Math.Min(240f, constraints.MaxWidth), 8f);
 
-        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame) =>
-            painter.Progress(LayoutRect, Value, Color ?? frame.Theme.Selected, frame);
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            float display = Value;
+            if (Animated)
+            {
+                string key = Id + ".display";
+                display = frame.State.GetFloat(key, Value);
+                display = InsightMotion.Approach(display, Value, frame.DeltaTime, TransitionSpeed, frame.ReducedMotion);
+                frame.State.SetFloat(key, display);
+            }
+            painter.Progress(LayoutRect, display, Color ?? frame.Theme.Selected, frame);
+        }
     }
 
     /// <summary>Small icon/text action that shares button interaction and theme behavior.</summary>
@@ -686,6 +726,130 @@ namespace InsightCanvas
                 Value = next;
                 Changed?.Invoke(next);
             }
+        }
+    }
+
+    /// <summary>Compact cycling selector for small deterministic option sets.</summary>
+    public sealed class InsightUiSelect : InsightUiElement
+    {
+        private readonly InsightUiButton button;
+        private readonly IReadOnlyList<InsightUiElement> children;
+        private readonly string[] options;
+
+        public InsightUiSelect(string id, string label, string[] options, int selected = 0,
+            Action<int, string> changed = null) : base(id)
+        {
+            Label = label ?? string.Empty;
+            this.options = options ?? new string[0];
+            Selected = this.options.Length == 0 ? 0 : Math.Max(0, Math.Min(this.options.Length - 1, selected));
+            Changed = changed;
+            button = new InsightUiButton(id + ".button", string.Empty, Advance);
+            button.Style.MinimumHeight = 30f;
+            children = new[] { (InsightUiElement)button };
+        }
+
+        public string Label { get; set; }
+        public int Selected { get; private set; }
+        public bool Enabled { get; set; } = true;
+        public Action<int, string> Changed { get; set; }
+        public IReadOnlyList<string> Options => options;
+        public string Current => options.Length == 0 ? string.Empty : options[Selected];
+        public override IReadOnlyList<InsightUiElement> Children => children;
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            Selected = SelectedIndex(frame);
+            button.Label = string.IsNullOrEmpty(Label) ? Current : Label + ": " + Current;
+            button.Enabled = Enabled;
+            return button.Measure(constraints, frame);
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame) => button.Arrange(rect, frame);
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            Selected = SelectedIndex(frame);
+            button.Label = string.IsNullOrEmpty(Label) ? Current : Label + ": " + Current;
+            button.Enabled = Enabled;
+            button.Paint(painter, frame);
+            frame.State.SetInt(Id + ".selected", Selected);
+        }
+
+        private void Advance()
+        {
+            if (options.Length == 0) return;
+            Selected = (Selected + 1) % options.Length;
+            Changed?.Invoke(Selected, Current);
+        }
+
+        private int SelectedIndex(InsightUiFrame frame)
+        {
+            return options.Length == 0 ? 0 : Math.Max(0, Math.Min(options.Length - 1,
+                frame.State.GetInt(Id + ".selected", Selected)));
+        }
+    }
+
+    /// <summary>Stateful disclosure section backed by the document state store.</summary>
+    public sealed class InsightUiExpander : InsightUiElement
+    {
+        private readonly InsightUiButton header;
+        private readonly InsightUiElement content;
+        private readonly IReadOnlyList<InsightUiElement> children;
+
+        public InsightUiExpander(string id, string label, InsightUiElement content, bool expanded = false) : base(id)
+        {
+            Label = label ?? string.Empty;
+            this.content = content ?? InsightUi.Empty(id + ".empty", "Nothing to show.");
+            Expanded = expanded;
+            header = new InsightUiButton(id + ".header", Label, Toggle);
+            header.Style.HorizontalAlignment = InsightAlignment.Stretch;
+            children = new[] { (InsightUiElement)header, this.content };
+        }
+
+        public string Label { get; set; }
+        public bool Expanded { get; private set; }
+        public InsightUiElement Content => content;
+        public override IReadOnlyList<InsightUiElement> Children => children;
+
+        public InsightUiExpander SetExpanded(bool expanded)
+        {
+            Expanded = expanded;
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            bool expanded = frame.State.GetBool(Id + ".expanded", Expanded);
+            header.Label = (expanded ? "▾ " : "▸ ") + Label;
+            InsightUiSize head = header.Measure(constraints, frame);
+            if (!expanded) return head;
+            InsightUiSize body = content.Measure(new InsightUiConstraints(0f, constraints.MaxWidth, 0f,
+                Math.Max(0f, constraints.MaxHeight - head.Height - EffectiveGap(frame))), frame);
+            return new InsightUiSize(Math.Max(head.Width, body.Width), head.Height + EffectiveGap(frame) + body.Height);
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            bool expanded = frame.State.GetBool(Id + ".expanded", Expanded);
+            InsightUiSize head = header.MeasuredSize;
+            header.Arrange(new InsightRect(rect.X, rect.Y, rect.Width, head.Height), frame);
+            if (expanded)
+                content.Arrange(new InsightRect(rect.X, rect.Y + head.Height + EffectiveGap(frame), rect.Width,
+                    Math.Max(0f, rect.Height - head.Height - EffectiveGap(frame))), frame);
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            bool expanded = frame.State.GetBool(Id + ".expanded", Expanded);
+            header.Label = (expanded ? "▾ " : "▸ ") + Label;
+            header.Paint(painter, frame);
+            frame.State.SetBool(Id + ".expanded", Expanded);
+            if (expanded) content.Paint(painter, frame);
+        }
+
+        private void Toggle()
+        {
+            Expanded = !Expanded;
         }
     }
 
@@ -985,6 +1149,160 @@ namespace InsightCanvas
         }
     }
 
+    /// <summary>Responsive page navigation: side rail when wide, wrapped compact bar when narrow.</summary>
+    public sealed class InsightUiNavigation : InsightUiElement
+    {
+        private readonly List<InsightUiTab> pages = new List<InsightUiTab>();
+        private readonly List<InsightUiElement> children = new List<InsightUiElement>();
+
+        public InsightUiNavigation(string id, float breakpoint = 720f) : base(id)
+        {
+            Breakpoint = Math.Max(360f, breakpoint);
+            SideWidth = 172f;
+            CompactItemWidth = 96f;
+            Style.Gap = 10f;
+        }
+
+        public float Breakpoint { get; set; }
+        public float SideWidth { get; set; }
+        public float CompactItemWidth { get; set; }
+        public bool IsCompact { get; private set; }
+        public string ActivePageId { get; private set; }
+        public IReadOnlyList<InsightUiTab> Pages => pages;
+        public override IReadOnlyList<InsightUiElement> Children => children;
+
+        public InsightUiNavigation Add(string id, string label, InsightUiElement content)
+        {
+            InsightUiTab page = new InsightUiTab(id, label, content);
+            pages.Add(page);
+            children.Add(page.Content);
+            if (ActivePageId == null) ActivePageId = page.Id;
+            return this;
+        }
+
+        public InsightUiNavigation Select(string id)
+        {
+            for (int i = 0; i < pages.Count; i++)
+                if (pages[i].Id == id)
+                {
+                    ActivePageId = id;
+                    break;
+                }
+            return this;
+        }
+
+        protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            float gap = EffectiveGap(frame);
+            float width = float.IsPositiveInfinity(constraints.MaxWidth) ? 960f : constraints.MaxWidth;
+            IsCompact = width < Breakpoint;
+            InsightUiTab active = Active(frame);
+            float navHeight = IsCompact ? CompactHeight(width, frame) : 0f;
+            float contentWidth = IsCompact ? width : Math.Max(0f, width - SideWidth - gap);
+            InsightUiSize content = active == null ? new InsightUiSize(0f, 0f) : active.Content.Measure(
+                new InsightUiConstraints(0f, contentWidth, 0f, constraints.MaxHeight), frame);
+            if (IsCompact)
+                return new InsightUiSize(Math.Max(width, content.Width), navHeight + gap + content.Height);
+            return new InsightUiSize(SideWidth + gap + content.Width, Math.Max(navHeight, content.Height));
+        }
+
+        protected override void ArrangeCore(InsightRect rect, InsightUiFrame frame)
+        {
+            IsCompact = rect.Width < Breakpoint;
+            float gap = EffectiveGap(frame);
+            InsightUiTab active = Active(frame);
+            if (active == null) return;
+            if (IsCompact)
+            {
+                float navHeight = CompactHeight(rect.Width, frame);
+                active.Content.Arrange(new InsightRect(rect.X, rect.Y + navHeight + gap, rect.Width,
+                    Math.Max(0f, rect.Height - navHeight - gap)), frame);
+            }
+            else
+            {
+                active.Content.Arrange(new InsightRect(rect.X + SideWidth + gap, rect.Y,
+                    Math.Max(0f, rect.Width - SideWidth - gap), rect.Height), frame);
+            }
+        }
+
+        protected override void PaintCore(IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            IsCompact = LayoutRect.Width < Breakpoint;
+            InsightUiTab active = Active(frame);
+            float gap = EffectiveGap(frame);
+            if (IsCompact)
+            {
+                float navHeight = CompactHeight(LayoutRect.Width, frame);
+                PaintCompactNavigation(new InsightRect(LayoutRect.X, LayoutRect.Y, LayoutRect.Width, navHeight), painter, frame);
+                active?.Content.Paint(painter, frame);
+            }
+            else
+            {
+                InsightRect rail = new InsightRect(LayoutRect.X, LayoutRect.Y, SideWidth, LayoutRect.Height);
+                painter.Surface(rail, new InsightUiStyle { Background = frame.Theme.Surface, Elevated = true }, frame);
+                PaintRail(rail, painter, frame);
+                active?.Content.Paint(painter, frame);
+            }
+        }
+
+        private InsightUiTab Active(InsightUiFrame frame)
+        {
+            string stored = frame.State.GetString(Id + ".active", ActivePageId);
+            if (!string.IsNullOrEmpty(stored)) ActivePageId = stored;
+            for (int i = 0; i < pages.Count; i++) if (pages[i].Id == ActivePageId) return pages[i];
+            return pages.Count == 0 ? null : pages[0];
+        }
+
+        private void PaintRail(InsightRect rail, IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            float y = rail.Y + 10f;
+            for (int i = 0; i < pages.Count; i++)
+            {
+                InsightUiTab page = pages[i];
+                InsightRect button = new InsightRect(rail.X + 8f, y, Math.Max(0f, rail.Width - 16f), 30f);
+                if (painter.Button(button, page.Label, true, page.Id == ActivePageId, frame))
+                {
+                    ActivePageId = page.Id;
+                    frame.State.SetString(Id + ".active", ActivePageId);
+                }
+                y += 30f + 5f;
+            }
+        }
+
+        private void PaintCompactNavigation(InsightRect rect, IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            int columns = CompactColumns(rect.Width);
+            float gap = 5f;
+            float width = (rect.Width - gap * (columns - 1)) / columns;
+            for (int i = 0; i < pages.Count; i++)
+            {
+                int row = i / columns;
+                int column = i % columns;
+                InsightRect button = new InsightRect(rect.X + column * (width + gap), rect.Y + row * 35f,
+                    Math.Max(0f, width), 30f);
+                InsightUiTab page = pages[i];
+                if (painter.Button(button, page.Label, true, page.Id == ActivePageId, frame))
+                {
+                    ActivePageId = page.Id;
+                    frame.State.SetString(Id + ".active", ActivePageId);
+                }
+            }
+        }
+
+        private float CompactHeight(float width, InsightUiFrame frame)
+        {
+            return CompactRows(width) * 35f - 5f;
+        }
+
+        private int CompactRows(float width) => (pages.Count + CompactColumns(width) - 1) / CompactColumns(width);
+
+        private int CompactColumns(float width)
+        {
+            return Math.Max(1, Math.Min(pages.Count == 0 ? 1 : pages.Count,
+                (int)Math.Floor((Math.Max(0f, width) + 5f) / (CompactItemWidth + 5f))));
+        }
+    }
+
     /// <summary>Visible item range used by virtualized list implementations.</summary>
     public struct InsightVirtualizedRange
     {
@@ -1041,6 +1359,13 @@ namespace InsightCanvas
         public float ItemHeight { get; set; }
         public int Overscan { get; set; }
         public override IReadOnlyList<InsightUiElement> Children => visibleElements;
+
+        public InsightUiVirtualList Refresh()
+        {
+            itemElements.Clear();
+            visibleElements.Clear();
+            return this;
+        }
 
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {

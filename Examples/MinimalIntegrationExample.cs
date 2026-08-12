@@ -1,32 +1,58 @@
+using System;
 using InsightCanvas;
-using RimWorld;
+using UnityEngine;
 using Verse;
 
 namespace InsightCanvasExample
 {
-    /// <summary>Small adapter example; keep this file outside the framework project and copy the pattern into a consumer mod.</summary>
+    /// <summary>Small v2 adapter example; copy either entry point into a consumer mod.</summary>
+    public sealed class MinimalIntegrationPanel
+    {
+        private readonly InsightUiDocument document;
+        private readonly InsightUiHost host;
+
+        public MinimalIntegrationPanel()
+        {
+            InsightUiStack root = InsightUi.Column("example-root").SetGap(8f) as InsightUiStack;
+            root.Add(InsightUi.Label("example-title", "Colony signals", InsightUiTextStyle.Heading),
+                InsightUi.Surface("example-card", InsightUi.Column("example-card-body").SetGap(6f).Add(
+                    InsightUi.Label("example-copy", "This panel does not require InsightModel or a fixed semantic dashboard.", InsightUiTextStyle.Body),
+                    InsightUi.Progress("example-progress", 0.68f, InsightTheme.Default.Selected),
+                    InsightUi.Row("example-actions").SetGap(6f).Add(
+                        InsightUi.Button("example-refresh", "Refresh", Refresh),
+                        InsightUi.IconButton("example-help", "?", ShowHelp))));
+            document = new InsightUiDocument("Example embedded panel", root);
+            host = new InsightUiHost(document);
+        }
+
+        public void Draw(Rect rect)
+        {
+            host.Draw(rect, Time.deltaTime);
+        }
+
+        public void Close()
+        {
+            host.PostClose();
+        }
+
+        private void Refresh() => Log.Message("Example panel refreshed.");
+        private void ShowHelp() => Log.Message("Example panel help requested.");
+    }
+
     public static class MinimalIntegrationExample
     {
-        public static void Open()
+        public static void OpenWindow()
         {
-            InsightEntity pawn = new InsightEntity("example:pawn", "Example pawn", category: "Pawn");
-            InsightEntity target = new InsightEntity("example:target", "Example target", category: "Object");
-            InsightModel model = InsightModel.Create("Example.Insight")
-                .Entity(pawn)
-                .Entity(target)
-                .Relation(pawn.Id, target.Id, "studies")
-                .Metric(pawn.Id, "Confidence", new InsightMetric("Confidence", 0.6f, new InsightRange(0.2f, 0.9f)))
-                .Action(pawn.Id, "message", "Explain", () => Messages.Message("The example action ran.", MessageTypeDefOf.NeutralEvent, false));
-
-            InsightModelValidation validation = model.Validate();
-            for (int i = 0; i < validation.Errors.Count; i++) Log.Error(validation.Errors[i]);
-
-            // This is a safe data snapshot, not a complete runtime save. The action callback is omitted,
-            // and a loaded action is disabled until this mod explicitly rebinds its callback.
-            InsightModelSerializationReport saved = InsightModelSerialization.SerializeWithDiagnostics(model.Snapshot());
-            for (int i = 0; i < saved.Warnings.Count; i++) Log.Warning(saved.Warnings[i]);
-            string xml = saved.Xml;
-            Find.WindowStack.Add(new InsightWindow(model, InsightView.Create().Add(new InsightCardGrid()).Add(new InsightConstellation())));
+            InsightUiElement root = InsightUi.Column("example-window-root",
+                InsightUi.Label("example-window-title", "Research brief", InsightUiTextStyle.Title),
+                InsightUi.Label("example-window-copy", "The same public element tree can be hosted by an ordinary RimWorld Window.", InsightUiTextStyle.Body),
+                InsightUi.Grid("example-window-grid", 180f)
+                    .Add(InsightUi.Badge("example-ready", "Ready", InsightTheme.Default.Positive),
+                        InsightUi.Progress("example-confidence", 0.82f, InsightTheme.Default.Selected)))
+                .SetGap(10f)
+                .SetPadding(12f);
+            InsightUiDocument document = new InsightUiDocument("Example Window", root);
+            Find.WindowStack.Add(new InsightUiWindow(document));
         }
     }
 }
