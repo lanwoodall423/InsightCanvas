@@ -117,7 +117,9 @@ namespace InsightCanvas
                 {
                     RunCase("window-rendered-overview", () => AssertRenderedState("overview"));
                     RunCase("overview-typography-and-badges", CheckOverviewTypography);
+                    RunCase("semantic-badge-foreground", CheckSemanticBadgeForeground);
                     RunCase("overview-composites-rendered", CheckOverviewComposites);
+                    RunCase("rounded-surfaces-rendered", CheckRoundedSurfaces);
                     RunCase("overview-interactions-applied", ExerciseOverview);
                     stage = OverviewInteractionFrame;
                     window.Document.Invalidate();
@@ -244,6 +246,18 @@ namespace InsightCanvas
                 "overview badge allocation was smaller than its measured caption content");
         }
 
+        private void CheckSemanticBadgeForeground()
+        {
+            string[] ids = { "overview-badge", "overview-layout-badge", "overview-state-badge", "overview-access-badge" };
+            for (int i = 0; i < ids.Length; i++)
+            {
+                InsightUiBadge badge = FindElement(window.Document.Root, ids[i]) as InsightUiBadge;
+                Require(badge != null && badge.Color.HasValue && !badge.TextColor.HasValue,
+                    "badge '" + ids[i] + "' did not retain semantic accent/default foreground separation");
+                AssertFiniteGeometry(badge);
+            }
+        }
+
         private void CheckOverviewComposites()
         {
             InsightUiSectionHeader header = FindElement(window.Document.Root, "overview-composite-header") as InsightUiSectionHeader;
@@ -280,6 +294,22 @@ namespace InsightCanvas
              Require(themeRadius.Style.CornerRadius < 0f && roundedRadius.Style.CornerRadius == 8f &&
                  squareRadius.Style.CornerRadius == 0f,
                  "foundations surface radius precedence examples were not configured");
+         }
+
+         private void CheckRoundedSurfaces()
+         {
+             string[] ids = { "overview-layout-badge", "overview-state-badge", "overview-access-badge",
+                 "overview-card-layout", "overview-card-state", "overview-card-access" };
+             for (int i = 0; i < ids.Length; i++)
+             {
+                 InsightUiElement element = FindElement(window.Document.Root, ids[i]);
+                 Require(element != null && element.LayoutRect.Width > 0f && element.LayoutRect.Height > 0f,
+                     "rounded showcase surface '" + ids[i] + "' was not rendered with positive geometry");
+                 AssertFiniteGeometry(element);
+             }
+             InsightUiBadge badge = FindElement(window.Document.Root, "overview-layout-badge") as InsightUiBadge;
+             Require(badge != null && badge.LayoutRect.Height >= 22f && badge.LayoutRect.Width >= badge.MeasuredSize.Width,
+                 "short rounded badge geometry was not preserved");
          }
 
          private void CheckHoverCardDogfood()

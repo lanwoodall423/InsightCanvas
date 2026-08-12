@@ -1237,7 +1237,16 @@ namespace InsightCanvas
         }
 
         public string Text { get; set; }
+        /// <summary>Gets the optional explicit text color; null uses the active theme primary foreground.</summary>
+        public InsightColor? TextColor { get; private set; }
         public InsightColor? Color { get; set; }
+
+        /// <summary>Sets an explicit text color while leaving the semantic accent on the border and tint.</summary>
+        public InsightUiBadge SetTextColor(InsightColor? color)
+        {
+            TextColor = color;
+            return this;
+        }
 
         protected override InsightUiSize MeasureCore(InsightUiConstraints constraints, InsightUiFrame frame)
         {
@@ -1255,7 +1264,7 @@ namespace InsightCanvas
             InsightUiPadding padding = ScaledPadding(frame);
             painter.Text(new InsightRect(LayoutRect.X + padding.Left, LayoutRect.Y + padding.Top,
                 Math.Max(0f, LayoutRect.Width - padding.Horizontal), Math.Max(0f, LayoutRect.Height - padding.Vertical)), Text,
-                InsightUiTextStyle.Caption, Color ?? frame.Theme.PrimaryText, false, frame);
+                InsightUiTextStyle.Caption, TextColor ?? frame.Theme.PrimaryText, false, frame);
         }
     }
 

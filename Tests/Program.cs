@@ -161,6 +161,7 @@ internal static class Program
         InsightUiFrame largerCaptionFrame = new InsightUiFrame(largerCaptionTheme, InsightUiDensity.Normal, false, false,
             new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
         InsightUiBadge badge = InsightUi.Badge("typography-badge", "Ready");
+        badge.Color = theme.Positive;
         InsightUiBadge largerBadge = InsightUi.Badge("typography-large-badge", "Ready");
         badge.Measure(new InsightUiConstraints(0f, 240f, 0f, 100f), frame);
         largerBadge.Measure(new InsightUiConstraints(0f, 240f, 0f, 100f), largerCaptionFrame);
@@ -171,6 +172,27 @@ internal static class Program
         frame.Focus.BeginFrame();
         badge.Arrange(new InsightRect(0f, 0f, badge.MeasuredSize.Width, badge.MeasuredSize.Height), frame);
         badge.Paint(painter, frame);
+        Assert(painter.LastTextColor.HasValue && painter.LastTextColor.Value.Equals(frame.Theme.PrimaryText),
+            "badge default foreground did not resolve to the active theme primary text");
+        Assert(painter.LastSurfaceStyle.Border.HasValue && painter.LastSurfaceStyle.Border.Value.Equals(badge.Color.Value) &&
+            painter.LastSurfaceStyle.Background.HasValue &&
+            painter.LastSurfaceStyle.Background.Value.Equals(badge.Color.Value.WithAlpha(0.25f)),
+            "badge semantic accent no longer controls its border and tinted background");
+        InsightColor badgeOverride = new InsightColor(0.8f, 0.9f, 1f);
+        badge.SetTextColor(badgeOverride);
+        badge.Paint(painter, frame);
+        Assert(painter.LastTextColor.HasValue && painter.LastTextColor.Value.Equals(badgeOverride),
+            "badge explicit text foreground override was not applied");
+        badge.SetTextColor(null);
+        InsightTheme highContrastTheme = theme.WithAccessibility(true, InsightColorBlindMode.None);
+        InsightUiFrame highContrastFrame = new InsightUiFrame(highContrastTheme, InsightUiDensity.Normal, true, false,
+            new InsightUiStateStore(), new InsightUiDiagnostics(), 1f / 60f);
+        badge.Measure(new InsightUiConstraints(0f, 240f, 0f, 100f), highContrastFrame);
+        badge.Arrange(new InsightRect(0f, 0f, badge.MeasuredSize.Width, badge.MeasuredSize.Height), highContrastFrame);
+        painter.TextCalls = 0;
+        badge.Paint(painter, highContrastFrame);
+        Assert(painter.LastTextColor.HasValue && painter.LastTextColor.Value.Equals(highContrastTheme.PrimaryText),
+            "badge default foreground did not follow the high-contrast theme");
         Assert(painter.TextCalls == 1 && !painter.LastTextWrap &&
             painter.LastTextRect.X >= badge.LayoutRect.X - 0.01f &&
             painter.LastTextRect.Y >= badge.LayoutRect.Y - 0.01f &&
@@ -203,8 +225,26 @@ internal static class Program
             InsightUiSurfaceMath.QuantizeCornerRadius(5f) == 4f &&
             InsightUiSurfaceMath.QuantizeCornerRadius(7f) == 6f &&
             InsightUiSurfaceMath.QuantizeCornerRadius(99f) == 8f &&
-            InsightUiSurfaceMath.RoundedRadiusBucketCount == 5,
+            InsightUiSurfaceMath.RoundedRadiusBucketCount == 9,
             "surface radius quantization exceeded its fixed cache policy");
+
+        Assert(InsightUiSurfaceMath.ClampCornerRadius(8f, 22f, 22f) == 8f &&
+            InsightUiSurfaceMath.ClampCornerRadius(8f, 10f, 22f) == 5f &&
+            InsightUiSurfaceMath.ClampCornerRadius(8f, 3f, 32f) == 1.5f &&
+            InsightUiSurfaceMath.ClampCornerRadius(8f, 0f, 32f) == 0f,
+            "surface radius was not clamped to short or narrow target geometry");
+        Assert(InsightUiSurfaceMath.InnerCornerRadius(4f, 1f) == 3f &&
+            InsightUiSurfaceMath.InnerCornerRadius(8f, 2f) == 6f &&
+            InsightUiSurfaceMath.InnerCornerRadius(2f, 5f) == 0f &&
+            InsightUiSurfaceMath.InnerCornerRadius(4f, -1f) == 4f,
+            "border inset did not preserve the true inner radius relationship");
+        Assert(InsightUiSurfaceMath.RadiusBucket(0f) == 0 &&
+            InsightUiSurfaceMath.RadiusBucket(0.25f) == 1 &&
+            InsightUiSurfaceMath.RadiusBucket(1f) == 1 &&
+            InsightUiSurfaceMath.RadiusBucket(3f) == 3 &&
+            InsightUiSurfaceMath.RadiusBucket(7f) == 7 &&
+            InsightUiSurfaceMath.RadiusBucket(99f) == 8,
+            "internal rounded-mask buckets were not deterministic or bounded");
     }
 
     private static void ModelClear()
@@ -1104,6 +1144,7 @@ internal static class Program
         public int FillRectCalls;
         public int IconCalls;
         public InsightUiStyle LastSurfaceStyle;
+        public InsightColor? LastTextColor;
         public int TextCalls;
         public InsightRect LastTextRect;
         public bool LastTextWrap;
@@ -1126,6 +1167,7 @@ internal static class Program
             TextCalls++;
             LastTextRect = rect;
             LastTextWrap = wrap;
+            LastTextColor = color;
         }
         public void Progress(InsightRect rect, float value, InsightColor fill, InsightUiFrame frame) { }
 

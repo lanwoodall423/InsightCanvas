@@ -395,7 +395,9 @@ namespace InsightCanvas
     /// <summary>Deterministic surface-radius policy shared by portable layout tests and the RimWorld painter.</summary>
     internal static class InsightUiSurfaceMath
     {
-        internal const int RoundedRadiusBucketCount = 5;
+        // Public radii select 0/2/4/6/8, while borders may need exact inner radii such as 3 or 7.
+        // Nine fixed buckets keep that geometry bounded without retaining per-widget textures.
+        internal const int RoundedRadiusBucketCount = 9;
         internal const float MaximumRoundedRadius = 8f;
 
         internal static float ResolveCornerRadius(InsightUiStyle style, InsightTheme theme)
@@ -412,6 +414,31 @@ namespace InsightCanvas
             if (radius <= 5f) return 4f;
             if (radius <= 7f) return 6f;
             return MaximumRoundedRadius;
+        }
+
+        internal static float ClampCornerRadius(float radius, float width, float height)
+        {
+            if (float.IsNaN(radius) || float.IsNaN(width) || float.IsNaN(height) || radius <= 0f)
+                return 0f;
+            float minimumDimension = Math.Min(Math.Max(0f, width), Math.Max(0f, height));
+            return Math.Min(Math.Min(radius, MaximumRoundedRadius), minimumDimension * 0.5f);
+        }
+
+        internal static float InnerCornerRadius(float outerRadius, float borderWidth)
+        {
+            if (float.IsNaN(outerRadius) || float.IsNaN(borderWidth) || outerRadius <= 0f)
+                return 0f;
+            return Math.Max(0f, outerRadius - Math.Max(0f, borderWidth));
+        }
+
+        internal static int RadiusBucket(float radius)
+        {
+            if (float.IsNaN(radius) || radius <= 0f) return 0;
+            if (float.IsPositiveInfinity(radius) || radius >= MaximumRoundedRadius)
+                return (int)MaximumRoundedRadius;
+            if (radius < 1f) return 1;
+            return Math.Max(0, Math.Min((int)MaximumRoundedRadius,
+                (int)Math.Round(radius, MidpointRounding.AwayFromZero)));
         }
     }
 

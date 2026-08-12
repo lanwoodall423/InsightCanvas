@@ -158,7 +158,8 @@ namespace InsightCanvas
                     InsightRect inner = new InsightRect(rect.X + inset, rect.Y + inset,
                         Math.Max(0f, rect.Width - inset * 2f), Math.Max(0f, rect.Height - inset * 2f));
                     if (inner.Width > 0.01f && inner.Height > 0.01f)
-                        DrawSurfaceShape(inner, Math.Max(0f, radius - inset), frame.ApplyOpacity(fill));
+                        DrawSurfaceShape(inner, InsightUiSurfaceMath.InnerCornerRadius(radius, inset),
+                            frame.ApplyOpacity(fill));
                 }
                 else DrawSurfaceShape(rect, radius, frame.ApplyOpacity(fill));
             }
@@ -167,7 +168,7 @@ namespace InsightCanvas
 
         private void DrawSurfaceShape(InsightRect rect, float radius, InsightColor color)
         {
-            radius = InsightUiSurfaceMath.QuantizeCornerRadius(radius);
+            radius = InsightUiSurfaceMath.ClampCornerRadius(radius, rect.Width, rect.Height);
             if (radius <= 0.01f)
             {
                 Widgets.DrawBoxSolid(ToRect(rect), InsightDraw.Color(color));
@@ -186,16 +187,17 @@ namespace InsightCanvas
 
         private static Texture2D RoundedSurfaceMask(float radius)
         {
-            int index = Mathf.Clamp(Mathf.RoundToInt(radius * 0.5f), 0, roundedSurfaceMasks.Length - 1);
+            int index = Mathf.Clamp(InsightUiSurfaceMath.RadiusBucket(radius), 0, roundedSurfaceMasks.Length - 1);
             Texture2D mask = roundedSurfaceMasks[index];
             if (mask != null) return mask;
 
-            int corner = index * 2;
+            int corner = index;
             int size = corner * 2 + 1;
             mask = new Texture2D(size, size, TextureFormat.ARGB32, false)
             {
                 name = "InsightCanvas Rounded Surface Mask " + corner,
-                filterMode = FilterMode.Bilinear,
+                // Point sampling keeps a center/edge slice from blending with a transparent corner texel.
+                filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
                 hideFlags = HideFlags.HideAndDontSave
             };
@@ -228,23 +230,21 @@ namespace InsightCanvas
 
         private static void DrawNineSlice(Rect target, Texture2D texture, float radius)
         {
-            float corner = Mathf.Min(radius, Mathf.Min(target.width, target.height) * 0.5f);
+            float corner = InsightUiSurfaceMath.ClampCornerRadius(radius, target.width, target.height);
             if (corner <= 0.01f)
             {
                 GUI.DrawTexture(target, texture, ScaleMode.StretchToFill, true);
                 return;
             }
 
-            float sourceCorner = radius;
-            float sourceSize = sourceCorner * 2f + 1f;
-            float u0 = 0f;
-            float u1 = sourceCorner / sourceSize;
-            float u2 = (sourceCorner + 1f) / sourceSize;
-            float u3 = 1f;
-            float v0 = 0f;
-            float v1 = sourceCorner / sourceSize;
-            float v2 = (sourceCorner + 1f) / sourceSize;
-            float v3 = 1f;
+            int sourceSize = texture.width;
+            int sourceCorner = Math.Max(1, (sourceSize - 1) / 2);
+            Rect uLeft = TextureRegion(0, sourceCorner, sourceSize);
+            Rect uCenter = TextureRegion(sourceCorner, 1, sourceSize);
+            Rect uRight = TextureRegion(sourceCorner + 1, sourceCorner, sourceSize);
+            Rect vTop = uLeft;
+            Rect vCenter = uCenter;
+            Rect vBottom = uRight;
             float x0 = target.x;
             float x1 = target.x + corner;
             float x2 = target.x + target.width - corner;
@@ -254,15 +254,24 @@ namespace InsightCanvas
             float y2 = target.y + target.height - corner;
             float y3 = target.y + target.height;
 
-            DrawTextureSlice(new Rect(x0, y0, corner, corner), texture, new Rect(u0, v0, u1 - u0, v1 - v0));
-            DrawTextureSlice(new Rect(x1, y0, Math.Max(0f, x2 - x1), corner), texture, new Rect(u1, v0, u2 - u1, v1 - v0));
-            DrawTextureSlice(new Rect(x2, y0, corner, corner), texture, new Rect(u2, v0, u3 - u2, v1 - v0));
-            DrawTextureSlice(new Rect(x0, y1, corner, Math.Max(0f, y2 - y1)), texture, new Rect(u0, v1, u1 - u0, v2 - v1));
-            DrawTextureSlice(new Rect(x1, y1, Math.Max(0f, x2 - x1), Math.Max(0f, y2 - y1)), texture, new Rect(u1, v1, u2 - u1, v2 - v1));
-            DrawTextureSlice(new Rect(x2, y1, corner, Math.Max(0f, y2 - y1)), texture, new Rect(u2, v1, u3 - u2, v2 - v1));
-            DrawTextureSlice(new Rect(x0, y2, corner, corner), texture, new Rect(u0, v2, u1 - u0, v3 - v2));
-            DrawTextureSlice(new Rect(x1, y2, Math.Max(0f, x2 - x1), corner), texture, new Rect(u1, v2, u2 - u1, v3 - v2));
-            DrawTextureSlice(new Rect(x2, y2, corner, corner), texture, new Rect(u2, v2, u3 - u2, v3 - v2));
+            DrawTextureSlice(new Rect(x0, y0, corner, corner), texture, new Rect(uLeft.x, vTop.y, uLeft.width, vTop.height));
+            DrawTextureSlice(new Rect(x1, y0, Math.Max(0f, x2 - x1), corner), texture, new Rect(uCenter.x, vTop.y, uCenter.width, vTop.height));
+            DrawTextureSlice(new Rect(x2, y0, corner, corner), texture, new Rect(uRight.x, vTop.y, uRight.width, vTop.height));
+            DrawTextureSlice(new Rect(x0, y1, corner, Math.Max(0f, y2 - y1)), texture, new Rect(uLeft.x, vCenter.y, uLeft.width, vCenter.height));
+            DrawTextureSlice(new Rect(x1, y1, Math.Max(0f, x2 - x1), Math.Max(0f, y2 - y1)), texture, new Rect(uCenter.x, vCenter.y, uCenter.width, vCenter.height));
+            DrawTextureSlice(new Rect(x2, y1, corner, Math.Max(0f, y2 - y1)), texture, new Rect(uRight.x, vCenter.y, uRight.width, vCenter.height));
+            DrawTextureSlice(new Rect(x0, y2, corner, corner), texture, new Rect(uLeft.x, vBottom.y, uLeft.width, uLeft.height));
+            DrawTextureSlice(new Rect(x1, y2, Math.Max(0f, x2 - x1), corner), texture, new Rect(uCenter.x, vBottom.y, uCenter.width, uCenter.height));
+            DrawTextureSlice(new Rect(x2, y2, corner, corner), texture, new Rect(uRight.x, vBottom.y, uRight.width, vBottom.height));
+        }
+
+        private static Rect TextureRegion(int start, int length, int size)
+        {
+            const float inset = 0.25f;
+            float minimum = (start + inset) / size;
+            float maximum = (start + length - inset) / size;
+            return new Rect(minimum, minimum, Math.Max(0.001f, maximum - minimum),
+                Math.Max(0.001f, maximum - minimum));
         }
 
         private static void DrawTextureSlice(Rect target, Texture2D texture, Rect uv)

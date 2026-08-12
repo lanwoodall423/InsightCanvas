@@ -928,6 +928,12 @@
         <member name="T:InsightCanvas.InsightUiBadge">
             <summary>Compact semantic status pill.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiBadge.TextColor">
+            <summary>Gets the optional explicit text color; null uses the active theme primary foreground.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiBadge.SetTextColor(System.Nullable{InsightCanvas.InsightColor})">
+            <summary>Sets an explicit text color while leaving the semantic accent on the border and tint.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightUiProgress">
             <summary>Compact progress indicator with a themed track and fill.</summary>
         </member>
