@@ -234,12 +234,15 @@ namespace InsightCanvas
             float y2 = target.y + target.height - corner;
             float y3 = target.y + target.height;
 
+            // Unity texture V coordinates are bottom-origin, while IMGUI target Y is
+            // top-origin. SetPixels32 also consumes rows bottom-to-top, so the source
+            // region representing the visual top must be selected with the high-V band.
             DrawTextureSlice(new Rect(x0, y0, corner, corner), texture,
-                TextureRegion(0, 0, sourceCorner, sourceCorner, sourceSize));
+                TextureRegion(0, sourceFarCorner, sourceCorner, sourceSize, sourceSize));
             DrawTextureSlice(new Rect(x1, y0, Math.Max(0f, x2 - x1), corner), texture,
-                TextureRegion(sourceCorner, 0, sourceFarCorner, sourceCorner, sourceSize));
+                TextureRegion(sourceCorner, sourceFarCorner, sourceFarCorner, sourceSize, sourceSize));
             DrawTextureSlice(new Rect(x2, y0, corner, corner), texture,
-                TextureRegion(sourceFarCorner, 0, sourceSize, sourceCorner, sourceSize));
+                TextureRegion(sourceFarCorner, sourceFarCorner, sourceSize, sourceSize, sourceSize));
             DrawTextureSlice(new Rect(x0, y1, corner, Math.Max(0f, y2 - y1)), texture,
                 TextureRegion(0, sourceCorner, sourceCorner, sourceFarCorner, sourceSize));
             DrawTextureSlice(new Rect(x1, y1, Math.Max(0f, x2 - x1), Math.Max(0f, y2 - y1)), texture,
@@ -247,11 +250,11 @@ namespace InsightCanvas
             DrawTextureSlice(new Rect(x2, y1, corner, Math.Max(0f, y2 - y1)), texture,
                 TextureRegion(sourceFarCorner, sourceCorner, sourceSize, sourceFarCorner, sourceSize));
             DrawTextureSlice(new Rect(x0, y2, corner, corner), texture,
-                TextureRegion(0, sourceFarCorner, sourceCorner, sourceSize, sourceSize));
+                TextureRegion(0, 0, sourceCorner, sourceCorner, sourceSize));
             DrawTextureSlice(new Rect(x1, y2, Math.Max(0f, x2 - x1), corner), texture,
-                TextureRegion(sourceCorner, sourceFarCorner, sourceFarCorner, sourceSize, sourceSize));
+                TextureRegion(sourceCorner, 0, sourceFarCorner, sourceCorner, sourceSize));
             DrawTextureSlice(new Rect(x2, y2, corner, corner), texture,
-                TextureRegion(sourceFarCorner, sourceFarCorner, sourceSize, sourceSize, sourceSize));
+                TextureRegion(sourceFarCorner, 0, sourceSize, sourceCorner, sourceSize));
         }
 
         private static Rect TextureRegion(int xStart, int yStart, int xEnd, int yEnd, int size)
