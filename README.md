@@ -186,6 +186,6 @@ The build writes `1.6/Assemblies/InsightCanvas.dll` and its XML documentation fi
 
 ## License
 
-Owner license selection required.
+Insight Canvas is licensed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE).
 
-No license is added autonomously. The owner can select MIT, Apache-2.0, or MPL-2.0 and add the corresponding notice before distribution. Until then, reuse, modification, and redistribution require the owner’s permission.
+Copyright (C) 2026 lanwoodall423.
