@@ -463,8 +463,23 @@
         <member name="T:InsightCanvas.InsightDiagnostics">
             <summary>Per-frame counters exposed by the optional semantic views and available to integrations.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightDiagnostics.RenderErrors">
+            <summary>Gets contained component render failures from the latest semantic frame.</summary>
+        </member>
         <member name="T:InsightCanvas.InsightRenderContext">
             <summary>Services passed to components without exposing their Unity renderer implementation.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightRenderContext.Density">
+            <summary>Gets the document density inherited by a v2 semantic element.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightRenderContext.HighContrast">
+            <summary>Gets whether the enclosing document requests high-contrast rendering.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightRenderContext.ReducedMotion">
+            <summary>Gets whether the enclosing document requests reduced motion.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightRenderContext.HostBounds">
+            <summary>Gets the enclosing document bounds.</summary>
         </member>
         <member name="T:InsightCanvas.IInsightComponent">
             <summary>Public component contract for custom retained views.</summary>
@@ -619,6 +634,21 @@
         <member name="T:InsightCanvas.InsightUiDiagnostics">
             <summary>Engine-independent diagnostics for a composable document.</summary>
         </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.SemanticSnapshotRefreshes">
+            <summary>Gets the number of immutable semantic snapshots refreshed during the current frame.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.SemanticLayoutInvalidations">
+            <summary>Gets the number of semantic layout invalidations caused by retained input changes.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.SemanticDeferredRefreshes">
+            <summary>Gets the number of semantic refreshes deferred until the next layout pass.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.SemanticResizes">
+            <summary>Gets the number of semantic elements whose arranged bounds changed.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiDiagnostics.SemanticRenderErrors">
+            <summary>Gets contained semantic render errors, capped to a deterministic per-frame bound.</summary>
+        </member>
         <member name="P:InsightCanvas.InsightUiDiagnostics.VirtualizedVisibleElements">
             <summary>Gets the number of elements in the most recent virtualized viewport.</summary>
         </member>
@@ -654,6 +684,9 @@
         </member>
         <member name="P:InsightCanvas.InsightUiFrame.HostBounds">
             <summary>Gets the caller-owned bounds used by transient elements for safe placement.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiFrame.OverlayOwnerToken">
+            <summary>Gets the enclosing host's transient overlay owner for semantic interaction callbacks.</summary>
         </member>
         <member name="P:InsightCanvas.InsightUiFrame.NativeTextMeasurer">
             <summary>Optional normal RimWorld control measurement, without semantic typography scaling.</summary>
@@ -765,6 +798,7 @@
         </member>
         <member name="T:InsightCanvas.InsightUi">
             <summary>Convenient factory methods for the public composable API.</summary>
+            <summary>Factory additions for retained semantic elements in composable v2 documents.</summary>
         </member>
         <member name="M:InsightCanvas.InsightUi.Callout(System.String,InsightCanvas.InsightUiCalloutSeverity,System.String,System.String)">
             <summary>Creates persistent explanatory content with a semantic status tone.</summary>
@@ -783,6 +817,13 @@
         </member>
         <member name="M:InsightCanvas.InsightUi.HoverCard(System.String,InsightCanvas.InsightUiElement,InsightCanvas.InsightUiElement)">
             <summary>Creates display-only rich hover context with document-scoped delay and cleanup.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUi.SemanticView(System.String,InsightCanvas.InsightModel,InsightCanvas.InsightView,InsightCanvas.InsightContext)">
+            <summary>
+            Creates a stable-ID semantic element. Null inputs receive the same safe defaults as the v1 host, while a
+            non-null context is retained by reference so selection, disclosure, focus, filter, and time-range changes
+            remain shared with the caller.
+            </summary>
         </member>
         <member name="T:InsightCanvas.InsightUiStack">
             <summary>Simple row/column container with flex, min/max, and optional wrapping.</summary>
@@ -1140,6 +1181,53 @@
         </member>
         <member name="T:InsightCanvas.RimWorldInsightUiInput">
             <summary>Small Unity IMGUI adapter used only at the renderer boundary.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSemanticPreparation">
+            <summary>Bounded lifecycle information returned by a retained semantic source.</summary>
+        </member>
+        <member name="T:InsightCanvas.IInsightUiSemanticSource">
+            <summary>Renderer-neutral seam used by the v2 semantic element and portable tests.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSemanticLifecycle">
+            <summary>Shared retained-element lifecycle for semantic sources.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSemanticView">
+            <summary>
+            Retained v2 element that hosts an existing InsightModel/InsightView pair with caller-owned interaction state.
+            The model snapshot is refreshed during Measure when the model revision changes; Paint only consumes that
+            immutable snapshot. Semantic views are runtime composition objects and are intentionally excluded from model
+            serialization together with views, contexts, delegates, map references, and live game objects.
+            </summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSemanticView.Model">
+            <summary>Gets the retained mutable model supplied by the caller.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSemanticView.View">
+            <summary>Gets the retained semantic component view supplied by the caller.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSemanticView.Context">
+            <summary>Gets the exact caller-owned interaction context used by this element.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSemanticView.Snapshot">
+            <summary>Gets the immutable snapshot currently safe for the paint phase, or null before first Measure.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSemanticView.SnapshotRevision">
+            <summary>Gets the model revision represented by Snapshot, or -1 before first Measure.</summary>
+        </member>
+        <member name="P:InsightCanvas.InsightUiSemanticView.Diagnostics">
+            <summary>Gets semantic diagnostics retained for this element.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSemanticView.ReplaceModel(InsightCanvas.InsightModel)">
+            <summary>Replaces the retained model; the new snapshot is deferred until the next Measure phase.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSemanticView.ReplaceView(InsightCanvas.InsightView)">
+            <summary>Replaces the retained component view; its layout is rebuilt on the next Measure phase.</summary>
+        </member>
+        <member name="M:InsightCanvas.InsightUiSemanticView.ReplaceContext(InsightCanvas.InsightContext)">
+            <summary>Replaces the retained interaction context without copying or serializing its state.</summary>
+        </member>
+        <member name="T:InsightCanvas.InsightUiSemanticSource">
+            <summary>Retained source adapter kept separate from the composable element and renderer boundary.</summary>
         </member>
         <member name="T:InsightCanvas.InsightWindow">
             <summary>Coordinates a model snapshot, shared interaction state, and retained components in a RimWorld Window.</summary>

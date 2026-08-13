@@ -29,6 +29,8 @@ namespace InsightCanvas
         public int VisibleElements { get; set; }
         public int CacheInvalidations { get; private set; }
         public int ApproximateAllocations { get; set; }
+        /// <summary>Gets contained component render failures from the latest semantic frame.</summary>
+        public int RenderErrors { get; private set; }
         public float LastLayoutMilliseconds { get; private set; }
         public float LastDrawMilliseconds { get; private set; }
         public float LastSnapshotMilliseconds { get; set; }
@@ -38,6 +40,7 @@ namespace InsightCanvas
             Frame++;
             VisibleElements = 0;
             ApproximateAllocations = 0;
+            RenderErrors = 0;
             frameTimer.Restart();
         }
 
@@ -68,8 +71,11 @@ namespace InsightCanvas
         public string Summary()
         {
             return "layout " + LastLayoutMilliseconds.ToString("0.0") + " ms | draw " + LastDrawMilliseconds.ToString("0.0") +
-                " ms | visible " + VisibleElements + " | invalidations " + CacheInvalidations + " | approx alloc " + ApproximateAllocations;
+                " ms | visible " + VisibleElements + " | invalidations " + CacheInvalidations + " | approx alloc " + ApproximateAllocations +
+                " | errors " + RenderErrors;
         }
+
+        internal void RecordRenderError() => RenderErrors = Math.Min(64, RenderErrors + 1);
     }
 
     /// <summary>Services passed to components without exposing their Unity renderer implementation.</summary>
@@ -82,6 +88,14 @@ namespace InsightCanvas
         public InsightWindow Window { get; private set; }
         internal object OverlayOwnerToken { get; private set; }
         public float DeltaTime { get; private set; }
+        /// <summary>Gets the document density inherited by a v2 semantic element.</summary>
+        public InsightUiDensity Density { get; private set; }
+        /// <summary>Gets whether the enclosing document requests high-contrast rendering.</summary>
+        public bool HighContrast { get; private set; }
+        /// <summary>Gets whether the enclosing document requests reduced motion.</summary>
+        public bool ReducedMotion { get; private set; }
+        /// <summary>Gets the enclosing document bounds.</summary>
+        public InsightRect HostBounds { get; private set; }
 
         internal InsightRenderContext(InsightModelSnapshot snapshot, InsightContext interaction, InsightTheme theme,
             InsightDiagnostics diagnostics, InsightWindow window, object overlayOwnerToken, float deltaTime)
@@ -99,6 +113,21 @@ namespace InsightCanvas
             Window = window;
             OverlayOwnerToken = overlayOwnerToken;
             DeltaTime = deltaTime;
+            Density = InsightUiDensity.Normal;
+            HighContrast = false;
+            ReducedMotion = false;
+            HostBounds = new InsightRect(0f, 0f, 0f, 0f);
+        }
+
+        internal void Update(InsightModelSnapshot snapshot, InsightContext interaction, InsightTheme theme,
+            InsightDiagnostics diagnostics, InsightWindow window, object overlayOwnerToken, float deltaTime,
+            InsightUiDensity density, bool highContrast, bool reducedMotion, InsightRect hostBounds)
+        {
+            Update(snapshot, interaction, theme, diagnostics, window, overlayOwnerToken, deltaTime);
+            Density = density;
+            HighContrast = highContrast;
+            ReducedMotion = reducedMotion;
+            HostBounds = hostBounds;
         }
     }
 
@@ -196,6 +225,7 @@ namespace InsightCanvas
                 try { components[i].Draw(rects[i], context); }
                 catch (Exception exception)
                 {
+                    context.Diagnostics.RecordRenderError();
                     Log.ErrorOnce("[Insight Canvas] Component '" + components[i].ComponentId + "' failed: " + exception.Message,
                         ("insight-component:" + components[i].ComponentId).GetHashCode());
                     InsightDraw.Panel(rects[i], context.Theme);

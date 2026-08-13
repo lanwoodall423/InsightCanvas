@@ -1,6 +1,6 @@
 # Insight Canvas quickstart
 
-Insight Canvas is an opt-in UI toolkit for RimWorld 1.6. It is a separate mod with package ID `lan.insightcanvas`; it does not globally reskin RimWorld and ordinary screens do not need `InsightModel`.
+Insight Canvas 2.1.0 is an opt-in UI toolkit for RimWorld 1.6. It is a separate mod with package ID `lan.insightcanvas`; it does not globally reskin RimWorld and ordinary screens do not need `InsightModel`.
 
 ## 1. Add the dependency
 
@@ -57,6 +57,23 @@ public void ClosePanel()
 
 `PostClose()` clears document-owned focus, effects, toasts, popovers, dropdowns, and map-bridge ownership. If a consumer already manages its own lifecycle, it can call `InsightUiRenderer.Draw(rect, document)` directly and still use the same public element tree.
 
+## 4. Compose an existing semantic view
+
+Retained v1 semantic objects can be inserted beside ordinary v2 elements without copying their interaction context:
+
+```csharp
+InsightContext context = new InsightContext();
+InsightModel model = InsightModel.Create("frontier-analysis");
+InsightView view = InsightView.Create().Add(new MyInsightComponent("overview"));
+InsightUiElement root = InsightUi.Column("analysis-root",
+    InsightUi.Label("summary", "Frontier analysis", InsightUiTextStyle.Heading),
+    InsightUi.SemanticView("analysis-view", model, view, context));
+InsightUiDocument document = new InsightUiDocument("Frontier analysis", root);
+InsightUiHost host = new InsightUiHost(document);
+```
+
+`SemanticView` retains `model`, `view`, and `context`. It refreshes the immutable model snapshot during Measure when the model revision changes, uses the cached snapshot during Paint, and defers revisions that arrive during navigation until the next Measure. Theme, high contrast, color-blind adjustment, density, reduced motion, host bounds, delta time, and the enclosing host's overlay ownership are inherited from the document. Call `host.PostClose()` when the owner closes. The existing `InsightCanvasHost`/`InsightWindow` APIs remain available for v1 compatibility.
+
 ## Reusable information surfaces
 
 Common RimWorld summaries can stay compositional instead of introducing a data model:
@@ -75,7 +92,7 @@ InsightUiElement summary = InsightUi.Column("summary",
 
 `Callout`, `SectionHeader`, `Meter`, and `StatRow` are ordinary composites of the existing primitives. They inherit the document theme, density, contrast, and motion settings and work in either an embedded host or `InsightUiWindow`.
 
-## 4. Bind existing ModSettings
+## 5. Bind existing ModSettings
 
 Bindings keep the consumer's settings object authoritative; no second synchronization dictionary is needed:
 
@@ -89,7 +106,7 @@ InsightUiSelect density = InsightUi.Select("density", "Density",
 
 The getter is read again on later frames, so settings changed by another part of the mod are reflected immediately. See [`Examples/ModSettingsExample.cs`](../Examples/ModSettingsExample.cs) for a complete `ModSettings` example.
 
-## 5. Search and virtualize data
+## 6. Search and virtualize data
 
 Use `SearchField` for a bound query and `VirtualList` for deterministic fixed-height large collections:
 
@@ -104,7 +121,7 @@ records.CacheLimit = 96;
 
 Only the visible range plus overscan is measured, arranged, and painted. `InsightVirtualization.Range` and `ContentHeight` are available for custom adapters.
 
-## 6. Theme and accessibility
+## 7. Theme and accessibility
 
 Themes and accessibility options are scoped to the document:
 
@@ -120,7 +137,7 @@ document.Invalidate();
 
 The default RimWorld+ theme uses warm charcoal surfaces, readable neutral text, muted accents, and code-drawn depth. The renderer restores Unity GUI/Text state after drawing and never mutates the global GUI skin.
 
-## 7. Effects and custom rendering
+## 8. Effects and custom rendering
 
 Use document-owned effects for brief feedback and close them with the document lifecycle:
 

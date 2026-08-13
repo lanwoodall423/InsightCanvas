@@ -1,6 +1,6 @@
 # Insight Canvas
 
-Insight Canvas 2.0.0 is an opt-in composable UI toolkit and design system for RimWorld 1.6 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
+Insight Canvas 2.1.0 is an opt-in composable UI toolkit and design system for RimWorld 1.6 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
 
 Use it when a screen needs more than a pile of `Widgets.*` calls but should still feel native to RimWorld. Build an element tree once, provide stable IDs, and choose either a normal RimWorld `Window` or a caller-owned `Rect`. The document owns state and effects for that screen, so two windows do not leak selection, expansion, focus, scroll, theme, or transient feedback into one another.
 
@@ -73,6 +73,23 @@ public sealed class EmbeddedPanelExample
 
 The same `InsightUiDocument` can be passed to `InsightUiWindow`, used with `InsightUiHost`, or rendered through `InsightUiRenderer.Draw(rect, document)` when a consumer already manages host ownership.
 
+## Retained semantic view in a v2 document
+
+Existing `InsightModel`, `InsightView`, and `InsightContext` instances can participate in the same composable tree without converting them to delegates or copying interaction state:
+
+```csharp
+InsightContext context = new InsightContext();
+InsightModel model = InsightModel.Create("research");
+InsightView view = InsightView.Create().Add(new MyInsightComponent("summary"));
+InsightUiElement root = InsightUi.Column("research-root",
+    InsightUi.Label("title", "Research", InsightUiTextStyle.Title),
+    InsightUi.SemanticView("semantic-research", model, view, context));
+InsightUiDocument document = new InsightUiDocument("Research", root);
+InsightUiHost host = new InsightUiHost(document);
+```
+
+`SemanticView` retains the caller's model, view, and context by reference. It snapshots only during Measure when `model.Revision` changes, reuses that immutable snapshot through Paint, and defers a revision noticed during navigation until the next Measure. The enclosing document supplies theme/accessibility, density, reduced motion, host bounds, delta time, focus/state scope, and the one existing host overlay owner. The retained v1 `InsightView` is rendered by the framework's RimWorld painter; the lifecycle and fallback path remain renderer-neutral for portable testing. Use `host.PostClose()` for cleanup. Semantic views are runtime UI composition objects; model serialization still excludes views, contexts, delegates, callbacks, map references, textures, and live game objects. `InsightCanvasHost` and `InsightWindow` remain supported v1 compatibility APIs.
+
 ## The public toolkit in three layers
 
 ### Core UI
@@ -143,7 +160,7 @@ Insight Canvas follows semantic versioning for its documented public API:
 - `MINOR` adds public API and compatible components.
 - `PATCH` fixes behavior, documentation, tests, and packaging without intentional API breaks.
 
-The current v2 release is `2.0.0` (`AssemblyVersion`/`AssemblyFileVersion` `2.0.0.0`). See [`CHANGELOG.md`](CHANGELOG.md) for the v1-to-v2 migration boundary. The assembly, README, changelog, and release checklist are kept in sync for each release; RimWorld’s `About.xml` has no portable version field, so the package ID and supported game version remain the authoritative mod metadata.
+The current v2 release is `2.1.0` (`AssemblyVersion`/`AssemblyFileVersion` `2.1.0.0`). This is a compatible minor release adding the retained `InsightUi.SemanticView` bridge; v1 semantic APIs remain available. See [`CHANGELOG.md`](CHANGELOG.md) for the v1-to-v2 migration boundary. The assembly, README, changelog, and release checklist are kept in sync for each release; RimWorld’s `About.xml` has no portable version field, so the package ID and supported game version remain the authoritative mod metadata.
 
 ## Build and validation
 

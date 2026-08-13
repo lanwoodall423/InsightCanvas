@@ -37,6 +37,7 @@ internal static class Program
             MotionSettings();
             Prompt2Foundations();
             Prompt3Foundations();
+            SemanticViewLifecycle();
             Console.WriteLine("Insight Canvas core tests passed.");
             return 0;
         }
@@ -1168,6 +1169,89 @@ internal static class Program
             "replacing a document root left stale hover state behind");
     }
 
+    private static void SemanticViewLifecycle()
+    {
+        InsightUiDiagnostics diagnostics = new InsightUiDiagnostics { TrackDuplicateIds = true };
+        InsightUiFrame frame = new InsightUiFrame(InsightTheme.Default, InsightUiDensity.Compact, true, true,
+            new InsightUiStateStore(), diagnostics, 0.25f, hostBounds: new InsightRect(4f, 6f, 320f, 180f));
+        object owner = new object();
+        frame.SetOverlayOwnerToken(owner);
+        PortableSemanticSource source = new PortableSemanticSource();
+        InsightUiSemanticLifecycle lifecycle = new InsightUiSemanticLifecycle(source);
+        TestPainter painter = new TestPainter();
+
+        diagnostics.BeginFrame();
+        InsightUiSize measured = lifecycle.Measure("semantic", new InsightUiConstraints(0f, 320f, 0f, 180f), frame);
+        Assert(measured.Width == 120f && measured.Height == 48f && source.SnapshotBuilds == 1 &&
+            diagnostics.SemanticSnapshotRefreshes == 1 && diagnostics.SemanticLayoutInvalidations == 1,
+            "semantic measure did not build one retained snapshot and invalidate layout");
+        lifecycle.Paint("semantic", new InsightRect(4f, 6f, 320f, 180f), painter, frame);
+        Assert(source.PaintCalls == 1 && source.LastDensity == InsightUiDensity.Compact && source.LastHighContrast &&
+            source.LastReducedMotion && source.LastBounds.Equals(frame.HostBounds) &&
+            Math.Abs(source.LastDelta - 0.25f) < 0.001f && ReferenceEquals(source.LastOwner, owner),
+            "semantic paint did not inherit document accessibility, density, bounds, delta, or owner");
+
+        lifecycle.Paint("semantic", new InsightRect(4f, 6f, 320f, 180f), painter, frame);
+        Assert(source.SnapshotBuilds == 1 && diagnostics.SemanticResizes == 0,
+            "semantic paint rebuilt or resized without a model or bounds change");
+        lifecycle.Paint("semantic", new InsightRect(4f, 6f, 300f, 180f), painter, frame);
+        Assert(diagnostics.SemanticResizes == 1, "semantic bounds change was not diagnosed");
+
+        source.ModelRevision++;
+        lifecycle.Paint("semantic", new InsightRect(4f, 6f, 300f, 180f), painter, frame);
+        Assert(source.SnapshotBuilds == 1 && diagnostics.SemanticDeferredRefreshes == 1,
+            "model revision changed during navigation but paint rebuilt the semantic snapshot");
+        diagnostics.BeginFrame();
+        lifecycle.Measure("semantic", new InsightUiConstraints(0f, 300f, 0f, 180f), frame);
+        Assert(source.SnapshotBuilds == 2 && diagnostics.SemanticSnapshotRefreshes == 1,
+            "deferred semantic revision was not refreshed at the next measure");
+
+        source.ThrowOnPaint = true;
+        for (int i = 0; i < 80; i++) lifecycle.Paint("semantic", new InsightRect(4f, 6f, 300f, 180f), painter, frame);
+        Assert(diagnostics.SemanticRenderErrors == 64 && painter.TextCalls > 0,
+            "semantic render failures were not contained and bounded deterministically");
+        source.ThrowOnPaint = false;
+        int invalidations = source.InvalidationCalls;
+        lifecycle.Invalidate();
+        Assert(source.InvalidationCalls == invalidations + 1, "semantic invalidation did not reach the retained source");
+
+        InsightContext firstContext = new InsightContext();
+        InsightContext secondContext = new InsightContext();
+        PortableSemanticSource first = new PortableSemanticSource(firstContext);
+        PortableSemanticSource second = new PortableSemanticSource(secondContext);
+        InsightUiSemanticLifecycle firstLifecycle = new InsightUiSemanticLifecycle(first);
+        InsightUiSemanticLifecycle secondLifecycle = new InsightUiSemanticLifecycle(second);
+        diagnostics.BeginFrame();
+        firstLifecycle.Measure("first", InsightUiConstraints.Unbounded, frame);
+        secondLifecycle.Measure("second", InsightUiConstraints.Unbounded, frame);
+        Assert(ReferenceEquals(first.Context, firstContext) && ReferenceEquals(second.Context, secondContext),
+            "semantic elements did not retain independent caller contexts");
+        firstContext.Hover("first-entity");
+        frame.EndSemanticContexts();
+        Assert(firstContext.HoveredEntityId == "first-entity" && secondContext.HoveredEntityId == null,
+            "semantic context frame ownership was not independent");
+        diagnostics.BeginFrame();
+        firstLifecycle.Measure("first", InsightUiConstraints.Unbounded, frame);
+        secondLifecycle.Measure("second", InsightUiConstraints.Unbounded, frame);
+        frame.EndSemanticContexts();
+        Assert(firstContext.HoveredEntityId == null && secondContext.HoveredEntityId == null,
+            "semantic context hover lifetime was not closed by the enclosing frame");
+
+        InsightUiDocument replacement = new InsightUiDocument("retained", InsightUi.Label("old", "old"));
+        replacement.State.SetBool("retained.open", true);
+        int revision = replacement.Revision;
+        replacement.Root = InsightUi.Label("new", "new");
+        Assert(replacement.Revision > revision && replacement.State.GetBool("retained.open"),
+            "semantic-compatible root replacement did not retain document state");
+
+        InsightUiDiagnostics duplicate = new InsightUiDiagnostics { TrackDuplicateIds = true };
+        InsightUiElement duplicateTree = InsightUi.Column("duplicate-semantic-root",
+            InsightUi.Toggle("same-semantic-id", "one"), InsightUi.Toggle("same-semantic-id", "two"));
+        Render(duplicateTree, painter, duplicate);
+        Assert(duplicate.DuplicateIds == 1 && duplicate.DuplicateIdPaths[0] == "same-semantic-id",
+            "semantic-compatible stable duplicate IDs were not reported deterministically");
+    }
+
     private static void Assert(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
@@ -1352,6 +1436,81 @@ internal static class Program
 
         public void ConsumeTab() { TabConsumed = true; TabPressed = false; }
         public void ConsumeActivation() { ActivationConsumed = true; ActivatePressed = false; }
+    }
+
+    private sealed class PortableSemanticSource : IInsightUiSemanticSource
+    {
+        public readonly InsightContext Context;
+        public int ModelRevision;
+        public int SnapshotRevision = -1;
+        public int SnapshotBuilds;
+        public int PaintCalls;
+        public int InvalidationCalls;
+        public bool ThrowOnPaint;
+        public InsightUiDensity LastDensity;
+        public bool LastHighContrast;
+        public bool LastReducedMotion;
+        public InsightRect LastBounds;
+        public float LastDelta;
+        public object LastOwner;
+
+        public PortableSemanticSource() : this(new InsightContext()) { }
+
+        public PortableSemanticSource(InsightContext context)
+        {
+            Context = context;
+        }
+
+        public int RenderErrorCount { get; private set; }
+
+        public InsightUiSemanticPreparation PrepareForLayout(InsightUiFrame frame)
+        {
+            frame.RegisterSemanticContext(Context);
+            bool snapshotChanged = SnapshotRevision != ModelRevision;
+            if (snapshotChanged)
+            {
+                SnapshotRevision = ModelRevision;
+                SnapshotBuilds++;
+            }
+            bool contextChanged = Context.Revision != _contextRevision;
+            _contextRevision = Context.Revision;
+            return new InsightUiSemanticPreparation
+            {
+                SnapshotChanged = snapshotChanged,
+                LayoutInvalidated = snapshotChanged || contextChanged
+            };
+        }
+
+        private int _contextRevision = -1;
+
+        public InsightUiSemanticPreparation PrepareForPaint(InsightUiFrame frame)
+        {
+            frame.RegisterSemanticContext(Context);
+            return new InsightUiSemanticPreparation
+            {
+                DeferredRefresh = SnapshotRevision != ModelRevision || Context.Revision != _contextRevision
+            };
+        }
+
+        public InsightUiSize Measure(InsightUiConstraints constraints, InsightUiFrame frame)
+        {
+            return constraints.Constrain(new InsightUiSize(120f, 48f));
+        }
+
+        public void Paint(InsightRect bounds, IInsightUiPainter painter, InsightUiFrame frame)
+        {
+            LastDensity = frame.Density;
+            LastHighContrast = frame.HighContrast;
+            LastReducedMotion = frame.ReducedMotion;
+            LastBounds = frame.HostBounds;
+            LastDelta = frame.DeltaTime;
+            LastOwner = frame.OverlayOwnerToken;
+            if (ThrowOnPaint) throw new InvalidOperationException("portable semantic failure");
+            PaintCalls++;
+            painter.Text(bounds, "semantic", InsightUiTextStyle.Body, frame.Theme.PrimaryText, false, frame);
+        }
+
+        public void Invalidate() { InvalidationCalls++; }
     }
 
     private sealed class OverlayTestEntry

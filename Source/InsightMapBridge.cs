@@ -50,8 +50,10 @@ namespace InsightCanvas
 
         internal static IDisposable BeginOwner(object ownerToken)
         {
+            object requested = ownerToken ?? unownedOwnerToken;
+            if (ReferenceEquals(activeOwnerToken, requested)) return OwnerScope.Noop;
             object previous = activeOwnerToken;
-            activeOwnerToken = ownerToken ?? unownedOwnerToken;
+            activeOwnerToken = requested;
             return new OwnerScope(previous);
         }
 
@@ -246,6 +248,7 @@ namespace InsightCanvas
 
         private sealed class OwnerScope : IDisposable
         {
+            internal static readonly IDisposable Noop = new NoopOwnerScope();
             private readonly object previous;
             private bool disposed;
 
@@ -259,6 +262,11 @@ namespace InsightCanvas
                 if (disposed) return;
                 disposed = true;
                 activeOwnerToken = previous;
+            }
+
+            private sealed class NoopOwnerScope : IDisposable
+            {
+                public void Dispose() { }
             }
         }
     }

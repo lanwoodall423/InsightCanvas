@@ -1,6 +1,6 @@
 # Insight Canvas integration
 
-Insight Canvas 2.0.0 is an opt-in, composable UI toolkit for RimWorld 1.6 (`lan.insightcanvas`). Ordinary screens do not require `InsightModel`; they are built from an element tree with stable IDs, a document-owned state store, and a scoped theme. The public tree uses explicit `Measure`, `Arrange`, and `Paint` phases and can be embedded or hosted by a normal RimWorld `Window`.
+Insight Canvas 2.1.0 is an opt-in, composable UI toolkit for RimWorld 1.6 (`lan.insightcanvas`). Ordinary screens do not require `InsightModel`; they are built from an element tree with stable IDs, a document-owned state store, and a scoped theme. The public tree uses explicit `Measure`, `Arrange`, and `Paint` phases and can be embedded or hosted by a normal RimWorld `Window`.
 
 Start with [`Quickstart.md`](Quickstart.md) for the shortest adoption path. Keep Insight Canvas installed as its own mod, declare `lan.insightcanvas` in the consuming mod's `<modDependencies>`, and reference the installed assembly at compile time without bundling a duplicate DLL.
 
@@ -177,6 +177,25 @@ The renderer applies accessibility adjustments at the document boundary, caches 
 Mods that have knowledge or analysis data can still use `InsightModel`, `InsightContext`, `InsightGraphLayout`, `InsightTimelineMath`, explanation types, serialization, and `InsightMapBridge`. These are optional data/widget extensions; a normal menu does not need to create a semantic model. The retained semantic `InsightWindow` and `InsightCanvasHost` are for existing advanced consumers while new integrations should prefer `InsightUiDocument`, `InsightUiHost`, and `InsightUiWindow`.
 
 `InsightMapBridge` can create transient focus, flash, heatmap, outline, radius, and path actions. Callers should invoke map actions from callbacks, not from repaint-time data collection. `InsightUiHost.PostClose()` and `InsightUiWindow.PostClose()` clear overlays owned by that host.
+
+### Retained semantic views in composable documents
+
+Use `InsightUi.SemanticView(id, model, view, context)` when an existing semantic publication should occupy one branch of a v2 document:
+
+```csharp
+InsightContext context = new InsightContext();
+InsightModel model = InsightModel.Create("analysis");
+InsightView view = InsightView.Create().Add(new MyInsightComponent("cards"));
+InsightUiElement root = InsightUi.Column("analysis-root",
+    InsightUi.Label("heading", "Analysis", InsightUiTextStyle.Heading),
+    InsightUi.SemanticView("analysis-semantic", model, view, context));
+InsightUiDocument document = new InsightUiDocument("Analysis", root);
+InsightUiHost host = new InsightUiHost(document);
+```
+
+The element retains the exact caller-owned `InsightModel`, `InsightView`, and `InsightContext`. Null model/view/context inputs receive safe defaults; use `ReplaceModel`, `ReplaceView`, or `ReplaceContext` when an integration deliberately changes the retained source. Model snapshots are immutable and keyed by `model.Revision`; a snapshot is refreshed during Measure only, never rebuilt during Paint. Context revision changes invalidate semantic layout, while a model revision noticed during navigation is diagnosed as deferred and picked up by the next Measure. The semantic render context inherits document theme/accessibility, density, reduced motion, host bounds, delta time, and the enclosing `InsightUiHost` overlay owner. The retained `InsightView` is a RimWorld semantic renderer, so the production element expects the framework's `RimWorldInsightUiPainter`; the lifecycle itself remains renderer-neutral and is covered by portable painter tests. It does not create a nested owner, query maps/worlds as part of ordinary paint, or serialize views, contexts, delegates, callbacks, map references, or live objects. `PostClose()` remains required to clear transient overlays.
+
+`InsightCanvasHost` and `InsightWindow` remain the compatibility path for v1 retained semantic views. New v2 documents should use `SemanticView` only when they need to compose those views with ordinary `InsightUi` elements.
 
 ## Serialization contract
 

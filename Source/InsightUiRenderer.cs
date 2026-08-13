@@ -635,6 +635,7 @@ namespace InsightCanvas
                 InsightUiFrame frame = new InsightUiFrame(theme, document.Density, highContrast, reducedMotion,
                     document.State, document.Diagnostics, elapsed, document.Focus, document.Effects, document.Toasts,
                     new InsightRect(rect.x, rect.y, rect.width, rect.height));
+                frame.SetOverlayOwnerToken(InsightMapBridge.CurrentOwnerToken);
                 frame.TextMeasurer = (text, style, maxWidth) => painter.MeasureText(text, style, maxWidth, frame);
                 frame.NativeTextMeasurer = (text, style, maxWidth) => painter.MeasureNativeText(text, style, maxWidth, frame);
                 try
@@ -660,6 +661,7 @@ namespace InsightCanvas
                 }
                 finally
                 {
+                    frame.EndSemanticContexts();
                     painter.Reset();
                 }
             }

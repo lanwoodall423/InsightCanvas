@@ -8,7 +8,7 @@ Run the game-independent harness from the repository root:
 dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release --nologo
 ```
 
-The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, SlideFade interruption/settling and nested translation restoration, HoverCard delay/grace/edge placement/cleanup, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, and pure focus traversal.
+The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation and root replacement, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, SlideFade interruption/settling and nested translation restoration, HoverCard delay/grace/edge placement/cleanup, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, pure focus traversal, and the renderer-neutral semantic lifecycle. Semantic coverage verifies retained contexts, independent shared-model sources, revision-keyed snapshot caching, deferred refresh during navigation, resize invalidation, accessibility/density/reduced-motion/bounds/delta/owner propagation, bounded contained errors, and no per-frame rebuild.
 
 ## RimWorld build
 
@@ -24,6 +24,8 @@ The build writes `1.6/Assemblies/InsightCanvas.dll` and `.xml`. `git diff --chec
 
 `Source/InsightCanvasAutoTest.cs` owns the automatic in-game checks. It activates only when a DevBridge2 quicktest launch supplies `DEVBRIDGE_ROOT`; DevBridge2 only launches/restarts RimWorld, reports readiness, and coordinates leases. The mod waits for a playable map, validates the optional deterministic semantic sample and map flash, checks the Unity painter's translation and pointer capability wiring, checks flex and virtualization math, checks per-document state isolation, creates the public-API Feature Showcase, verifies all ten pages, switches through wide side navigation and narrow compact navigation, waits for rendered frames, and verifies layout, visible elements, and render-error counters, including the dogfooded SlideFade and HoverCard.
 
+The suite also exercises the public `InsightUi.SemanticView` bridge with ordinary elements, shared model sources,
+independent contexts, retained snapshot reuse, deferred replacement, root replacement, and document-state retention.
 The result is written by the mod to `DevBridge2/Runtime/insightcanvas-autotest.json`:
 
 ```text
@@ -52,4 +54,4 @@ Never add test execution logic to DevBridge2 and never launch or stop RimWorld d
 
 ## Optional advanced extension checks
 
-Consumers of semantic extensions should additionally verify snapshot revisioning, deterministic graph fit, timeline clustering, explanation disclosure, serialization omission diagnostics, and owner-scoped map overlay cleanup. These checks are not required to create or draw ordinary composable UI.
+Consumers of semantic extensions should additionally verify snapshot revisioning, deterministic graph fit, timeline clustering, explanation disclosure, serialization omission diagnostics, stable duplicate IDs, replacement of model/view/context sources, root replacement with retained document state, host close/reopen, shared models with independent contexts, no nested owner scope, and owner-scoped map overlay cleanup. These checks are not required to create or draw ordinary composable UI.

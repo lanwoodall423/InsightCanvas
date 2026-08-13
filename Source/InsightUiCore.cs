@@ -599,6 +599,16 @@ namespace InsightCanvas
         public int VisibleElements { get; private set; }
         public int Invalidations { get; private set; }
         public int RenderErrors { get; private set; }
+        /// <summary>Gets the number of immutable semantic snapshots refreshed during the current frame.</summary>
+        public int SemanticSnapshotRefreshes { get; private set; }
+        /// <summary>Gets the number of semantic layout invalidations caused by retained input changes.</summary>
+        public int SemanticLayoutInvalidations { get; private set; }
+        /// <summary>Gets the number of semantic refreshes deferred until the next layout pass.</summary>
+        public int SemanticDeferredRefreshes { get; private set; }
+        /// <summary>Gets the number of semantic elements whose arranged bounds changed.</summary>
+        public int SemanticResizes { get; private set; }
+        /// <summary>Gets contained semantic render errors, capped to a deterministic per-frame bound.</summary>
+        public int SemanticRenderErrors { get; private set; }
         public int LastMeasuredElementCount { get; private set; }
         /// <summary>Gets the number of elements in the most recent virtualized viewport.</summary>
         public int VirtualizedVisibleElements { get; private set; }
@@ -621,6 +631,11 @@ namespace InsightCanvas
             VirtualizedVisibleElements = 0;
             VirtualizedCachedElements = 0;
             ActiveEffects = 0;
+            SemanticSnapshotRefreshes = 0;
+            SemanticLayoutInvalidations = 0;
+            SemanticDeferredRefreshes = 0;
+            SemanticResizes = 0;
+            SemanticRenderErrors = 0;
             DuplicateIds = 0;
             duplicateIdSet.Clear();
             duplicateIdPaths.Clear();
@@ -630,7 +645,16 @@ namespace InsightCanvas
         public void RecordArrange() { ArrangePasses++; }
         public void RecordVisible() { VisibleElements++; }
         public void RecordInvalidation() { Invalidations++; }
-        public void RecordRenderError() { RenderErrors++; }
+        public void RecordRenderError() { RenderErrors = Math.Min(64, RenderErrors + 1); }
+        internal void RecordSemanticSnapshot() { SemanticSnapshotRefreshes = Math.Min(64, SemanticSnapshotRefreshes + 1); }
+        internal void RecordSemanticLayoutInvalidation() { SemanticLayoutInvalidations = Math.Min(64, SemanticLayoutInvalidations + 1); }
+        internal void RecordSemanticDeferredRefresh() { SemanticDeferredRefreshes = Math.Min(64, SemanticDeferredRefreshes + 1); }
+        internal void RecordSemanticResize(string id) { SemanticResizes = Math.Min(64, SemanticResizes + 1); }
+        internal void RecordSemanticRenderErrors(string id, int count)
+        {
+            if (count <= 0) return;
+            SemanticRenderErrors = Math.Min(64, SemanticRenderErrors + count);
+        }
         internal void RecordVirtualization(int visible, int cached)
         {
             VirtualizedVisibleElements = Math.Max(0, visible);
@@ -650,7 +674,9 @@ namespace InsightCanvas
             return "frame " + Frame + " | measure " + MeasurePasses + " | arrange " + ArrangePasses +
                 " | visible " + VisibleElements + " | invalidations " + Invalidations +
                 " | virtualized " + VirtualizedVisibleElements + "/" + VirtualizedCachedElements +
-                " | effects " + ActiveEffects + " | errors " + RenderErrors;
+                " | effects " + ActiveEffects + " | errors " + RenderErrors +
+                " | semantic " + SemanticSnapshotRefreshes + "/" + SemanticLayoutInvalidations +
+                "/" + SemanticDeferredRefreshes + "/" + SemanticRenderErrors;
         }
     }
 
@@ -660,6 +686,7 @@ namespace InsightCanvas
         private readonly List<string> scopeStack = new List<string>();
         private readonly Dictionary<string, string> keyCache = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly List<float> opacityStack = new List<float>();
+        private readonly List<InsightContext> semanticContexts = new List<InsightContext>();
         private string scopePath = string.Empty;
 
         public InsightTheme Theme { get; private set; }
@@ -679,6 +706,8 @@ namespace InsightCanvas
         /// <summary>Gets the caller-owned bounds used by transient elements for safe placement.</summary>
         public InsightRect HostBounds { get; private set; }
         public float DeltaTime { get; private set; }
+        /// <summary>Gets the enclosing host's transient overlay owner for semantic interaction callbacks.</summary>
+        internal object OverlayOwnerToken { get; private set; }
         public Func<string, InsightUiTextStyle, float, InsightUiSize> TextMeasurer { get; set; }
         /// <summary>Optional normal RimWorld control measurement, without semantic typography scaling.</summary>
         public Func<string, InsightUiTextStyle, float, InsightUiSize> NativeTextMeasurer { get; set; }
@@ -749,6 +778,27 @@ namespace InsightCanvas
         {
             string effectiveId = EffectiveId(element?.Id);
             Focus.Register(effectiveId, element, Diagnostics, focusable, textInput);
+        }
+
+        internal void SetOverlayOwnerToken(object ownerToken)
+        {
+            OverlayOwnerToken = ownerToken;
+        }
+
+        internal void RegisterSemanticContext(InsightContext context)
+        {
+            if (context == null) return;
+            for (int i = 0; i < semanticContexts.Count; i++)
+                if (ReferenceEquals(semanticContexts[i], context)) return;
+            context.BeginFrame();
+            semanticContexts.Add(context);
+        }
+
+        internal void EndSemanticContexts()
+        {
+            for (int i = semanticContexts.Count - 1; i >= 0; i--)
+                semanticContexts[i].EndFrame();
+            semanticContexts.Clear();
         }
 
         internal void RegisterInteractive(string localId, object owner, bool textInput = false)
@@ -961,6 +1011,9 @@ namespace InsightCanvas
                 if (ReferenceEquals(root, value)) return;
                 root?.CloseTransient(State);
                 root = value ?? InsightUi.Empty("root");
+                Revision++;
+                Diagnostics.RecordInvalidation();
+                root.Invalidate();
             }
         }
         public InsightTheme Theme

@@ -76,6 +76,7 @@ namespace InsightCanvas
             try
             {
                 RunCase("semantic-sample", CheckSemanticSample);
+                RunCase("semantic-v2-public-api", CheckSemanticV2PublicApi);
                 RunCase("responsive-layout", CheckResponsiveLayout);
                 RunCase("virtualization-bounds", CheckVirtualizationBounds);
                 RunCase("document-state-isolation", CheckDocumentStateIsolation);
@@ -560,6 +561,60 @@ namespace InsightCanvas
             InsightGraphFit fit = InsightGraphViewport.Fit(layout, 720f, 480f, 32f);
             Require(fit.Zoom >= 0.25f && fit.Zoom <= 2.8f && IsFinite(fit.Pan.X) && IsFinite(fit.Pan.Y),
                 "optional graph widget returned an invalid viewport transform");
+        }
+
+        private static void CheckSemanticV2PublicApi()
+        {
+            InsightModel model = InsightModel.Create("autotest-v2").Entity("site:alpha", "Alpha");
+            InsightContext firstContext = new InsightContext();
+            InsightContext secondContext = new InsightContext();
+            InsightUiSemanticView first = InsightUi.SemanticView("autotest-semantic", model, InsightView.Create(), firstContext);
+            InsightUiSemanticView second = InsightUi.SemanticView("autotest-semantic-2", model, InsightView.Create(), secondContext);
+            InsightUiDocument document = new InsightUiDocument("autotest-v2-document", InsightUi.Column("autotest-v2-root",
+                InsightUi.Label("autotest-v2-label", "Ordinary"), first, second));
+            document.Diagnostics.BeginFrame();
+            InsightUiFrame frame = new InsightUiFrame(document.Theme, document.Density, document.HighContrast,
+                document.ReducedMotion, document.State, document.Diagnostics, 1f / 60f,
+                hostBounds: new InsightRect(0f, 0f, 480f, 240f));
+            try
+            {
+                document.Root.Measure(new InsightUiConstraints(0f, 480f, 0f, 240f), frame);
+                document.Root.Arrange(new InsightRect(0f, 0f, 480f, 240f), frame);
+            }
+            finally
+            {
+                frame.EndSemanticContexts();
+            }
+            Require(ReferenceEquals(first.Model, model) && ReferenceEquals(second.Model, model) &&
+                ReferenceEquals(first.Context, firstContext) && ReferenceEquals(second.Context, secondContext) &&
+                first.Snapshot != null && second.Snapshot != null && first.SnapshotRevision == model.Revision &&
+                second.SnapshotRevision == model.Revision,
+                "v2 SemanticView did not retain shared model or independent contexts through Measure");
+            InsightModelSnapshot firstSnapshot = first.Snapshot;
+            document.Diagnostics.BeginFrame();
+            InsightUiFrame secondFrame = new InsightUiFrame(document.Theme, document.Density, document.HighContrast,
+                document.ReducedMotion, document.State, document.Diagnostics, 1f / 60f,
+                hostBounds: new InsightRect(0f, 0f, 480f, 240f));
+            try
+            {
+                document.Root.Measure(new InsightUiConstraints(0f, 480f, 0f, 240f), secondFrame);
+            }
+            finally
+            {
+                secondFrame.EndSemanticContexts();
+            }
+            Require(ReferenceEquals(first.Snapshot, firstSnapshot),
+                "v2 SemanticView rebuilt an immutable snapshot without a model revision change");
+            document.State.SetBool("retained", true);
+            int revision = document.Revision;
+            document.Root = InsightUi.Empty("replacement");
+            Require(document.Revision > revision && document.State.GetBool("retained"),
+                "v2 document root replacement did not retain state");
+            first.ReplaceModel(InsightModel.Create("autotest-replacement"));
+            first.ReplaceView(InsightView.Create());
+            first.ReplaceContext(new InsightContext());
+            Require(first.Snapshot == null && first.SnapshotRevision == -1,
+                "v2 source replacement did not defer its new snapshot until the next Measure");
         }
 
         private void CheckResponsiveLayout()

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.0 - 2026-08-12
+
+This compatible minor release bridges retained semantic views into composable v2 documents.
+
+- Added public `InsightUi.SemanticView(id, model, view, context)` and retained source replacement APIs for existing semantic integrations.
+- Added revision-keyed immutable snapshot caching, semantic layout invalidation/deferred-refresh diagnostics, bounded contained render errors, and inheritance of document accessibility, density, reduced motion, bounds, delta time, and host overlay ownership.
+- Preserved `InsightCanvasHost`, `InsightWindow`, and all v1 semantic APIs; new integrations can compose ordinary and semantic elements in one `InsightUiDocument`.
+- Added portable lifecycle coverage and a public-API Frontier consumer fixture.
+
+The current package targets RimWorld 1.6 and uses package ID `lan.insightcanvas`. The assembly version is `2.1.0.0`. Owner license selection required; no license is granted by this repository until the owner selects one.
+
 ## 2.0.0 - 2026-08-12
 
 This is the breaking v2 redesign. Insight Canvas is now a general-purpose, opt-in UI toolkit and design system; ordinary consumers no longer need to construct an `InsightModel`.

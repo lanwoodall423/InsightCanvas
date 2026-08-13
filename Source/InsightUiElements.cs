@@ -222,7 +222,7 @@ namespace InsightCanvas
     }
 
     /// <summary>Convenient factory methods for the public composable API.</summary>
-    public static class InsightUi
+    public static partial class InsightUi
     {
         public static InsightUiStack Row(string id, params InsightUiElement[] children) =>
             new InsightUiStack(id, InsightUiOrientation.Horizontal, InsightUiWrapMode.NoWrap).Add(children);
