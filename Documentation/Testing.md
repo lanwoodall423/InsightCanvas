@@ -18,24 +18,21 @@ With a local RimWorld 1.6 installation, run:
 dotnet build Source/InsightCanvas.csproj --configuration Release --nologo /p:RimWorldDir="C:\Games\Steam\steamapps\common\RimWorld"
 ```
 
-The build writes `1.6/Assemblies/InsightCanvas.dll` and `.xml`. `git diff --check` is useful before packaging. DevBridge2 is not part of the test implementation.
+The build writes `1.6/Assemblies/InsightCanvas.dll` and `.xml`. `git diff --check` is useful before packaging.
 
-## Automatic in-game suite
+## RimTest validation
 
-`Source/InsightCanvasAutoTest.cs` owns the automatic in-game checks. It activates only when a DevBridge2 quicktest launch supplies `DEVBRIDGE_ROOT`; DevBridge2 only launches/restarts RimWorld, reports readiness, and coordinates leases. The mod waits for a playable map, validates the optional deterministic semantic sample and map flash, checks the Unity painter's translation and pointer capability wiring, checks flex and virtualization math, checks per-document state isolation, creates the public-API Feature Showcase, verifies all ten pages, switches through wide side navigation and narrow compact navigation, waits for rendered frames, and verifies layout, visible elements, and render-error counters, including the dogfooded SlideFade and HoverCard.
+RimTest is the authoritative development workflow for the mod. From the repository root:
 
-The suite also exercises the public `InsightUi.SemanticView` bridge with ordinary elements, shared model sources,
-independent contexts, retained snapshot reuse, deferred replacement, root replacement, and document-state retention.
-The result is written by the mod to `DevBridge2/Runtime/insightcanvas-autotest.json`:
-
-```text
-DevBridge.cmd restart
-DevBridge.cmd test begin
-# wait for the result file to report PASS or FAIL
-DevBridge.cmd test end <lease-id printed by test begin>
+```powershell
+C:\Games\Steam\steamapps\common\RimWorld\Mods\RimTest\rimtest.cmd doctor --json
+C:\Games\Steam\steamapps\common\RimWorld\Mods\RimTest\rimtest.cmd affected --run --json
 ```
 
-Never add test execution logic to DevBridge2 and never launch or stop RimWorld directly for this workflow. The automatic suite intentionally does not synthesize Unity `Event.current`; it verifies rendered frames and renderer diagnostics. Manually smoke-test Tab/Shift+Tab, Enter/Space activation, focus rings, a real consumer `Texture2D`, and a custom painter callback in RimWorld when changing those adapter paths. Text editing must retain input ownership, and Escape remains RimWorld Window behavior.
+Run `doctor` only when readiness is unknown. `affected` uses RimContext to select the catalog test and
+delegates the registered `mod-development-smoke` recipe to DevBridge2. DevBridge2 owns RimWorld's
+lifecycle, profiles, generations, and ModsConfig state; do not launch or stop RimWorld manually or
+edit ModsConfig directly.
 
 ## Feature Showcase checklist
 

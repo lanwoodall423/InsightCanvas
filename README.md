@@ -166,7 +166,7 @@ The current v2 release is `2.1.0` (`AssemblyVersion`/`AssemblyFileVersion` `2.1.
 
 - [`Documentation/Quickstart.md`](Documentation/Quickstart.md) — adoption recipes and lifecycle guidance.
 - [`Documentation/Integration.md`](Documentation/Integration.md) — complete public API reference and optional semantic extensions.
-- [`Documentation/Testing.md`](Documentation/Testing.md) — portable and mod-owned in-game testing.
+- [`Documentation/Testing.md`](Documentation/Testing.md) — portable checks and RimTest validation.
 - [`Documentation/ReleaseChecklist.md`](Documentation/ReleaseChecklist.md) — release gate.
 - [`Examples/`](Examples/) — focused public-API-only copy/paste examples.
 

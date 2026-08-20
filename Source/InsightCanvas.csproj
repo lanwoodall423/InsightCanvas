@@ -26,6 +26,11 @@
     <OutputPath>..\1.6\Assemblies\</OutputPath>
     <DebugType>none</DebugType>
   </PropertyGroup>
+  <!-- DevBridge2 builds with an out-of-tree intermediate directory; keep the
+       repository's ordinary Source\obj generated files out of Compile globs. -->
+  <ItemGroup>
+    <Compile Remove="obj\**" />
+  </ItemGroup>
   <ItemGroup Condition="'$(RimWorldManagedDir)' != '' and Exists('$(RimWorldManagedDir)/Assembly-CSharp.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.CoreModule.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll')">
     <Reference Include="Assembly-CSharp">
       <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
