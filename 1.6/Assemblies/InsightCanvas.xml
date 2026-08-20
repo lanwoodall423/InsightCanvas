@@ -4,12 +4,6 @@
         <name>InsightCanvas</name>
     </assembly>
     <members>
-        <member name="T:InsightCanvas.InsightCanvasAutoTestComponent">
-            <summary>
-            Runs the installed-mod acceptance suite inside RimWorld. It is inert during ordinary launches because all
-            three DevBridge2 quicktest environment values are required before the component can start.
-            </summary>
-        </member>
         <member name="T:InsightCanvas.InsightCanvasHost">
             <summary>
             Embeds the retained Insight Canvas view inside a host window such as a RimWorld main tab.

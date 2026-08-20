@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "rimtest-catalog/v1",
+  "tests": [
+    {
+      "id": "insightcanvas-smoke",
+      "description": "Build the declared Insight Canvas development project and verify RimWorld Dev Quicktest readiness.",
+      "recipe": "mod-development-smoke",
+      "cost": "medium",
+      "tags": ["smoke", "devbridge", "rimworld"]
+    }
+  ],
+  "suites": [
+    {
+      "id": "smoke",
+      "tests": ["insightcanvas-smoke"]
+    }
+  ]
+}

@@ -2,3 +2,6 @@
 **/obj/
 *.user
 *.suo
+.rimctx/
+.rimdev/profiles/
+.rimdev/validation-proofs/
