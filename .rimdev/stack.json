@@ -1,8 +1,23 @@
 {
   "schemaVersion": "rimdev-stack/v1",
   "project": "InsightCanvas",
-  "devBridgeProject": "frontier",
+  "devBridgeProject": "insight-canvas",
   "catalog": "TestCatalog/rimtest.catalog.json",
   "fallbackSuite": "smoke",
-  "rimBridge": "via-devbridge"
+  "rimBridge": "via-devbridge",
+  "workload": "production",
+  "projectType": "rimworld-content-mod",
+  "packageId": "lan.insightcanvas",
+  "sourceProject": "Source/InsightCanvas.csproj",
+  "configuration": "Release",
+  "expectedAssembly": "InsightCanvas.dll",
+  "deploymentTarget": "1.6/Assemblies/InsightCanvas.dll",
+  "testRecipe": "insightcanvas-in-game-suite",
+  "testRecipePath": ".rimdev/recipes/insightcanvas-in-game-suite.json",
+  "runtimePackage": {
+    "sourceRoot": ".",
+    "include": ["About/**", "LoadFolders.xml", "1.*/**"],
+    "exclude": [".rimdev/**", ".rimctx/**", "Source/**", "bin/**", "obj/**", "artifacts/**", "diagnostics/**", "evidence/**"]
+  },
+  "dependencies": []
 }
