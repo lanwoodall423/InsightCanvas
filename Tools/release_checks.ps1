@@ -165,7 +165,7 @@ function Get-VersionInfo {
         }
     }
     $releaseNotesText = Get-Content -Raw -LiteralPath (Join-Path $repo ('Documentation/ReleaseNotes-' + $aboutVersion + '.md'))
-    if ($releaseNotesText -notmatch ('(?m)^# Insight Canvas ' + [regex]::Escape($aboutVersion) + '$')) {
+    if ($releaseNotesText -notmatch ('(?m)^# Insight Canvas ' + [regex]::Escape($aboutVersion) + '\r?$')) {
         throw "Stable release notes do not name version $aboutVersion"
     }
     $publicationText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Documentation/ReleasePublication.md')
