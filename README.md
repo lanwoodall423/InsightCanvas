@@ -1,10 +1,41 @@
 # Insight Canvas
 
-Insight Canvas 2.1.0 is an opt-in composable UI toolkit and design system for RimWorld 1.6 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
+Insight Canvas 2.1.1 is an opt-in composable UI toolkit and design system for RimWorld 1.6 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
 
 Use it when a screen needs more than a pile of `Widgets.*` calls but should still feel native to RimWorld. Build an element tree once, provide stable IDs, and choose either a normal RimWorld `Window` or a caller-owned `Rect`. The document owns state and effects for that screen, so two windows do not leak selection, expansion, focus, scroll, theme, or transient feedback into one another.
 
 The installed mod includes **Feature Showcase**, a dogfooded demonstration application. Open it from **Mod settings > Insight Canvas > Open Feature Showcase** or from the development-mode **Insight Canvas > Open Feature Showcase** action. It covers overview, foundations, layout, controls, workspaces, data display, motion, accessibility, advanced widgets, and diagnostics.
+
+> **Feature Showcase image placeholder:** `Documentation/images/feature-showcase.png` — add an actual captured RimWorld 1.6 screenshot here before publication if visual onboarding is desired. No fabricated image is included.
+
+## Installation and dependency behavior
+
+Insight Canvas supports RimWorld 1.6. Download a versioned ZIP from the repository's GitHub Releases page after owner publication; the release candidate package is built with `Tools/release_checks.ps1 -Command package`. Extract the archive as its own `Mods/InsightCanvas` directory and enable it in RimWorld's mod list.
+
+Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanvas`, targeting RimWorld 1.6. A consuming mod should install Insight Canvas as a separate mod and declare it explicitly in its own `About/About.xml`:
+
+```xml
+<modDependencies>
+  <li>
+    <packageId>lan.insightcanvas</packageId>
+    <displayName>Insight Canvas</displayName>
+  </li>
+</modDependencies>
+<loadAfter>
+  <li>lan.insightcanvas</li>
+</loadAfter>
+```
+
+The dependency declares the required load relationship; the explicit `loadAfter` is useful when a consuming mod also has optional integration code. Reference `InsightCanvas.dll` from the installed mod's `1.6/Assemblies` directory at compile time:
+
+```xml
+<Reference Include="InsightCanvas">
+  <HintPath>..\..\InsightCanvas\1.6\Assemblies\InsightCanvas.dll</HintPath>
+  <Private>false</Private>
+</Reference>
+```
+
+Do not copy or bundle a second `InsightCanvas.dll` in the consumer package. RimWorld's proprietary assemblies are local build inputs and must not be redistributed.
 
 ## Why mod authors use it
 
@@ -39,6 +70,14 @@ public static class MinimalWindowExample
     }
 }
 ```
+
+## Deeper documentation
+
+- [`Documentation/Quickstart.md`](Documentation/Quickstart.md) — shortest adoption path.
+- [`Documentation/Integration.md`](Documentation/Integration.md) — complete API and lifecycle guidance.
+- [`Examples/`](Examples/) — public-API-only copy/paste examples.
+- [`Examples/MinimalConsumer/`](Examples/MinimalConsumer/) — an independent compile-check against the released-style DLL.
+- [`Documentation/Testing.md`](Documentation/Testing.md) — portable, RimTest, and release validation.
 
 ## Embedded panel
 
@@ -134,23 +173,6 @@ document.Invalidate();
 
 `InsightUi.Custom` is the supported escape hatch for code-drawn previews. Use `IInsightUiCustomPainter`, `IInsightUiIconPainter`, and the supplied `InsightUiFrame`; do not mutate `GUI.skin` globally. The RimWorld renderer restores Unity GUI/Text state after each draw.
 
-## Installation and dependency behavior
-
-Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanvas`, targeting RimWorld 1.6. A consuming mod should install Insight Canvas as a separate mod and declare it explicitly in its own `About/About.xml`:
-
-```xml
-<modDependencies>
-  <li>
-    <packageId>lan.insightcanvas</packageId>
-    <displayName>Insight Canvas</displayName>
-  </li>
-</modDependencies>
-<loadAfter>
-  <li>lan.insightcanvas</li>
-</loadAfter>
-```
-
-The dependency declares the required load relationship; the explicit `loadAfter` is useful when a consuming mod also has optional integration code. Reference `InsightCanvas.dll` from the installed mod’s `1.6/Assemblies` directory at compile time, but do not copy or bundle a second `InsightCanvas.dll` in the consumer package. RimWorld’s proprietary assemblies are local build inputs and must not be redistributed.
 
 ## Versioning
 
@@ -160,15 +182,31 @@ Insight Canvas follows semantic versioning for its documented public API:
 - `MINOR` adds public API and compatible components.
 - `PATCH` fixes behavior, documentation, tests, and packaging without intentional API breaks.
 
-The current v2 release is `2.1.0` (`AssemblyVersion`/`AssemblyFileVersion` `2.1.0.0`). This is a compatible minor release adding the retained `InsightUi.SemanticView` bridge; v1 semantic APIs remain available. See [`CHANGELOG.md`](CHANGELOG.md) for the v1-to-v2 migration boundary. The assembly, README, changelog, and release checklist are kept in sync for each release; RimWorld’s `About.xml` has no portable version field, so the package ID and supported game version remain the authoritative mod metadata.
+The current v2 release is `2.1.1` (`AssemblyVersion`/`AssemblyFileVersion` `2.1.1.0`). This patch release preserves the documented public API while tightening release validation, packaging metadata, and licensing consistency. See [`CHANGELOG.md`](CHANGELOG.md) for the v2 migration boundary. The assembly, About.xml, README, changelog, and release checklist are kept in sync for each release; `About.xml` records the package version, while the package ID and supported game version remain the authoritative mod identity metadata.
 
 ## Build and validation
 
-- [`Documentation/Quickstart.md`](Documentation/Quickstart.md) — adoption recipes and lifecycle guidance.
-- [`Documentation/Integration.md`](Documentation/Integration.md) — complete public API reference and optional semantic extensions.
-- [`Documentation/Testing.md`](Documentation/Testing.md) — portable checks and RimTest validation.
 - [`Documentation/ReleaseChecklist.md`](Documentation/ReleaseChecklist.md) — release gate.
-- [`Examples/`](Examples/) — focused public-API-only copy/paste examples.
+
+The portable release contract is enforced by `Tools/release_checks.ps1`: API compatibility,
+version metadata, deterministic runtime packaging, proprietary-DLL rejection, and SHA-256
+manifest generation. `PublicAPI.Shipped.txt` is the shipped API baseline; compatible additions
+are reviewable in `PublicAPI.Unshipped.txt`.
+
+RimTest is the authoritative current-source workflow. From the repository root, run `doctor` when
+readiness is unknown, then run affected validation:
+
+```powershell
+& (Join-Path $env:RIMTEST_ROOT 'rimtest.cmd') doctor --json
+& (Join-Path $env:RIMTEST_ROOT 'rimtest.cmd') affected --run --json
+```
+
+The catalog smoke test builds and deploys the current source, proves artifact freshness, and runs the
+authenticated DevBridge2 v2 `insightcanvas-in-game-suite` recipe. Its RimBridge companion renders and
+exercises all ten Feature Showcase pages, checks navigation, public interactions, retained semantic
+views, responsive geometry, diagnostics, and owner-scoped cleanup. DevBridge2 remains the lifecycle,
+profile, generation, readiness, lease, and operation owner; see [`Documentation/Testing.md`](Documentation/Testing.md)
+for the companion build boundary.
 
 Portable checks run with:
 
