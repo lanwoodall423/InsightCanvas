@@ -35,8 +35,11 @@ jobs:
         shell: pwsh
         run: |
           $base = if ($env:GITHUB_EVENT_NAME -eq 'pull_request') { "origin/$env:GITHUB_BASE_REF" } else { 'HEAD^' }
+          $baselineExists = $false
           git cat-file -e "${base}:PublicAPI.Shipped.txt" 2>$null
-          if ($LASTEXITCODE -eq 0) {
+          $baselineExists = ($LASTEXITCODE -eq 0)
+          $LASTEXITCODE = 0
+          if ($baselineExists) {
             git diff --quiet "${base}...HEAD" -- PublicAPI.Shipped.txt
             if ($LASTEXITCODE -ne 0) {
               $current = (git show 'HEAD:Source/AssemblyInfo.cs' | Out-String)
