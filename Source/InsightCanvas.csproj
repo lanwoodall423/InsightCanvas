@@ -5,18 +5,20 @@
     <TargetFramework>net472</TargetFramework>
     <RootNamespace>InsightCanvas</RootNamespace>
     <AssemblyName>InsightCanvas</AssemblyName>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>9.0</LangVersion>
     <Deterministic>true</Deterministic>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
-  <!--
-    RimWorldDir may come from the environment or /p:RimWorldDir=.... Do not add a
-    developer-specific fallback here: the mod references proprietary game files.
-  -->
+  <!-- DevBridge builds from the repository root without supplying a game path.
+       Resolve the local installation when it is adjacent to the Mods folder;
+       callers can still override this with RimWorldDir or RimWorldManagedDir. -->
   <PropertyGroup>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldWin64_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldWin64_Data/Managed</RimWorldManagedDir>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldLinux_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldLinux_Data/Managed</RimWorldManagedDir>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldMac.app/Contents/Resources/Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldMac.app/Contents/Resources/Data/Managed</RimWorldManagedDir>
@@ -25,6 +27,7 @@
     <Optimize>true</Optimize>
     <OutputPath>..\1.6\Assemblies\</OutputPath>
     <DebugType>none</DebugType>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <!-- DevBridge2 builds with an out-of-tree intermediate directory; keep the
        repository's ordinary Source\obj generated files out of Compile globs. -->

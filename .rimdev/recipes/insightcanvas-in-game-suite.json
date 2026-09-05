@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "devbridge-test-recipe/v2",
+  "id": "insightcanvas-in-game-suite",
+  "description": "Run the Insight Canvas ten-page Feature Showcase acceptance suite through its authenticated RimBridgeServer companion.",
+  "projects": ["insight-canvas"],
+  "inputs": {
+    "quicktest": true
+  },
+  "requiresReady": true,
+  "allowInGameMutation": true,
+  "success": {
+    "quicktestReady": true,
+    "companionVerified": true,
+    "rimBridgeReady": true
+  },
+  "operations": [
+    {
+      "tool": "insightcanvas/run_suite",
+      "arguments": {
+        "warmupTicks": 120,
+        "settleTicks": 30,
+        "captureScreenshot": false
+      },
+      "expect": {
+        "success": true,
+        "assertions": [
+          { "pointer": "/success", "equals": true },
+          { "pointer": "/report/status", "equals": "PASS" },
+          { "pointer": "/report/assertionCount", "greaterThan": 0 }
+        ]
+      }
+    }
+  ],
+  "budget": {
+    "timeoutSeconds": 900,
+    "maxRimWorldLaunches": 1,
+    "maxRecipeAttempts": 1,
+    "maxCoordinatorRefreshes": 4,
+    "stopOnRepeatedFailureFingerprint": true,
+    "maxRepeatedFailureCount": 1
+  }
+}

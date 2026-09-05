@@ -1,6 +1,6 @@
 # Insight Canvas quickstart
 
-Insight Canvas 2.1.0 is an opt-in UI toolkit for RimWorld 1.6. It is a separate mod with package ID `lan.insightcanvas`; it does not globally reskin RimWorld and ordinary screens do not need `InsightModel`.
+Insight Canvas 2.1.1 is an opt-in UI toolkit for RimWorld 1.6. It is a separate mod with package ID `lan.insightcanvas`; it does not globally reskin RimWorld and ordinary screens do not need `InsightModel`.
 
 ## 1. Add the dependency
 

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <RootNamespace>InsightCanvas.BridgeTools</RootNamespace>
+    <AssemblyName>InsightCanvas.BridgeTools</AssemblyName>
+    <LangVersion>9.0</LangVersion>
+    <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputPath Condition="'$(RimWorldRoot)' != ''">$(RimWorldRoot)\Mods\InsightCanvas\1.6\BridgeTools\</OutputPath>
+    <OutputPath Condition="'$(RimWorldRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\..\artifacts\BridgeTools\InsightCanvas\</OutputPath>
+    <DebugType>none</DebugType>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RimWorldRoot Condition="'$(RimWorldRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\..</RimWorldRoot>
+    <RimBridgeSdkPath Condition="'$(RimBridgeSdkPath)' == ''">$(RIMBRIDGE_SERVER_SDK_PATH)</RimBridgeSdkPath>
+    <InsightCanvasAssemblyPath Condition="'$(InsightCanvasAssemblyPath)' == ''">$(MSBuildThisFileDirectory)..\..\1.6\Assemblies\InsightCanvas.dll</InsightCanvasAssemblyPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="InsightCanvas">
+      <HintPath>$(InsightCanvasAssemblyPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <PackageReference Include="RimBridgeServer.Sdk" Version="2.0.0"
+                      Condition="'$(RimBridgeSdkPath)' == ''">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile;build;buildTransitive;analyzers</IncludeAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <Reference Include="RimBridgeServer.Sdk" Condition="'$(RimBridgeSdkPath)' != ''">
+      <HintPath>$(RimBridgeSdkPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
