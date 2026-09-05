@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+The next patch release is `2.1.1`. It preserves the documented public API while establishing project-owned release validation, package metadata, and consistent GPLv3 licensing.
+
+- Added the authenticated RimTest/DevBridge2 Feature Showcase acceptance recipe and development-only companion.
+- Declared the package identity, Release build inputs, deployment target, and runtime package boundaries in `.rimdev/stack.json`.
+- Added explicit `About.xml` package version metadata and synchronized release documentation.
+
 ## 2.1.0 - 2026-08-12
 
 This compatible minor release bridges retained semantic views into composable v2 documents.
@@ -9,7 +17,7 @@ This compatible minor release bridges retained semantic views into composable v2
 - Preserved `InsightCanvasHost`, `InsightWindow`, and all v1 semantic APIs; new integrations can compose ordinary and semantic elements in one `InsightUiDocument`.
 - Added portable lifecycle coverage and a public-API Frontier consumer fixture.
 
-The current package targets RimWorld 1.6 and uses package ID `lan.insightcanvas`. The assembly version is `2.1.0.0`. Owner license selection required; no license is granted by this repository until the owner selects one.
+The current package targets RimWorld 1.6 and uses package ID `lan.insightcanvas`. The assembly version is `2.1.0.0`. The project is licensed under the GNU General Public License v3.0.
 
 ## 2.0.0 - 2026-08-12
 
@@ -23,7 +31,7 @@ This is the breaking v2 redesign. Insight Canvas is now a general-purpose, opt-i
 - Improved stack composition ergonomics: stack factories now preserve `InsightUiStack` through fluent style setters, so consumers can call `Add` without casts or compatibility extensions.
 - Added adoption documentation, focused public examples, dependency metadata guidance, and a release checklist.
 
-The current package targets RimWorld 1.6 and uses package ID `lan.insightcanvas`. The assembly version is `2.0.0.0`. Owner license selection required; no license is granted by this repository until the owner selects one.
+The package targeted RimWorld 1.6 and used package ID `lan.insightcanvas`. The assembly version was `2.0.0.0`. The project is licensed under the GNU General Public License v3.0.
 
 ## 1.0.1
 

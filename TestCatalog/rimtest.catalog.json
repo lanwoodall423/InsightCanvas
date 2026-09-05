@@ -2,17 +2,36 @@
   "schemaVersion": "rimtest-catalog/v1",
   "tests": [
     {
-      "id": "insightcanvas-smoke",
-      "description": "Build the declared Insight Canvas development project and verify RimWorld Dev Quicktest readiness.",
-      "recipe": "mod-development-smoke",
+      "id": "insightcanvas-in-game-smoke",
+      "description": "Build and deploy Insight Canvas, then run the authenticated ten-page Feature Showcase acceptance suite.",
+      "recipe": "insightcanvas-in-game-suite",
+      "artifactFreshnessAnchor": true,
       "cost": "medium",
-      "tags": ["smoke", "devbridge", "rimworld"]
+      "tags": ["insightcanvas", "in-game", "rimbridge", "ui", "smoke"],
+      "covers": [
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightCanvasMod" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightFeatureShowcase" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightFeatureShowcaseData" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiDiagnostics" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightMapBridge" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightTheme" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiDocument" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiHost" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiNavigation" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiRenderer" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiSemanticView" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightUiWindow" },
+        { "kind": "csharp_type", "name": "InsightCanvas.InsightVirtualization" },
+        { "kind": "csharp_type", "name": "InsightCanvas.BridgeTools.InsightCanvasBridgeTools" },
+        { "kind": "csharp_type", "name": "InsightCanvas.BridgeTools.InsightCanvasSuite" }
+      ]
     }
   ],
   "suites": [
     {
       "id": "smoke",
-      "tests": ["insightcanvas-smoke"]
+      "description": "RimTest-managed Insight Canvas build, deployment, and in-game readiness validation.",
+      "tests": ["insightcanvas-in-game-smoke"]
     }
   ]
 }

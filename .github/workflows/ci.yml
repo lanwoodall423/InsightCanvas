@@ -14,13 +14,57 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out source
+      - name: Check out source history
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up .NET 8
+      - name: Set up pinned .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          global-json-file: global.json
 
-      - name: Restore, build, and run portable harness
-        run: dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release
+      - name: Run portable Release harness
+        run: dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release --nologo
+
+      - name: Check public API compatibility
+        shell: pwsh
+        run: ./Tools/release_checks.ps1 -Command api
+
+      - name: Reject unacknowledged shipped API baseline changes
+        shell: pwsh
+        run: |
+          $base = if ($env:GITHUB_EVENT_NAME -eq 'pull_request') { "origin/$env:GITHUB_BASE_REF" } else { 'HEAD^' }
+          $baselineExists = $false
+          git cat-file -e "${base}:PublicAPI.Shipped.txt" 2>$null
+          $baselineExists = ($LASTEXITCODE -eq 0)
+          $LASTEXITCODE = 0
+          if ($baselineExists) {
+            git diff --quiet "${base}...HEAD" -- PublicAPI.Shipped.txt
+            if ($LASTEXITCODE -ne 0) {
+              $current = (git show 'HEAD:Source/AssemblyInfo.cs' | Out-String)
+              $previous = (git show "${base}:Source/AssemblyInfo.cs" | Out-String)
+              $currentMajor = [int]([regex]::Match($current, 'AssemblyVersion\("([0-9]+)').Groups[1].Value)
+              $previousMajor = [int]([regex]::Match($previous, 'AssemblyVersion\("([0-9]+)').Groups[1].Value)
+              $changelog = Get-Content -Raw CHANGELOG.md
+              if ($currentMajor -le $previousMajor -or $changelog -notmatch '(?is)## \[Unreleased\].{0,1200}(breaking|migration)') {
+                throw 'PublicAPI.Shipped.txt changed without an acknowledged major-version migration entry.'
+              }
+            }
+          }
+
+      - name: Check release version consistency
+        shell: pwsh
+        run: ./Tools/release_checks.ps1 -Command version
+
+      - name: Build and inspect runtime package
+        shell: pwsh
+        run: ./Tools/release_checks.ps1 -Command package
+
+      - name: Upload reproducible package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: insightcanvas-release-package
+          path: |
+            artifacts/InsightCanvas-*.zip
+            artifacts/InsightCanvas-*.zip.sha256
