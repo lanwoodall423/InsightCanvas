@@ -10,15 +10,21 @@ dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Releas
 
 The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation and root replacement, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, SlideFade interruption/settling and nested translation restoration, HoverCard delay/grace/edge placement/cleanup, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, pure focus traversal, and the renderer-neutral semantic lifecycle. Semantic coverage verifies retained contexts, independent shared-model sources, revision-keyed snapshot caching, deferred refresh during navigation, resize invalidation, accessibility/density/reduced-motion/bounds/delta/owner propagation, bounded contained errors, and no per-frame rebuild.
 
-## Portable release checks
+## Portable source and repository-contract checks
 
-The repository-level release checks run without RimWorld and are enforced by CI:
+The core test harness now verifies 1.7-only game metadata, net10.0 projects, Waylith
+references, the 1.7 package/deployment path and the declared local ProjectNexus checks.
+It needs no game DLLs. The API and version release checks also need no game install:
 
 ```powershell
 pwsh -NoProfile -File Tools/release_checks.ps1 -Command api
 pwsh -NoProfile -File Tools/release_checks.ps1 -Command version
-pwsh -NoProfile -File Tools/release_checks.ps1 -Command package
 ```
+
+**GitHub Actions is not the selected validation engine.** Run executable checks only
+after exact-candidate trust and permitted execution under Local / ProjectNexus. Packaging
+and freshness are not portable on the source-only draft PR: both require a newly built
+1.7 DLL/XML, and freshness also needs the local Waylith game installation.
 
 `PublicAPI.Shipped.txt` is the committed semantic-versioning baseline. Compatible additions
 must first be listed in `PublicAPI.Unshipped.txt`; removals, signature changes, visibility
@@ -41,7 +47,15 @@ With a local RimWorld 1.7 installation, run:
 dotnet build Source/InsightCanvas.csproj --configuration Release --nologo /p:RimWorldDir="$env:RIMWORLD_ROOT"
 ```
 
-The build writes `1.7/Assemblies/InsightCanvas.dll` and `.xml`. `git diff --check` is useful before packaging.
+The build writes `1.7/Assemblies/InsightCanvas.dll` and `.xml`. Only after
+the authorized 1.7 build produces those files can the package check run:
+
+```powershell
+pwsh -NoProfile -File Tools/release_checks.ps1 -Command package
+```
+
+`git diff --check` is useful before packaging. Direct developer commands do not
+replace exact ProjectNexus local validation evidence.
 
 For the checked-in runtime freshness gate, the script builds Release into an isolated temporary
 output directory and compares SHA-256 hashes for both `InsightCanvas.dll` and `InsightCanvas.xml`

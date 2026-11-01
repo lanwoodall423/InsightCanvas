@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="RepositoryContractTests.cs" />
     <Compile Include="..\Source\InsightModel.cs" Link="InsightModel.cs" />
     <Compile Include="..\Source\InsightDisclosure.cs" Link="InsightDisclosure.cs" />
     <Compile Include="..\Source\InsightLayout.cs" Link="InsightLayout.cs" />

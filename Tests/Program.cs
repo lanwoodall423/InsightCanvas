@@ -8,6 +8,7 @@ internal static class Program
     {
         try
         {
+            RepositoryContractTests.Verify();
             ModelValidation();
             ValidationCoverage();
             ModelClear();
