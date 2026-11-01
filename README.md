@@ -1,8 +1,8 @@
 # Insight Canvas
 
-Insight Canvas 2.1.1 is an opt-in composable UI toolkit and design system for RimWorld 1.7 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
+Insight Canvas 2.2.0 (unreleased migration candidate) is an opt-in composable UI toolkit and design system for RimWorld 1.7 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
 
-**Migration status:** Insight Canvas now targets **RimWorld 1.7 / Waylith only**; support for RimWorld 1.6 is retired. The .NET 10 migration is a candidate, **not yet a verified 1.7 release**: rebuild the DLL against local 1.7 game assemblies and pass the exact ProjectNexus local validation gate before publishing. Historical 2.1.1 release notes describe the previous 1.6 artifact; never re-label that binary as Waylith-compatible. As of October 2026, RimWorld 1.7 is on Steam's unstable beta branch.
+**Migration status:** Insight Canvas now targets **RimWorld 1.7 / Waylith only**; support for RimWorld 1.6 is retired. The .NET 10 migration is a candidate, **not yet a verified 1.7 release**: rebuild the DLL against local 1.7 game assemblies and pass the exact ProjectNexus local validation gate before publishing. Historical 2.1.1 release notes describe the earlier 1.6 artifact; the planned 2.2.0 release requires a newly compiled 1.7 binary and separate validation. As of October 2026, RimWorld 1.7 is on Steam's unstable beta branch.
 
 Use it when a screen needs more than a pile of `Widgets.*` calls but should still feel native to RimWorld. Build an element tree once, provide stable IDs, and choose either a normal RimWorld `Window` or a caller-owned `Rect`. The document owns state and effects for that screen, so two windows do not leak selection, expansion, focus, scroll, theme, or transient feedback into one another.
 
@@ -184,7 +184,7 @@ Insight Canvas follows semantic versioning for its documented public API:
 - `MINOR` adds public API and compatible components.
 - `PATCH` fixes behavior, documentation, tests, and packaging without intentional API breaks.
 
-The current v2 release is `2.1.1` (`AssemblyVersion`/`AssemblyFileVersion` `2.1.1.0`). This patch release preserves the documented public API while tightening release validation, packaging metadata, and licensing consistency. See [`CHANGELOG.md`](CHANGELOG.md) for the v2 migration boundary. The assembly, About.xml, README, changelog, and release checklist are kept in sync for each release; `About.xml` records the package version, while the package ID and supported game version remain the authoritative mod identity metadata.
+The planned v2 release is `2.2.0` (`AssemblyVersion`/`AssemblyFileVersion` `2.2.0.0`) and is not yet published. It preserves the documented C# public API but intentionally drops the 1.6 runtime target in favor of RimWorld 1.7 / Waylith. Version 2.1.1 belongs to the earlier 1.6-era release plan. See [`CHANGELOG.md`](CHANGELOG.md) for the v2 migration boundary. The assembly, About.xml, README, changelog, and release checklist are kept in sync for each release; `About.xml` records the package version, while the package ID and supported game version remain the authoritative mod identity metadata.
 
 ## Build and validation
 
@@ -222,7 +222,7 @@ The RimWorld assembly is a `net10.0` Release build and requires a local RimWorld
 dotnet build Source/InsightCanvas.csproj --configuration Release --nologo
 ```
 
-The build writes `1.7/Assemblies/InsightCanvas.dll` and its XML documentation file. The legacy 1.6 binary is intentionally absent until a new 1.7 build passes local validation.
+The build writes `1.7/Assemblies/InsightCanvas.dll` and its XML documentation file. The obsolete 1.6 binary has been removed; a newly built 1.7 binary is still required before this candidate can be packaged.
 
 ## License
 

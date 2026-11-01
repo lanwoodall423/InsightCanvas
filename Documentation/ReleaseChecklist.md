@@ -43,7 +43,7 @@ Use this checklist for each versioned release. A release is not complete until t
 - [ ] A clean extraction of the canonical ZIP produces the expected mod tree; a clean in-game install is manually verified.
 - [ ] RC and stable publication metadata, notes, package names, and checksums match `Documentation/ReleasePublication.md`.
 - [ ] Proprietary RimWorld/Waylith/UnityStubs DLLs are excluded from distribution.
-- [ ] Assembly version `2.1.1`, `About.xml` `<modVersion>`, README version, changelog entry, and release notes are synchronized.
+- [ ] Assembly version `2.2.0`, `About.xml` `<modVersion>`, README version, changelog entry, and release notes are synchronized.
 - [ ] Changelog includes migration notes for any breaking public API change.
 - [ ] GPLv3 is identified consistently in the repository and the canonical GPLv3 text is present in `LICENSE`.
 

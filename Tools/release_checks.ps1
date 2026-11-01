@@ -155,9 +155,9 @@ function Get-VersionInfo {
     $assemblyText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Source/AssemblyInfo.cs')
     $assemblyVersion = [regex]::Match($assemblyText, 'AssemblyVersion\("([0-9]+\.[0-9]+\.[0-9]+)\.0"\)').Groups[1].Value
     $readmeText = Get-Content -Raw -LiteralPath (Join-Path $repo 'README.md')
-    $readmeVersion = [regex]::Match($readmeText, 'current v2 release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
+    $readmeVersion = [regex]::Match($readmeText, 'planned v2 release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
     $changelogText = Get-Content -Raw -LiteralPath (Join-Path $repo 'CHANGELOG.md')
-    $changelogVersion = [regex]::Match($changelogText, 'The next patch release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
+    $changelogVersion = [regex]::Match($changelogText, 'The planned 1.7 release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
     $checklistText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Documentation/ReleaseChecklist.md')
     if ($checklistText -notmatch ('Assembly version `' + [regex]::Escape($aboutVersion) + '`')) {
         throw "Release checklist does not name version $aboutVersion"
