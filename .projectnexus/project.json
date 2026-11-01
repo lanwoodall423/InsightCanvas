@@ -44,8 +44,33 @@
           "cwd": "."
         },
         "requirements": {
-          "platform": "win32",
-          "runtime": "dotnet>=10"
+          "platform": "win32"
+        },
+        "reuse": {
+          "mode": "exact-candidate"
+        }
+      },
+      {
+        "capabilityId": "validation.waylith17-consumer",
+        "title": "Compile 1.7 independent consumer against built framework",
+        "tier": "development-confidence",
+        "taskCheckName": "Waylith 1.7 independent consumer compilation",
+        "command": {
+          "executable": "dotnet",
+          "args": [
+            "build",
+            "Examples/MinimalConsumer/InsightCanvas.MinimalConsumer.csproj",
+            "--configuration",
+            "Release",
+            "--nologo",
+            "--output",
+            "artifacts/pn-waylith17-consumer",
+            "/p:InsightCanvasAssemblyPath=../../artifacts/pn-waylith17/InsightCanvas.dll"
+          ],
+          "cwd": "."
+        },
+        "requirements": {
+          "platform": "win32"
         },
         "reuse": {
           "mode": "exact-candidate"
@@ -72,7 +97,8 @@
         "title": "Waylith 1.7 local release evidence",
         "checkIds": [
           "validation.portable-core",
-          "validation.waylith17-build"
+          "validation.waylith17-build",
+          "validation.waylith17-consumer"
         ],
         "procedureIds": [
           "runtime.acceptance"
@@ -85,7 +111,7 @@
         "title": "Waylith in-game acceptance",
         "steps": [
           "Confirm the installed RimWorld game is version 1.7 (Waylith) and has Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll.",
-          "Build the net10.0 framework and independent consumer, and compare fresh 1.7/Assemblies DLL/XML to the source build.",
+          "Verify the locally compiled 1.7 framework and independent consumer from the ProjectNexus exact-check evidence, then compare fresh 1.7/Assemblies DLL/XML with the release build.",
           "Package the 1.7-only output and verify it includes exactly one framework DLL with no legacy 1.6 directories.",
           "Confirm 1.7-compatible RimBridgeServer and the test companion; use RimLiaison as the sole runtime authority and deploy an immutable candidate.",
           "Exercise all ten Feature Showcase pages, wide/narrow layout, controls, focus, semantic views, diagnostics and owner cleanup.",

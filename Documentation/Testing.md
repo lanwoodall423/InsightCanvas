@@ -26,7 +26,7 @@ changes, and enum-member changes fail the API check. Update the shipped baseline
 acknowledged major-version release.
 
 The independent consumer sample compiles against the released-style framework DLL and local RimWorld
-1.6 managed references without copying framework or proprietary game assemblies:
+1.7 Waylith assembly references without copying the framework or proprietary game assemblies:
 
 ```powershell
 dotnet build Examples/MinimalConsumer/InsightCanvas.MinimalConsumer.csproj --configuration Release `
@@ -60,7 +60,7 @@ manifest under `artifacts/`. The package output is ignored by Git.
 
 GitHub is the **development** engine: changes are proposed in branches and reviewed as PRs. Local / ProjectNexus is the **validation** engine. No GitHub Actions job is part of the 1.7 release gate.
 
-The tracked `.projectnexus/project.json` declares two check definitions: portable .NET 10 core tests and a Waylith 1.7 Release build against locally installed game assemblies. ProjectNexus must independently validate the exact commit and check-definition trust, task authority, SDK and game installation. A GitHub PR by itself is **not** authorization to execute untrusted PR code on the Windows host. Use the explicit trusted-upstream/post-merge ProjectNexus validation flow; do not mark these checks PASS until actually run.
+The tracked `.projectnexus/project.json` declares three check definitions: portable .NET 10 core tests, a Waylith 1.7 Release build against locally installed game assemblies, and an independent consumer compile against that build. The manifest intentionally omits a `dotnet>=10` runtime requirement because ProjectNexus's current generic runtime parser does not implement .NET version ranges; the tracked `global.json` SDK pin and actual `dotnet` check provide the version gate. ProjectNexus must independently validate the exact commit and check-definition trust, task authority, SDK and game installation. A GitHub PR by itself is **not** authorization to execute untrusted PR code on the Windows host. Use the explicit trusted-upstream/post-merge ProjectNexus validation flow; do not mark these checks PASS until actually run.
 
 A complete 1.7 gate also needs the independent consumer build, generated 1.7 DLL/XML freshness and package inspection, plus RimLiaison/DevBridge-managed in-game testing of all ten Feature Showcase pages. Verify a Waylith-compatible RimBridgeServer and companion SDK first. The legacy 1.6 assembly is deliberately removed from the source candidate, so packaging and freshness will fail until a new .NET 10 Waylith DLL is produced. Preserve RimLiaison as the sole runtime authority and never manually change ModsConfig.
 

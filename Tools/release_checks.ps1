@@ -148,6 +148,10 @@ function Invoke-ApiCheck {
 function Get-VersionInfo {
     $about = [xml](Get-Content -Raw -LiteralPath (Join-Path $repo 'About/About.xml'))
     $aboutVersion = [string]$about.ModMetaData.modVersion
+    $supported = @($about.ModMetaData.supportedVersions.li)
+    if ($supported.Count -ne 1 -or [string]$supported[0] -ne '1.7') {
+        throw 'This package must declare RimWorld 1.7 as its only supported game version.'
+    }
     $assemblyText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Source/AssemblyInfo.cs')
     $assemblyVersion = [regex]::Match($assemblyText, 'AssemblyVersion\("([0-9]+\.[0-9]+\.[0-9]+)\.0"\)').Groups[1].Value
     $readmeText = Get-Content -Raw -LiteralPath (Join-Path $repo 'README.md')
@@ -186,12 +190,24 @@ function Invoke-VersionCheck {
 function Invoke-FreshnessCheck {
     $info = Get-VersionInfo
     if ([string]::IsNullOrWhiteSpace($RimWorldDir)) { throw 'RimWorldDir is required for freshness validation.' }
-    $managed = Join-Path $RimWorldDir 'RimWorldWin64_Data/Managed'
-    if (-not (Test-Path -LiteralPath (Join-Path $managed 'Assembly-CSharp.dll'))) { throw "RimWorld managed assemblies not found: $managed" }
+    # RimWorld 1.7 is Waylith/.NET 10: there is no Unity Managed folder.
+    $candidates = @((Join-Path $RimWorldDir 'RimWorld'), $RimWorldDir)
+    $waylithAssemblies = $null
+    foreach ($candidate in $candidates) {
+        if ((Test-Path -LiteralPath (Join-Path $candidate 'Assembly-CSharp.dll')) -and
+            (Test-Path -LiteralPath (Join-Path $candidate 'Waylith.dll')) -and
+            (Test-Path -LiteralPath (Join-Path $candidate 'UnityStubs.dll'))) {
+            $waylithAssemblies = $candidate
+            break
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($waylithAssemblies)) {
+        throw "RimWorld 1.7 Waylith assemblies not found under $RimWorldDir. Expected Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll in the game root or its RimWorld subfolder."
+    }
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('insightcanvas-release-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null
     try {
-        & dotnet build (Join-Path $repo 'Source/InsightCanvas.csproj') --configuration Release --nologo --output $temp "/p:RimWorldDir=$RimWorldDir"
+        & dotnet build (Join-Path $repo 'Source/InsightCanvas.csproj') --configuration Release --nologo --output $temp "/p:RimWorldDir=$RimWorldDir" "/p:RimWorldAssembliesDir=$waylithAssemblies"
         if ($LASTEXITCODE -ne 0) { throw "Release build failed with exit code $LASTEXITCODE" }
         $assemblyName = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $temp 'InsightCanvas.dll'))
         if ($assemblyName.Version.ToString() -ne $info.AssemblyVersion) {
@@ -238,7 +254,7 @@ function Invoke-Package {
         foreach ($file in $files) {
             $relative = $file.FullName.Substring($stage.Length + 1).Replace('\', '/')
             if ($relative -notmatch '^(About/|1\.7/|LoadFolders\.xml$)') { throw "Unexpected runtime file: $relative" }
-            if ($file.Name -match '(?i)(Assembly-CSharp|UnityEngine|RimWorld).*\.dll$' -or ($file.Extension -ieq '.dll' -and $file.Name -ne 'InsightCanvas.dll')) { throw "Proprietary or unexpected DLL in package: $relative" }
+            if ($file.Name -match '(?i)(Assembly-CSharp|UnityEngine|UnityStubs|Waylith|RimWorld).*\.dll$' -or ($file.Extension -ieq '.dll' -and $file.Name -ne 'InsightCanvas.dll')) { throw "Proprietary or unexpected DLL in package: $relative" }
         }
         if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
         Add-Type -AssemblyName System.IO.Compression
@@ -259,7 +275,7 @@ function Invoke-Package {
         $inspection = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
         try {
             $names = @($inspection.Entries | ForEach-Object FullName)
-            if (@($names | Where-Object { $_ -match '(?i)(Assembly-CSharp|UnityEngine|RimWorld).*\.dll$' }).Count -gt 0) { throw 'Package inspection found a proprietary game DLL.' }
+            if (@($names | Where-Object { $_ -match '(?i)(Assembly-CSharp|UnityEngine|UnityStubs|Waylith|RimWorld).*\.dll$' }).Count -gt 0) { throw 'Package inspection found a proprietary game DLL.' }
             if (@($names | Where-Object { $_ -match '(?i)InsightCanvas\.dll$' }).Count -ne 1) { throw 'Package inspection found an invalid framework DLL count.' }
         } finally { $inspection.Dispose() }
         Write-Host "Package created: $zipPath"

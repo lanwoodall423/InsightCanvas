@@ -13,12 +13,16 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
+  <!-- RimWorld 1.7 places its Waylith assemblies under the game root/RimWorld
+       (and on some installs directly under the game root). Override with
+       RimWorldAssembliesDir when the installation has a custom layout. -->
   <PropertyGroup>
     <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldDir>
     <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
-    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\RimWorld\Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and '$(RIMWORLD_ASSEMBLIES_DIR)' != ''">$(RIMWORLD_ASSEMBLIES_DIR)</RimWorldAssembliesDir>
     <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/RimWorld/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/RimWorld/Waylith.dll') and Exists('$(RimWorldDir)/RimWorld/UnityStubs.dll')">$(RimWorldDir)/RimWorld</RimWorldAssembliesDir>
-    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\UnityStubs.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
     <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

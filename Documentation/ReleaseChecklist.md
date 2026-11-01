@@ -54,3 +54,5 @@ Use this checklist for each versioned release. A release is not complete until t
 - [ ] Unrelated worktree changes are preserved.
 - [ ] `git diff --check` passes.
 - [ ] No commit or push is made without explicit owner request.
+
+- [ ] Release freshness confirms the 1.7 Waylith game DLLs under the installation's `RimWorld/` folder (or game root), never the obsolete 1.6 `RimWorldWin64_Data/Managed` path.

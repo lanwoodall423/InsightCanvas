@@ -5,16 +5,17 @@
     <LangVersion>latest</LangVersion><Deterministic>true</Deterministic>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateDependencyFile>false</GenerateDependencyFile><GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <DebugType>none</DebugType><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RimWorldRoot Condition="'$(RimWorldRoot)' == '' and '$(RimWorldDir)' != ''">$(RimWorldDir)</RimWorldRoot>
+    <RimWorldRoot Condition="'$(RimWorldRoot)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldRoot>
+    <RimWorldDir Condition="'$(RimWorldDir)' == ''">$(RimWorldRoot)</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
     <OutputPath Condition="'$(RimWorldRoot)' != ''">$(RimWorldRoot)\Mods\InsightCanvas\1.7\BridgeTools\</OutputPath>
     <OutputPath Condition="'$(RimWorldRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\..\artifacts\BridgeTools\InsightCanvas\</OutputPath>
-    <DebugType>none</DebugType><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <RimWorldRoot Condition="'$(RimWorldRoot)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldRoot>
     <RimBridgeSdkPath Condition="'$(RimBridgeSdkPath)' == ''">$(RIMBRIDGE_SERVER_SDK_PATH)</RimBridgeSdkPath>
-    <RimWorldDir Condition="'$(RimWorldDir)' == ''">$(RimWorldRoot)</RimWorldDir>
-    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldDir>
-    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
-    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and '$(RIMWORLD_ASSEMBLIES_DIR)' != ''">$(RIMWORLD_ASSEMBLIES_DIR)</RimWorldAssembliesDir>
     <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/RimWorld/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/RimWorld/Waylith.dll') and Exists('$(RimWorldDir)/RimWorld/UnityStubs.dll')">$(RimWorldDir)/RimWorld</RimWorldAssembliesDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
     <InsightCanvasAssemblyPath Condition="'$(InsightCanvasAssemblyPath)' == ''">$(MSBuildThisFileDirectory)..\..\1.7\Assemblies\InsightCanvas.dll</InsightCanvasAssemblyPath>
   </PropertyGroup>
   <ItemGroup>

@@ -12,7 +12,7 @@ The installed mod includes **Feature Showcase**, a dogfooded demonstration appli
 
 ## Installation and dependency behavior
 
-Insight Canvas supports RimWorld 1.7. Download a versioned ZIP from the repository's GitHub Releases page after owner publication; the release candidate package is built with `Tools/release_checks.ps1 -Command package`. Extract the archive as its own `Mods/InsightCanvas` directory and enable it in RimWorld's mod list.
+The current source migration targets RimWorld 1.7 but awaits local validation before publication. Download a versioned ZIP from the repository's GitHub Releases page after owner publication; the release candidate package is built with `Tools/release_checks.ps1 -Command package`. Extract the archive as its own `Mods/InsightCanvas` directory and enable it in RimWorld's mod list.
 
 Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanvas`, targeting RimWorld 1.7. A consuming mod should install Insight Canvas as a separate mod and declare it explicitly in its own `About/About.xml`:
 
