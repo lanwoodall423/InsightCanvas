@@ -148,12 +148,16 @@ function Invoke-ApiCheck {
 function Get-VersionInfo {
     $about = [xml](Get-Content -Raw -LiteralPath (Join-Path $repo 'About/About.xml'))
     $aboutVersion = [string]$about.ModMetaData.modVersion
+    $supported = @($about.ModMetaData.supportedVersions.li)
+    if ($supported.Count -ne 1 -or [string]$supported[0] -ne '1.7') {
+        throw 'This package must declare RimWorld 1.7 as its only supported game version.'
+    }
     $assemblyText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Source/AssemblyInfo.cs')
     $assemblyVersion = [regex]::Match($assemblyText, 'AssemblyVersion\("([0-9]+\.[0-9]+\.[0-9]+)\.0"\)').Groups[1].Value
     $readmeText = Get-Content -Raw -LiteralPath (Join-Path $repo 'README.md')
-    $readmeVersion = [regex]::Match($readmeText, 'current v2 release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
+    $readmeVersion = [regex]::Match($readmeText, 'planned v2 release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
     $changelogText = Get-Content -Raw -LiteralPath (Join-Path $repo 'CHANGELOG.md')
-    $changelogVersion = [regex]::Match($changelogText, 'The next patch release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
+    $changelogVersion = [regex]::Match($changelogText, 'The planned 1.7 release is `([0-9]+\.[0-9]+\.[0-9]+)`').Groups[1].Value
     $checklistText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Documentation/ReleaseChecklist.md')
     if ($checklistText -notmatch ('Assembly version `' + [regex]::Escape($aboutVersion) + '`')) {
         throw "Release checklist does not name version $aboutVersion"
@@ -186,12 +190,24 @@ function Invoke-VersionCheck {
 function Invoke-FreshnessCheck {
     $info = Get-VersionInfo
     if ([string]::IsNullOrWhiteSpace($RimWorldDir)) { throw 'RimWorldDir is required for freshness validation.' }
-    $managed = Join-Path $RimWorldDir 'RimWorldWin64_Data/Managed'
-    if (-not (Test-Path -LiteralPath (Join-Path $managed 'Assembly-CSharp.dll'))) { throw "RimWorld managed assemblies not found: $managed" }
+    # RimWorld 1.7 is Waylith/.NET 10: there is no Unity Managed folder.
+    $candidates = @((Join-Path $RimWorldDir 'RimWorld'), $RimWorldDir)
+    $waylithAssemblies = $null
+    foreach ($candidate in $candidates) {
+        if ((Test-Path -LiteralPath (Join-Path $candidate 'Assembly-CSharp.dll')) -and
+            (Test-Path -LiteralPath (Join-Path $candidate 'Waylith.dll')) -and
+            (Test-Path -LiteralPath (Join-Path $candidate 'UnityStubs.dll'))) {
+            $waylithAssemblies = $candidate
+            break
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($waylithAssemblies)) {
+        throw "RimWorld 1.7 Waylith assemblies not found under $RimWorldDir. Expected Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll in the game root or its RimWorld subfolder."
+    }
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('insightcanvas-release-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null
     try {
-        & dotnet build (Join-Path $repo 'Source/InsightCanvas.csproj') --configuration Release --nologo --output $temp "/p:RimWorldDir=$RimWorldDir"
+        & dotnet build (Join-Path $repo 'Source/InsightCanvas.csproj') --configuration Release --nologo --output $temp "/p:RimWorldDir=$RimWorldDir" "/p:RimWorldAssembliesDir=$waylithAssemblies"
         if ($LASTEXITCODE -ne 0) { throw "Release build failed with exit code $LASTEXITCODE" }
         $assemblyName = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $temp 'InsightCanvas.dll'))
         if ($assemblyName.Version.ToString() -ne $info.AssemblyVersion) {
@@ -199,11 +215,11 @@ function Invoke-FreshnessCheck {
         }
         $projectText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Source/InsightCanvas.csproj')
         if ($projectText -match '<Private>true</Private>' -or ($projectText -match '<Reference Include=' -and $projectText -notmatch '<Private>false</Private>')) {
-            throw 'Source project must mark all RimWorld and Unity references Private=false.'
+            throw 'Source project must mark all RimWorld and Waylith references Private=false.'
         }
         foreach ($name in @('InsightCanvas.dll', 'InsightCanvas.xml')) {
             $built = Join-Path $temp $name
-            $checkedIn = Join-Path $repo "1.6/Assemblies/$name"
+            $checkedIn = Join-Path $repo "1.7/Assemblies/$name"
             if (-not (Test-Path -LiteralPath $built)) { throw "Release output missing $name" }
             if (-not (Test-Path -LiteralPath $checkedIn)) { throw "Checked-in runtime artifact missing $name" }
             $builtHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $built).Hash
@@ -229,7 +245,7 @@ function Invoke-Package {
     New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
     try {
         Copy-Item -LiteralPath (Join-Path $repo 'About') -Destination (Join-Path $stage 'About') -Recurse
-        Copy-Item -LiteralPath (Join-Path $repo '1.6') -Destination (Join-Path $stage '1.6') -Recurse
+        Copy-Item -LiteralPath (Join-Path $repo '1.7') -Destination (Join-Path $stage '1.7') -Recurse
         $loadFolders = Join-Path $repo 'LoadFolders.xml'
         if (Test-Path -LiteralPath $loadFolders) { Copy-Item -LiteralPath $loadFolders -Destination $stage }
         $files = @(Get-ChildItem -LiteralPath $stage -Recurse -File | Sort-Object FullName)
@@ -237,8 +253,8 @@ function Invoke-Package {
         if ($dlls.Count -ne 1 -or $dlls[0].Name -ne 'InsightCanvas.dll') { throw 'Package must contain exactly one framework DLL named InsightCanvas.dll.' }
         foreach ($file in $files) {
             $relative = $file.FullName.Substring($stage.Length + 1).Replace('\', '/')
-            if ($relative -notmatch '^(About/|1\.6/|LoadFolders\.xml$)') { throw "Unexpected runtime file: $relative" }
-            if ($file.Name -match '(?i)(Assembly-CSharp|UnityEngine|RimWorld).*\.dll$' -or ($file.Extension -ieq '.dll' -and $file.Name -ne 'InsightCanvas.dll')) { throw "Proprietary or unexpected DLL in package: $relative" }
+            if ($relative -notmatch '^(About/|1\.7/|LoadFolders\.xml$)') { throw "Unexpected runtime file: $relative" }
+            if ($file.Name -match '(?i)(Assembly-CSharp|UnityEngine|UnityStubs|Waylith|RimWorld).*\.dll$' -or ($file.Extension -ieq '.dll' -and $file.Name -ne 'InsightCanvas.dll')) { throw "Proprietary or unexpected DLL in package: $relative" }
         }
         if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
         Add-Type -AssemblyName System.IO.Compression
@@ -259,7 +275,7 @@ function Invoke-Package {
         $inspection = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
         try {
             $names = @($inspection.Entries | ForEach-Object FullName)
-            if (@($names | Where-Object { $_ -match '(?i)(Assembly-CSharp|UnityEngine|RimWorld).*\.dll$' }).Count -gt 0) { throw 'Package inspection found a proprietary game DLL.' }
+            if (@($names | Where-Object { $_ -match '(?i)(Assembly-CSharp|UnityEngine|UnityStubs|Waylith|RimWorld).*\.dll$' }).Count -gt 0) { throw 'Package inspection found a proprietary game DLL.' }
             if (@($names | Where-Object { $_ -match '(?i)InsightCanvas\.dll$' }).Count -ne 1) { throw 'Package inspection found an invalid framework DLL count.' }
         } finally { $inspection.Dispose() }
         Write-Host "Package created: $zipPath"

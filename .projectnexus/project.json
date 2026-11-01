@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "projectId": "insightcanvas",
+  "displayName": "Insight Canvas",
+  "capabilities": {
+    "checks": [
+      {
+        "capabilityId": "validation.portable-core",
+        "title": "Portable .NET 10 core tests",
+        "tier": "development-confidence",
+        "taskCheckName": "portable .NET 10 core harness",
+        "command": {
+          "executable": "dotnet",
+          "args": [
+            "run",
+            "--project",
+            "Tests/InsightCanvas.CoreTests.csproj",
+            "--configuration",
+            "Release",
+            "--nologo"
+          ],
+          "cwd": "."
+        },
+        "reuse": {
+          "mode": "exact-candidate"
+        }
+      },
+      {
+        "capabilityId": "validation.waylith17-build",
+        "title": "Compile 1.7 Waylith framework",
+        "tier": "development-confidence",
+        "taskCheckName": "Waylith 1.7 Release compilation",
+        "command": {
+          "executable": "dotnet",
+          "args": [
+            "build",
+            "Source/InsightCanvas.csproj",
+            "--configuration",
+            "Release",
+            "--nologo",
+            "--output",
+            "artifacts/pn-waylith17"
+          ],
+          "cwd": "."
+        },
+        "requirements": {
+          "platform": "win32"
+        },
+        "reuse": {
+          "mode": "exact-candidate"
+        }
+      },
+      {
+        "capabilityId": "validation.waylith17-consumer",
+        "title": "Compile 1.7 independent consumer against built framework",
+        "tier": "development-confidence",
+        "taskCheckName": "Waylith 1.7 independent consumer compilation",
+        "command": {
+          "executable": "dotnet",
+          "args": [
+            "build",
+            "Examples/MinimalConsumer/InsightCanvas.MinimalConsumer.csproj",
+            "--configuration",
+            "Release",
+            "--nologo",
+            "--output",
+            "artifacts/pn-waylith17-consumer",
+            "/p:InsightCanvasAssemblyPath=../../artifacts/pn-waylith17/InsightCanvas.dll"
+          ],
+          "cwd": "."
+        },
+        "requirements": {
+          "platform": "win32"
+        },
+        "reuse": {
+          "mode": "exact-candidate"
+        }
+      }
+    ]
+  },
+  "validationPack": {
+    "schemaVersion": 1,
+    "releaseTargets": [
+      "win32"
+    ],
+    "profiles": [
+      {
+        "profileId": "portable",
+        "title": "Portable .NET 10 checks",
+        "checkIds": [
+          "validation.portable-core"
+        ],
+        "procedureIds": []
+      },
+      {
+        "profileId": "waylith17",
+        "title": "Waylith 1.7 local release evidence",
+        "checkIds": [
+          "validation.portable-core",
+          "validation.waylith17-build",
+          "validation.waylith17-consumer"
+        ],
+        "procedureIds": [
+          "runtime.acceptance"
+        ]
+      }
+    ],
+    "procedures": [
+      {
+        "procedureId": "runtime.acceptance",
+        "title": "Waylith in-game acceptance",
+        "steps": [
+          "Confirm the installed RimWorld game is version 1.7 (Waylith) and has Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll.",
+          "Verify the locally compiled 1.7 framework and independent consumer from the ProjectNexus exact-check evidence, then compare fresh 1.7/Assemblies DLL/XML with the release build.",
+          "Package the 1.7-only output and verify it includes exactly one framework DLL with no legacy 1.6 directories.",
+          "Confirm 1.7-compatible RimBridgeServer and the test companion; use RimLiaison as the sole runtime authority and deploy an immutable candidate.",
+          "Exercise all ten Feature Showcase pages, wide/narrow layout, controls, focus, semantic views, diagnostics and owner cleanup.",
+          "Record exact game build, commit, candidate and artifact hashes, attributable errors, test result and restored runtime state before approving."
+        ],
+        "requirements": {
+          "platform": "win32",
+          "hardware": []
+        }
+      }
+    ]
+  }
+}

@@ -2,68 +2,41 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>InsightCanvas</RootNamespace>
     <AssemblyName>InsightCanvas</AssemblyName>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Deterministic>true</Deterministic>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
-  <!-- DevBridge builds from the repository root without supplying a game path.
-       Resolve the local installation when it is adjacent to the Mods folder;
-       callers can still override this with RimWorldDir or RimWorldManagedDir. -->
+  <!-- RimWorld 1.7 places its Waylith assemblies under the game root/RimWorld
+       (and on some installs directly under the game root). Override with
+       RimWorldAssembliesDir when the installation has a custom layout. -->
   <PropertyGroup>
     <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldDir>
     <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
-    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
-    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldWin64_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldWin64_Data/Managed</RimWorldManagedDir>
-    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldLinux_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldLinux_Data/Managed</RimWorldManagedDir>
-    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldMac.app/Contents/Resources/Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldMac.app/Contents/Resources/Data/Managed</RimWorldManagedDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\RimWorld\Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)..\..\..</RimWorldDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and '$(RIMWORLD_ASSEMBLIES_DIR)' != ''">$(RIMWORLD_ASSEMBLIES_DIR)</RimWorldAssembliesDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/RimWorld/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/RimWorld/Waylith.dll') and Exists('$(RimWorldDir)/RimWorld/UnityStubs.dll')">$(RimWorldDir)/RimWorld</RimWorldAssembliesDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <Optimize>true</Optimize>
-    <OutputPath>..\1.6\Assemblies\</OutputPath>
-    <DebugType>none</DebugType>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Optimize>true</Optimize><OutputPath>..\1.7\Assemblies\</OutputPath><DebugType>none</DebugType><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
-  <!-- DevBridge2 builds with an out-of-tree intermediate directory; keep the
-       repository's ordinary Source\obj generated files out of Compile globs. -->
   <ItemGroup>
     <Compile Remove="obj\**" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(RimWorldManagedDir)' != '' and Exists('$(RimWorldManagedDir)/Assembly-CSharp.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.CoreModule.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll') and Exists('$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll')">
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldAssembliesDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldAssembliesDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldAssembliesDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <Target Name="ValidateRimWorldReferences" BeforeTargets="ResolveReferences">
-    <Error Condition="'$(RimWorldDir)' == ''"
-      Text="InsightCanvas requires RimWorldDir. Set the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; or the RimWorldDir environment variable, then build again." />
-    <Error Condition="'$(RimWorldDir)' != '' and '$(RimWorldManagedDir)' == ''"
-      Text="InsightCanvas could not find RimWorld's managed assemblies under RimWorldDir='$(RimWorldDir)'. Set RimWorldDir to the installation directory (for example /p:RimWorldDir=&lt;path&gt;) and verify the 1.6 Managed folder exists." />
-    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/Assembly-CSharp.dll')"
-      Text="InsightCanvas could not find Assembly-CSharp.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
-    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/UnityEngine.CoreModule.dll')"
-      Text="InsightCanvas could not find UnityEngine.CoreModule.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
-    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll')"
-      Text="InsightCanvas could not find UnityEngine.IMGUIModule.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
-    <Error Condition="'$(RimWorldManagedDir)' != '' and !Exists('$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll')"
-      Text="InsightCanvas could not find UnityEngine.TextRenderingModule.dll in '$(RimWorldManagedDir)'. Set RimWorldDir to the RimWorld installation directory with /p:RimWorldDir=&lt;path&gt; and verify the 1.6 installation." />
+    <Error Condition="'$(RimWorldAssembliesDir)' == '' or !Exists('$(RimWorldAssembliesDir)/Assembly-CSharp.dll') or !Exists('$(RimWorldAssembliesDir)/Waylith.dll') or !Exists('$(RimWorldAssembliesDir)/UnityStubs.dll')"
+      Text="RimWorld 1.7 Waylith assemblies are required. Set RimWorldDir to the 1.7 game directory (or RimWorldAssembliesDir to the folder with Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll)." />
   </Target>
 </Project>
+

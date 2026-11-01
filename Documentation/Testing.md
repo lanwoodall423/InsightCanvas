@@ -10,15 +10,21 @@ dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Releas
 
 The harness covers model validation and serialization, responsive layout math, flex/wrap/grid/split behavior, document state isolation and root replacement, scoped themes and accessibility, deterministic graph/timeline behavior, virtualization bounds and bounded cache eviction, motion/effects easing and reduced-motion progression, SlideFade interruption/settling and nested translation restoration, HoverCard delay/grace/edge placement/cleanup, toast expiry, showcase navigation breakpoints, scoped showcase settings, deterministic showcase records, controlled versus uncontrolled Toggle/Slider/TextField/Select bindings, hierarchical `InsightUi.Scope` state paths, duplicate-ID diagnostics, custom drawing capability dispatch, icon fallback/metadata, fade participation in layout, pure focus traversal, and the renderer-neutral semantic lifecycle. Semantic coverage verifies retained contexts, independent shared-model sources, revision-keyed snapshot caching, deferred refresh during navigation, resize invalidation, accessibility/density/reduced-motion/bounds/delta/owner propagation, bounded contained errors, and no per-frame rebuild.
 
-## Portable release checks
+## Portable source and repository-contract checks
 
-The repository-level release checks run without RimWorld and are enforced by CI:
+The core test harness now verifies 1.7-only game metadata, net10.0 projects, Waylith
+references, the 1.7 package/deployment path and the declared local ProjectNexus checks.
+It needs no game DLLs. The API and version release checks also need no game install:
 
 ```powershell
 pwsh -NoProfile -File Tools/release_checks.ps1 -Command api
 pwsh -NoProfile -File Tools/release_checks.ps1 -Command version
-pwsh -NoProfile -File Tools/release_checks.ps1 -Command package
 ```
+
+**GitHub Actions is not the selected validation engine.** Run executable checks only
+after exact-candidate trust and permitted execution under Local / ProjectNexus. Packaging
+and freshness are not portable on the source-only draft PR: both require a newly built
+1.7 DLL/XML, and freshness also needs the local Waylith game installation.
 
 `PublicAPI.Shipped.txt` is the committed semantic-versioning baseline. Compatible additions
 must first be listed in `PublicAPI.Unshipped.txt`; removals, signature changes, visibility
@@ -26,7 +32,7 @@ changes, and enum-member changes fail the API check. Update the shipped baseline
 acknowledged major-version release.
 
 The independent consumer sample compiles against the released-style framework DLL and local RimWorld
-1.6 managed references without copying framework or proprietary game assemblies:
+1.7 Waylith assembly references without copying the framework or proprietary game assemblies:
 
 ```powershell
 dotnet build Examples/MinimalConsumer/InsightCanvas.MinimalConsumer.csproj --configuration Release `
@@ -35,26 +41,44 @@ dotnet build Examples/MinimalConsumer/InsightCanvas.MinimalConsumer.csproj --con
 
 ## RimWorld build
 
-With a local RimWorld 1.6 installation, run:
+With a local RimWorld 1.7 installation, run:
 
 ```powershell
 dotnet build Source/InsightCanvas.csproj --configuration Release --nologo /p:RimWorldDir="$env:RIMWORLD_ROOT"
 ```
 
-The build writes `1.6/Assemblies/InsightCanvas.dll` and `.xml`. `git diff --check` is useful before packaging.
+The build writes `1.7/Assemblies/InsightCanvas.dll` and `.xml`. Only after
+the authorized 1.7 build produces those files can the package check run:
+
+```powershell
+pwsh -NoProfile -File Tools/release_checks.ps1 -Command package
+```
+
+`git diff --check` is useful before packaging. Direct developer commands do not
+replace exact ProjectNexus local validation evidence.
 
 For the checked-in runtime freshness gate, the script builds Release into an isolated temporary
 output directory and compares SHA-256 hashes for both `InsightCanvas.dll` and `InsightCanvas.xml`
-against `1.6/Assemblies`. Deterministic builds make this byte-for-byte comparison intentional:
+against `1.7/Assemblies`. Deterministic builds make this byte-for-byte comparison intentional:
 
 ```powershell
 pwsh -NoProfile -File Tools/release_checks.ps1 -Command freshness `
   -RimWorldDir "$env:RIMWORLD_ROOT"
 ```
 
-The canonical package command stages only `About/**`, `1.6/**`, and an optional `LoadFolders.xml`,
+The canonical package command stages only `About/**`, `1.7/**`, and an optional `LoadFolders.xml`,
 rejects proprietary or unexpected DLLs, writes a fixed-timestamp ZIP, and emits its `.sha256`
 manifest under `artifacts/`. The package output is ignored by Git.
+
+## ProjectNexus local validation (selected engine)
+
+GitHub is the **development** engine: changes are proposed in branches and reviewed as PRs. Local / ProjectNexus is the **validation** engine. No GitHub Actions job is part of the 1.7 release gate.
+
+The published `RimBridgeServer.Sdk` **2.0.0** package includes a `net10.0` compile target (NuGet Gallery), but an SDK TFM does **not** prove the running RimBridgeServer mod or authenticated companion loading is compatible with RimWorld 1.7. Validate the exact installed game/bridge pairing separately. Do not infer an in-game PASS from a successful package restore.
+
+The tracked `.projectnexus/project.json` declares three check definitions: portable .NET 10 core tests, a Waylith 1.7 Release build against locally installed game assemblies, and an independent consumer compile against that build. The manifest intentionally omits a `dotnet>=10` runtime requirement because ProjectNexus's current generic runtime parser does not implement .NET version ranges; the tracked `global.json` SDK pin and actual `dotnet` check provide the version gate. ProjectNexus must independently validate the exact commit and check-definition trust, task authority, SDK and game installation. A GitHub PR by itself is **not** authorization to execute untrusted PR code on the Windows host. Use the explicit trusted-upstream/post-merge ProjectNexus validation flow; do not mark these checks PASS until actually run.
+
+A complete 1.7 gate also needs the independent consumer build, generated 1.7 DLL/XML freshness and package inspection, plus RimLiaison/DevBridge-managed in-game testing of all ten Feature Showcase pages. Verify a Waylith-compatible RimBridgeServer and companion SDK first. The legacy 1.6 assembly is deliberately removed from the source candidate, so packaging and freshness will fail until a new .NET 10 Waylith DLL is produced. Preserve RimLiaison as the sole runtime authority and never manually change ModsConfig.
 
 ## RimTest validation
 
@@ -92,10 +116,10 @@ Build the development-only companion before a local runtime run:
 ```powershell
 dotnet build DevTools/BridgeTools/InsightCanvas.BridgeTools.csproj --configuration Release `
   /p:RimWorldRoot="$env:RIMWORLD_ROOT" `
-  /p:RimBridgeSdkPath="$env:RIMWORLD_ROOT\Mods\RimBridgeServer\1.6\Assemblies\RimBridgeServer.Sdk.dll"
+  /p:RimBridgeSdkPath="$env:RIMWORLD_ROOT\Mods\RimBridgeServer\1.7\Assemblies\RimBridgeServer.Sdk.dll"
 ```
 
-The companion is written to the deployed Insight Canvas mod's `1.6\BridgeTools` load folder and is
+The companion is written to the deployed Insight Canvas mod's `1.7\BridgeTools` load folder and is
 not part of the release package. The authoritative current-source command remains
 `rimtest affected --run --json`; inspect its `artifactFreshness` object before treating a passing
 runtime result as proof for the edited source.

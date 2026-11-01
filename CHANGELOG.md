@@ -1,8 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## [Unreleased] — planned 2.2.0
 
-The next patch release is `2.1.1`. It preserves the documented public API while establishing project-owned release validation, package metadata, and consistent GPLv3 licensing.
+### RimWorld 1.7 / Waylith migration (pending local validation)
+
+- Retired RimWorld 1.6 compatibility metadata and the legacy 1.6 package, including its compiled binary.
+- Moved language resources under 1.7, upgraded the framework, independent consumer, portable tests and test companion to .NET 10, and replaced Unity DLL references with Waylith and UnityStubs.
+- Updated the release/freshness paths and added a ProjectNexus-owned validation pack. GitHub hosts source branches and PR review; Local / ProjectNexus remains the validation engine.
+- Retained the existing IMGUI adapter via Waylith's Unity compatibility layer, pending measured native performance opportunities.
+- This changes the source target, not release readiness: a fresh 1.7 DLL, trusted ProjectNexus validation, downstream compilation and managed in-game results are required before publication. Historical releases remain documented.
+
+The planned 1.7 release is `2.2.0`. It preserves the documented C# public API while retiring support for RimWorld 1.6. The version is reserved for a future **validated** Waylith release, not a published artifact.
+
+## Historical 2.1.1 release plan — RimWorld 1.6
+
+The 2.1.1 patch plan preserved the documented public API while establishing project-owned release validation, package metadata, and consistent GPLv3 licensing. Its 1.6 package and release notes remain archived and are not current compatibility claims.
 
 - Added the authenticated RimTest/DevBridge2 Feature Showcase acceptance recipe and development-only companion.
 - Declared the package identity, Release build inputs, deployment target, and runtime package boundaries in `.rimdev/stack.json`.

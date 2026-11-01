@@ -11,13 +11,27 @@
   "sourceProject": "Source/InsightCanvas.csproj",
   "configuration": "Release",
   "expectedAssembly": "InsightCanvas.dll",
-  "deploymentTarget": "1.6/Assemblies/InsightCanvas.dll",
+  "deploymentTarget": "1.7/Assemblies/InsightCanvas.dll",
   "testRecipe": "insightcanvas-in-game-suite",
   "testRecipePath": ".rimdev/recipes/insightcanvas-in-game-suite.json",
   "runtimePackage": {
     "sourceRoot": ".",
-    "include": ["About/**", "LoadFolders.xml", "1.*/**"],
-    "exclude": [".rimdev/**", "1.*/.rimdev/**", ".rimctx/**", "Source/**", "bin/**", "obj/**", "artifacts/**", "diagnostics/**", "evidence/**"]
+    "include": [
+      "About/**",
+      "LoadFolders.xml",
+      "1.7/**"
+    ],
+    "exclude": [
+      ".rimdev/**",
+      "1.7/.rimdev/**",
+      ".rimctx/**",
+      "Source/**",
+      "bin/**",
+      "obj/**",
+      "artifacts/**",
+      "diagnostics/**",
+      "evidence/**"
+    ]
   },
   "dependencies": []
 }
