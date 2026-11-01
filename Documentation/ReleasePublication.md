@@ -31,4 +31,6 @@ This plan is prepared for owner approval. It does not create a Git tag or GitHub
 
 ## Compatibility statement
 
-Insight Canvas 2.1.1 targets RimWorld 1.6, uses package ID `lan.insightcanvas`, preserves the documented public API, and requires consuming mods to install the framework separately without bundling a duplicate `InsightCanvas.dll`.
+Insight Canvas 2.1.1 targets RimWorld 1.7, uses package ID `lan.insightcanvas`, preserves the documented public API, and requires consuming mods to install the framework separately without bundling a duplicate `InsightCanvas.dll`.
+
+**RimWorld 1.7 migration hold:** This historical 2.1.1 publication plan is not approval to republish the old artifact as a 1.7 build. Update the version/release plan and obtain a new locally compiled Waylith DLL, exact ProjectNexus check evidence, consumer compile and in-game validation before any 1.7 publication.

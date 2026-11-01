@@ -1,45 +1,29 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Library</OutputType>
-    <TargetFramework>net472</TargetFramework>
-    <AssemblyName>InsightCanvas.MinimalConsumer</AssemblyName>
-    <RootNamespace>InsightCanvasExample</RootNamespace>
-    <LangVersion>9.0</LangVersion>
-    <Deterministic>true</Deterministic>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputType>Library</OutputType><TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>InsightCanvas.MinimalConsumer</AssemblyName><RootNamespace>InsightCanvasExample</RootNamespace>
+    <LangVersion>latest</LangVersion><Deterministic>true</Deterministic>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo><GenerateDependencyFile>false</GenerateDependencyFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldDir>
-    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == '' and Exists('$(RimWorldDir)/RimWorldWin64_Data/Managed/Assembly-CSharp.dll')">$(RimWorldDir)/RimWorldWin64_Data/Managed</RimWorldManagedDir>
-    <InsightCanvasAssemblyPath Condition="'$(InsightCanvasAssemblyPath)' == ''">..\..\1.6\Assemblies\InsightCanvas.dll</InsightCanvasAssemblyPath>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/RimWorld/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/RimWorld/Waylith.dll') and Exists('$(RimWorldDir)/RimWorld/UnityStubs.dll')">$(RimWorldDir)/RimWorld</RimWorldAssembliesDir>
+    <InsightCanvasAssemblyPath Condition="'$(InsightCanvasAssemblyPath)' == ''">..\..\1.7\Assemblies\InsightCanvas.dll</InsightCanvasAssemblyPath>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\MinimalWindowExample.cs" />
-    <Compile Include="MinimalConsumerEntry.cs" />
-    <Reference Include="InsightCanvas">
-      <HintPath>$(InsightCanvasAssemblyPath)</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>$(RimWorldManagedDir)/UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <Compile Include="..\MinimalWindowExample.cs" /><Compile Include="MinimalConsumerEntry.cs" />
+    <Reference Include="InsightCanvas"><HintPath>$(InsightCanvasAssemblyPath)</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldAssembliesDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldAssembliesDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldAssembliesDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <Target Name="ValidateConsumerInputs" BeforeTargets="ResolveReferences">
-    <Error Condition="'$(RimWorldManagedDir)' == ''" Text="Set RimWorldDir to a RimWorld 1.6 installation before building this consumer sample." />
-    <Error Condition="!Exists('$(InsightCanvasAssemblyPath)')" Text="The released-style InsightCanvas.dll is missing from the repository package path." />
+    <Error Condition="'$(RimWorldAssembliesDir)' == '' or !Exists('$(RimWorldAssembliesDir)/Assembly-CSharp.dll') or !Exists('$(RimWorldAssembliesDir)/Waylith.dll') or !Exists('$(RimWorldAssembliesDir)/UnityStubs.dll')"
+      Text="RimWorld 1.7 Waylith assemblies are required. Set RimWorldDir to the 1.7 game directory (or RimWorldAssembliesDir to the folder with Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll)." />
+    <Error Condition="!Exists('$(InsightCanvasAssemblyPath)')" Text="Build the RimWorld 1.7 InsightCanvas.dll before compiling the consumer sample." />
   </Target>
 </Project>
+

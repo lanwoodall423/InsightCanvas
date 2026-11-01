@@ -1,6 +1,6 @@
 # Insight Canvas quickstart
 
-Insight Canvas 2.1.1 is an opt-in UI toolkit for RimWorld 1.6. It is a separate mod with package ID `lan.insightcanvas`; it does not globally reskin RimWorld and ordinary screens do not need `InsightModel`.
+Insight Canvas 2.1.1 is an opt-in UI toolkit for RimWorld 1.7. It is a separate mod with package ID `lan.insightcanvas`; it does not globally reskin RimWorld and ordinary screens do not need `InsightModel`.
 
 ## 1. Add the dependency
 
@@ -18,7 +18,7 @@ Install Insight Canvas alongside the consuming mod. In the consuming mod's `Abou
 </loadAfter>
 ```
 
-Reference the installed `1.6/Assemblies/InsightCanvas.dll` during compilation. Do not copy that DLL into the consuming mod; ship one framework assembly through the Insight Canvas mod. RimWorld and Unity assemblies are local build inputs and are not redistributed.
+Reference the installed `1.7/Assemblies/InsightCanvas.dll` during compilation. Do not copy that DLL into the consuming mod; ship one framework assembly through the Insight Canvas mod. Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll from the 1.7 game are local build inputs and are not redistributed.
 
 ## 2. Open a Window
 

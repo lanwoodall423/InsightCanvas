@@ -1,52 +1,38 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Library</OutputType>
-    <TargetFramework>net472</TargetFramework>
-    <RootNamespace>InsightCanvas.BridgeTools</RootNamespace>
-    <AssemblyName>InsightCanvas.BridgeTools</AssemblyName>
-    <LangVersion>9.0</LangVersion>
-    <Deterministic>true</Deterministic>
+    <OutputType>Library</OutputType><TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>InsightCanvas.BridgeTools</RootNamespace><AssemblyName>InsightCanvas.BridgeTools</AssemblyName>
+    <LangVersion>latest</LangVersion><Deterministic>true</Deterministic>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <OutputPath Condition="'$(RimWorldRoot)' != ''">$(RimWorldRoot)\Mods\InsightCanvas\1.6\BridgeTools\</OutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile><GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputPath Condition="'$(RimWorldRoot)' != ''">$(RimWorldRoot)\Mods\InsightCanvas\1.7\BridgeTools\</OutputPath>
     <OutputPath Condition="'$(RimWorldRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\..\artifacts\BridgeTools\InsightCanvas\</OutputPath>
-    <DebugType>none</DebugType>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <RimWorldRoot Condition="'$(RimWorldRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\..</RimWorldRoot>
+    <DebugType>none</DebugType><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RimWorldRoot Condition="'$(RimWorldRoot)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldRoot>
     <RimBridgeSdkPath Condition="'$(RimBridgeSdkPath)' == ''">$(RIMBRIDGE_SERVER_SDK_PATH)</RimBridgeSdkPath>
-    <InsightCanvasAssemblyPath Condition="'$(InsightCanvasAssemblyPath)' == ''">$(MSBuildThisFileDirectory)..\..\1.6\Assemblies\InsightCanvas.dll</InsightCanvasAssemblyPath>
+    <RimWorldDir Condition="'$(RimWorldDir)' == ''">$(RimWorldRoot)</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_ROOT)' != ''">$(RIMWORLD_ROOT)</RimWorldDir>
+    <RimWorldDir Condition="'$(RimWorldDir)' == '' and '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)</RimWorldDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/Waylith.dll') and Exists('$(RimWorldDir)/UnityStubs.dll')">$(RimWorldDir)</RimWorldAssembliesDir>
+    <RimWorldAssembliesDir Condition="'$(RimWorldAssembliesDir)' == '' and Exists('$(RimWorldDir)/RimWorld/Assembly-CSharp.dll') and Exists('$(RimWorldDir)/RimWorld/Waylith.dll') and Exists('$(RimWorldDir)/RimWorld/UnityStubs.dll')">$(RimWorldDir)/RimWorld</RimWorldAssembliesDir>
+    <InsightCanvasAssemblyPath Condition="'$(InsightCanvasAssemblyPath)' == ''">$(MSBuildThisFileDirectory)..\..\1.7\Assemblies\InsightCanvas.dll</InsightCanvasAssemblyPath>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>$(RimWorldRoot)\RimWorldWin64_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="InsightCanvas">
-      <HintPath>$(InsightCanvasAssemblyPath)</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <PackageReference Include="RimBridgeServer.Sdk" Version="2.0.0"
-                      Condition="'$(RimBridgeSdkPath)' == ''">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>compile;build;buildTransitive;analyzers</IncludeAssets>
-      <ExcludeAssets>runtime</ExcludeAssets>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldAssembliesDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldAssembliesDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldAssembliesDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="InsightCanvas"><HintPath>$(InsightCanvasAssemblyPath)</HintPath><Private>false</Private></Reference>
+    <PackageReference Include="RimBridgeServer.Sdk" Version="2.0.0" Condition="'$(RimBridgeSdkPath)' == ''">
+      <PrivateAssets>all</PrivateAssets><IncludeAssets>compile;build;buildTransitive;analyzers</IncludeAssets><ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <Reference Include="RimBridgeServer.Sdk" Condition="'$(RimBridgeSdkPath)' != ''">
-      <HintPath>$(RimBridgeSdkPath)</HintPath>
-      <Private>false</Private>
+      <HintPath>$(RimBridgeSdkPath)</HintPath><Private>false</Private>
     </Reference>
   </ItemGroup>
+  <Target Name="ValidateWaylithBridgeInputs" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(RimWorldAssembliesDir)' == '' or !Exists('$(RimWorldAssembliesDir)/Assembly-CSharp.dll') or !Exists('$(RimWorldAssembliesDir)/Waylith.dll') or !Exists('$(RimWorldAssembliesDir)/UnityStubs.dll')"
+      Text="RimWorld 1.7 Waylith assemblies are required. Set RimWorldDir to the 1.7 game directory (or RimWorldAssembliesDir to the folder with Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll)." />
+    <Error Condition="!Exists('$(InsightCanvasAssemblyPath)')" Text="Build RimWorld 1.7 InsightCanvas.dll before BridgeTools." />
+  </Target>
 </Project>
+

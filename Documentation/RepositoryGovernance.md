@@ -20,7 +20,7 @@ In **Settings > General > Pull Requests**, enable automatic deletion of head bra
 
 ## Repository metadata target
 
-- Description: `Composable, opt-in UI framework and design system for RimWorld 1.6 mod authors.`
+- Description: `Composable, opt-in UI framework and design system for RimWorld 1.7 mod authors.`
 - Topics: `rimworld`, `rimworld-mod`, `csharp`, `ui-framework`, `modding`, `game-ui`, `design-system`
 - Default branch: `main`
 - License: GNU General Public License v3.0, matching the checked-in canonical `LICENSE` and `NOTICE`.

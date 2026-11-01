@@ -1,6 +1,6 @@
 # Contributing to Insight Canvas
 
-Insight Canvas is a public framework mod for RimWorld 1.6. Contributions must preserve documented public APIs, serialization behavior, integration hooks, and downstream-mod compatibility unless a breaking change is explicitly proposed.
+Insight Canvas is a public framework mod for RimWorld 1.7. Contributions must preserve documented public APIs, serialization behavior, integration hooks, and downstream-mod compatibility unless a breaking change is explicitly proposed.
 
 ## Before opening a pull request
 
@@ -42,3 +42,8 @@ The repository's branch rules require pull requests and passing portable checks 
 - Keep GUI/Text state restoration local to each draw operation.
 - Prefer deterministic, bounded work for layout, diagnostics, virtualization, and snapshots.
 - Update the changelog and relevant adoption documentation for user-visible changes.
+
+
+## 1.7-only migration review
+
+Use a GitHub branch and pull request for changes. The selected validation engine is Local / ProjectNexus, not GitHub Actions. Validation declarations in the tracked ProjectNexus manifest are descriptive; they must be trusted independently by the local developer and are not permission to execute PR code on the host. A 1.7-compatible release requires a fresh Waylith build, consumer verification, and managed in-game test evidence.

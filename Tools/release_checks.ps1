@@ -199,11 +199,11 @@ function Invoke-FreshnessCheck {
         }
         $projectText = Get-Content -Raw -LiteralPath (Join-Path $repo 'Source/InsightCanvas.csproj')
         if ($projectText -match '<Private>true</Private>' -or ($projectText -match '<Reference Include=' -and $projectText -notmatch '<Private>false</Private>')) {
-            throw 'Source project must mark all RimWorld and Unity references Private=false.'
+            throw 'Source project must mark all RimWorld and Waylith references Private=false.'
         }
         foreach ($name in @('InsightCanvas.dll', 'InsightCanvas.xml')) {
             $built = Join-Path $temp $name
-            $checkedIn = Join-Path $repo "1.6/Assemblies/$name"
+            $checkedIn = Join-Path $repo "1.7/Assemblies/$name"
             if (-not (Test-Path -LiteralPath $built)) { throw "Release output missing $name" }
             if (-not (Test-Path -LiteralPath $checkedIn)) { throw "Checked-in runtime artifact missing $name" }
             $builtHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $built).Hash
@@ -229,7 +229,7 @@ function Invoke-Package {
     New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
     try {
         Copy-Item -LiteralPath (Join-Path $repo 'About') -Destination (Join-Path $stage 'About') -Recurse
-        Copy-Item -LiteralPath (Join-Path $repo '1.6') -Destination (Join-Path $stage '1.6') -Recurse
+        Copy-Item -LiteralPath (Join-Path $repo '1.7') -Destination (Join-Path $stage '1.7') -Recurse
         $loadFolders = Join-Path $repo 'LoadFolders.xml'
         if (Test-Path -LiteralPath $loadFolders) { Copy-Item -LiteralPath $loadFolders -Destination $stage }
         $files = @(Get-ChildItem -LiteralPath $stage -Recurse -File | Sort-Object FullName)
@@ -237,7 +237,7 @@ function Invoke-Package {
         if ($dlls.Count -ne 1 -or $dlls[0].Name -ne 'InsightCanvas.dll') { throw 'Package must contain exactly one framework DLL named InsightCanvas.dll.' }
         foreach ($file in $files) {
             $relative = $file.FullName.Substring($stage.Length + 1).Replace('\', '/')
-            if ($relative -notmatch '^(About/|1\.6/|LoadFolders\.xml$)') { throw "Unexpected runtime file: $relative" }
+            if ($relative -notmatch '^(About/|1\.7/|LoadFolders\.xml$)') { throw "Unexpected runtime file: $relative" }
             if ($file.Name -match '(?i)(Assembly-CSharp|UnityEngine|RimWorld).*\.dll$' -or ($file.Extension -ieq '.dll' -and $file.Name -ne 'InsightCanvas.dll')) { throw "Proprietary or unexpected DLL in package: $relative" }
         }
         if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }

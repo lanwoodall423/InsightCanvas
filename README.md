@@ -1,18 +1,20 @@
 # Insight Canvas
 
-Insight Canvas 2.1.1 is an opt-in composable UI toolkit and design system for RimWorld 1.6 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
+Insight Canvas 2.1.1 is an opt-in composable UI toolkit and design system for RimWorld 1.7 mod authors. It gives ordinary mod screens a cohesive visual language, responsive layout, scoped state, accessible controls, and lightweight polish without globally reskinning RimWorld or requiring `InsightModel`.
+
+**Migration status:** Insight Canvas now targets **RimWorld 1.7 / Waylith only**; support for RimWorld 1.6 is retired. The .NET 10 migration is a candidate, **not yet a verified 1.7 release**: rebuild the DLL against local 1.7 game assemblies and pass the exact ProjectNexus local validation gate before publishing. Historical 2.1.1 release notes describe the previous 1.6 artifact; never re-label that binary as Waylith-compatible. As of October 2026, RimWorld 1.7 is on Steam's unstable beta branch.
 
 Use it when a screen needs more than a pile of `Widgets.*` calls but should still feel native to RimWorld. Build an element tree once, provide stable IDs, and choose either a normal RimWorld `Window` or a caller-owned `Rect`. The document owns state and effects for that screen, so two windows do not leak selection, expansion, focus, scroll, theme, or transient feedback into one another.
 
 The installed mod includes **Feature Showcase**, a dogfooded demonstration application. Open it from **Mod settings > Insight Canvas > Open Feature Showcase** or from the development-mode **Insight Canvas > Open Feature Showcase** action. It covers overview, foundations, layout, controls, workspaces, data display, motion, accessibility, advanced widgets, and diagnostics.
 
-> **Feature Showcase image placeholder:** `Documentation/images/feature-showcase.png` — add an actual captured RimWorld 1.6 screenshot here before publication if visual onboarding is desired. No fabricated image is included.
+> **Feature Showcase image placeholder:** `Documentation/images/feature-showcase.png` — add an actual captured RimWorld 1.7 screenshot here before publication if visual onboarding is desired. No fabricated image is included.
 
 ## Installation and dependency behavior
 
-Insight Canvas supports RimWorld 1.6. Download a versioned ZIP from the repository's GitHub Releases page after owner publication; the release candidate package is built with `Tools/release_checks.ps1 -Command package`. Extract the archive as its own `Mods/InsightCanvas` directory and enable it in RimWorld's mod list.
+Insight Canvas supports RimWorld 1.7. Download a versioned ZIP from the repository's GitHub Releases page after owner publication; the release candidate package is built with `Tools/release_checks.ps1 -Command package`. Extract the archive as its own `Mods/InsightCanvas` directory and enable it in RimWorld's mod list.
 
-Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanvas`, targeting RimWorld 1.6. A consuming mod should install Insight Canvas as a separate mod and declare it explicitly in its own `About/About.xml`:
+Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanvas`, targeting RimWorld 1.7. A consuming mod should install Insight Canvas as a separate mod and declare it explicitly in its own `About/About.xml`:
 
 ```xml
 <modDependencies>
@@ -26,16 +28,16 @@ Insight Canvas is packaged as the RimWorld mod with package ID `lan.insightcanva
 </loadAfter>
 ```
 
-The dependency declares the required load relationship; the explicit `loadAfter` is useful when a consuming mod also has optional integration code. Reference `InsightCanvas.dll` from the installed mod's `1.6/Assemblies` directory at compile time:
+The dependency declares the required load relationship; the explicit `loadAfter` is useful when a consuming mod also has optional integration code. Reference `InsightCanvas.dll` from the installed mod's `1.7/Assemblies` directory at compile time:
 
 ```xml
 <Reference Include="InsightCanvas">
-  <HintPath>..\..\InsightCanvas\1.6\Assemblies\InsightCanvas.dll</HintPath>
+  <HintPath>..\..\InsightCanvas\1.7\Assemblies\InsightCanvas.dll</HintPath>
   <Private>false</Private>
 </Reference>
 ```
 
-Do not copy or bundle a second `InsightCanvas.dll` in the consumer package. RimWorld's proprietary assemblies are local build inputs and must not be redistributed.
+Do not copy or bundle a second `InsightCanvas.dll` in the consumer package. Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll from RimWorld are local build inputs and must not be redistributed.
 
 ## Why mod authors use it
 
@@ -214,13 +216,13 @@ Portable checks run with:
 dotnet run --project Tests/InsightCanvas.CoreTests.csproj --configuration Release
 ```
 
-The RimWorld assembly is a `net472` Release build and requires a local RimWorld 1.6 installation. Set `RimWorldDir` to that installation and run:
+The RimWorld assembly is a `net10.0` Release build and requires a local RimWorld 1.7 installation. Set `RimWorldDir` to that installation and run:
 
 ```powershell
 dotnet build Source/InsightCanvas.csproj --configuration Release --nologo
 ```
 
-The build writes `1.6/Assemblies/InsightCanvas.dll` and its XML documentation file.
+The build writes `1.7/Assemblies/InsightCanvas.dll` and its XML documentation file. The legacy 1.6 binary is intentionally absent until a new 1.7 build passes local validation.
 
 ## License
 

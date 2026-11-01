@@ -1,6 +1,6 @@
 # Insight Canvas integration
 
-Insight Canvas 2.1.1 is an opt-in, composable UI toolkit for RimWorld 1.6 (`lan.insightcanvas`). Ordinary screens do not require `InsightModel`; they are built from an element tree with stable IDs, a document-owned state store, and a scoped theme. The public tree uses explicit `Measure`, `Arrange`, and `Paint` phases and can be embedded or hosted by a normal RimWorld `Window`.
+Insight Canvas 2.1.1 is an opt-in, composable UI toolkit for RimWorld 1.7 (`lan.insightcanvas`). Ordinary screens do not require `InsightModel`; they are built from an element tree with stable IDs, a document-owned state store, and a scoped theme. The public tree uses explicit `Measure`, `Arrange`, and `Paint` phases and can be embedded or hosted by a normal RimWorld `Window`.
 
 Start with [`Quickstart.md`](Quickstart.md) for the shortest adoption path. Keep Insight Canvas installed as its own mod, declare `lan.insightcanvas` in the consuming mod's `<modDependencies>`, and reference the installed assembly at compile time without bundling a duplicate DLL.
 
@@ -204,3 +204,8 @@ The element retains the exact caller-owned `InsightModel`, `InsightView`, and `I
 ## Engine limitations
 
 RimWorld uses an outer IMGUI repaint loop. Insight Canvas keeps stable model work outside repaint through snapshots and caches, measures only the active responsive branch where possible, and bounds virtualized collections and graph work. It does not globally reskin the game and does not query maps or worlds from ordinary element paint code.
+
+
+## RimWorld 1.7 / Waylith compatibility note
+
+The initial Waylith migration preserves UnityEngine-namespaced UI APIs through UnityStubs.dll. It does not replace the working IMGUI renderer with a native Waylith renderer or change the documented public component contracts. Native rendering and jobs are optional roadmap candidates, pending measured benefits and ProjectNexus local acceptance.

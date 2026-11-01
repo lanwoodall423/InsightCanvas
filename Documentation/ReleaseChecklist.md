@@ -8,8 +8,8 @@ Use this checklist for each versioned release. A release is not complete until t
 - [ ] Public API compatibility passes against `PublicAPI.Shipped.txt`; compatible additions are reviewed in `PublicAPI.Unshipped.txt`.
 - [ ] Release version consistency check passes.
 - [ ] Canonical package script succeeds, package inspection passes, and the SHA-256 manifest exists.
-- [ ] Checked-in `1.6/Assemblies/InsightCanvas.dll` and XML pass the deterministic freshness comparison.
-- [ ] RimWorld 1.6 `net472` Release assembly builds with zero warnings and zero errors.
+- [ ] Checked-in `1.7/Assemblies/InsightCanvas.dll` and XML pass the deterministic freshness comparison.
+- [ ] RimWorld 1.7 `net10.0` Release assembly builds with zero warnings and zero errors.
 - [ ] DevBridge2 registers `insightcanvas-in-game-suite` with the canonical `insight-canvas` project alias and authenticated companion operation.
 - [ ] `rimtest affected --run --json` passes with current-source artifact freshness established.
 - [ ] The Feature Showcase companion report passes its ten-page rendering, interaction, semantic-view, diagnostics, and owner-cleanup assertions.
@@ -27,17 +27,22 @@ Use this checklist for each versioned release. A release is not complete until t
 - [ ] Semantic lifecycle tests cover independent contexts, root replacement, model/view/context replacement, accessibility/density/reduced motion, resize, duplicate IDs, contained errors, bounded diagnostics, overlay cleanup, and host close/reopen.
 - [ ] Semantic paint inherits the enclosing host owner without nesting owners and does not query maps/worlds during ordinary repaint.
 
+- [ ] The build references local 1.7 Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll, and does not redistribute them.
+- [ ] The 1.7 package contains no 1.6 folders or DLLs, and a new 1.7 build replaces the removed legacy artifact.
+- [ ] The exact upstream candidate receives trusted ProjectNexus local validation evidence, not a GitHub Actions substitute.
+- [ ] RimLiaison/DevBridge/RimBridgeServer compatibility is verified for 1.7 before accepting in-game Feature Showcase results.
+
 ## Adoption and package checks
 
 - [ ] README and Quickstart show Window, embedded, binding, theme, effects, and custom-rendering paths.
 - [ ] Integration documentation identifies Core UI, Effects and polish, and optional Advanced extensions.
-- [ ] Package ID remains `lan.insightcanvas`; supported game version remains RimWorld 1.6.
+- [ ] Package ID remains `lan.insightcanvas`; supported game version remains RimWorld 1.7.
 - [ ] Consumer dependency/load-order guidance names `lan.insightcanvas`.
 - [ ] The release package contains one framework DLL; consuming mods do not bundle a duplicate `InsightCanvas.dll`.
 - [ ] `Examples/MinimalConsumer/InsightCanvas.MinimalConsumer.csproj` compiles against the checked-in released-style `InsightCanvas.dll` without copying it into the sample output.
 - [ ] A clean extraction of the canonical ZIP produces the expected mod tree; a clean in-game install is manually verified.
 - [ ] RC and stable publication metadata, notes, package names, and checksums match `Documentation/ReleasePublication.md`.
-- [ ] Proprietary RimWorld/Unity DLLs are excluded from distribution.
+- [ ] Proprietary RimWorld/Waylith/UnityStubs DLLs are excluded from distribution.
 - [ ] Assembly version `2.1.1`, `About.xml` `<modVersion>`, README version, changelog entry, and release notes are synchronized.
 - [ ] Changelog includes migration notes for any breaking public API change.
 - [ ] GPLv3 is identified consistently in the repository and the canonical GPLv3 text is present in `LICENSE`.
